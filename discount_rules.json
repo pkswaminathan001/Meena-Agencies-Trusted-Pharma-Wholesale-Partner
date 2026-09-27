@@ -32,5 +32,10 @@
     "controlled": 0.0,
     "default": 15.0
   },
-  "customer_tiers": {}
+  "customer_tiers": {
+    "RET001": {
+      "tier": "Apex Partner",
+      "set_at": "27-SEP-2026 20:24"
+    }
+  }
 }

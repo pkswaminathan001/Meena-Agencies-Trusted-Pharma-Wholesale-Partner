@@ -334,13 +334,6 @@ import storage
 
 st.set_page_config(page_title="Meena Agencies", page_icon="logo.png", layout="wide", initial_sidebar_state="collapsed")
 
-# ── Crash guard: makes every button/action safe ──
-try:
-    import crash_guard
-    crash_guard.install_guard()
-except Exception as _cg_e:
-    print('crash_guard skipped:', _cg_e)
-
 # ── Access gate ──
 try:
     import auth_gate
@@ -3145,6 +3138,3 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
             import traceback
             st.code(traceback.format_exc(), language="python")
 
-# ═══════ SAFE MODE WRAPPER ═══════
-# Any unhandled error after this point is caught and logged, never crashes the UI.
-# Remove this wrapper if you want to see full tracebacks during debugging.

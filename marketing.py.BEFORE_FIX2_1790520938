@@ -242,7 +242,7 @@ def campaign_summary():
         "total_promos": len(promos),
         "active": len(active),
         "total_sent": total_sent,
-        "types": {t: len([p for p in promos if p.get("type") == t]) for t in PROMO_TYPES},
+        "types": {t: len([p for p in promos if p["type"] == t]) for t in PROMO_TYPES},
     }
 
 

@@ -21,21 +21,21 @@
       }
     },
     "27-SEP-2026": {
-      "events": 520,
+      "events": 606,
       "clicks": 0,
       "pages": {
-        "login": 54,
-        "Approvals": 44,
-        "Health": 43,
-        "Fraud": 43,
-        "AutoPOs": 43,
-        "Forecast": 43,
-        "WhatIf": 43,
-        "Intelligence": 43,
-        "Settings": 42,
-        "Audit": 42,
-        "Operations": 40,
-        "Accounting": 40
+        "login": 58,
+        "Approvals": 51,
+        "Health": 50,
+        "Fraud": 50,
+        "AutoPOs": 50,
+        "Forecast": 50,
+        "WhatIf": 50,
+        "Intelligence": 51,
+        "Settings": 50,
+        "Audit": 50,
+        "Operations": 48,
+        "Accounting": 48
       }
     }
   },

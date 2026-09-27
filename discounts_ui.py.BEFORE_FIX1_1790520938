@@ -488,28 +488,11 @@ def render_owner_discounts(orders, retailers):
 
             # Aggregate by medicine name
             if inv is not None:
-                # ── Defensive agg: only use columns that exist ──
-                _avail = set(inv.columns)
-                _spec = {}
-                for _c in ['selling_price', 'price', 'unit_price', 'rate', 'mrp']:
-                    if _c in _avail:
-                        _spec[_c] = 'mean'
-                        break
-                for _c in ['qty', 'quantity', 'units_sold']:
-                    if _c in _avail:
-                        _spec[_c] = 'sum'
-                        break
-                for _c in ['total', 'amount', 'line_total']:
-                    if _c in _avail:
-                        _spec[_c] = 'sum'
-                        break
-                _numeric = inv.select_dtypes(include='number').columns.tolist()
-                if not _spec and _numeric:
-                    _spec[_numeric[0]] = 'sum'
-                if _spec:
-                    agg = inv.groupby('medicine_name').agg(_spec).reset_index()
-                else:
-                    agg = inv[['medicine_name']].drop_duplicates().reset_index(drop=True)
+                agg = inv.groupby("medicine_name").agg({
+                    "quantity": "sum",
+                    "cost_price": "mean",
+                    "selling_price": "mean" if "selling_price" in inv.columns else "mean",
+                }).reset_index()
                 agg["category"], agg["cap"] = zip(*agg["medicine_name"].apply(classify))
                 agg = agg.sort_values("quantity", ascending=False)
 
