@@ -332,14 +332,6 @@ import storage
 
 st.set_page_config(page_title="Meena Agencies", page_icon="logo.png", layout="wide", initial_sidebar_state="collapsed")
 
-# ── Access gate ──
-try:
-    import auth_gate
-    if not auth_gate.check_password():
-        st.stop()
-except Exception as _e:
-    print('auth_gate skipped:', _e)
-
 # Fluid water-flow responsive theme — safe to remove, app works without it
 try:
     import fluid_theme as _fluid
