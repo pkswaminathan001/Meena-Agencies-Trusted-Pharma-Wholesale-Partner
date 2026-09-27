@@ -38,7 +38,6 @@ import responsive
 import medicine_cards
 import statement_png
 import statement_pdf
-import pandas as _pd_fc
 
 def track(user, action, page="", details=""):
     """Fire-and-forget audit event. Never raises."""

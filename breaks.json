@@ -960,8 +960,15 @@
   {
     "worker": "RET001",
     "start": "2026-09-27T19:28:16.982659",
-    "end": null,
-    "duration_min": 0,
+    "end": "2026-09-27T20:08:44.151930",
+    "duration_min": 40,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T20:08:48.519837",
+    "end": "2026-09-27T20:15:14.352374",
+    "duration_min": 6,
     "source": "hidden"
   }
 ]

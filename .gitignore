@@ -74,3 +74,4 @@ Thumbs.db
 !requirements.txt
 !README.md
 .streamlit/secrets.toml
+.streamlit/secrets.toml
