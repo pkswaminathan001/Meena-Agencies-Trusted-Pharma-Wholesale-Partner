@@ -1,0 +1,176 @@
+[
+  {
+    "order_id": "ORD-20260926171231-936",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0004",
+        "medicine": "Cough Syrup 100ml",
+        "batch": "B4304",
+        "qty": 10,
+        "price": 207.76
+      }
+    ],
+    "total": 2077.6,
+    "status": "Cancelled",
+    "placed_at": "26-SEP-2026 17:12",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "26-SEP-2026 17:12",
+    "approved_at": "26-SEP-2026 17:34",
+    "cancelled_at": "26-SEP-2026 17:43",
+    "cancel_reason": ""
+  },
+  {
+    "order_id": "ORD-20260926171231-936",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0004",
+        "medicine": "Cough Syrup 100ml",
+        "batch": "B4304",
+        "qty": 10,
+        "price": 207.76
+      }
+    ],
+    "total": 2077.6,
+    "status": "Approved",
+    "placed_at": "26-SEP-2026 17:12",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "26-SEP-2026 17:12",
+    "approved_at": "26-SEP-2026 17:34"
+  },
+  {
+    "order_id": "ORD-20260926172048-460",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0003",
+        "medicine": "Cetirizine 10mg",
+        "batch": "B6943",
+        "qty": 10,
+        "price": 390.36
+      },
+      {
+        "item_id": "MED0001",
+        "medicine": "Insulin Glargine",
+        "batch": "B1300",
+        "qty": 10,
+        "price": 358.3
+      },
+      {
+        "item_id": "MED0005",
+        "medicine": "Azithromycin 500mg",
+        "batch": "B6943",
+        "qty": 10,
+        "price": 596.96
+      }
+    ],
+    "total": 13456.2,
+    "status": "Cancelled",
+    "placed_at": "26-SEP-2026 17:20",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "26-SEP-2026 17:21",
+    "approved_at": "26-SEP-2026 17:34",
+    "cancelled_at": "26-SEP-2026 17:43",
+    "cancel_reason": ""
+  },
+  {
+    "order_id": "ORD-20260927010808-611",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      }
+    ],
+    "total": 5402.9,
+    "status": "Delivered",
+    "placed_at": "27-SEP-2026 01:08",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "27-SEP-2026 01:08",
+    "delivery_timeline": {
+      "Delivered": "27-SEP-2026 01:09"
+    }
+  },
+  {
+    "order_id": "ORD-20260927010808-611",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      }
+    ],
+    "total": 5402.9,
+    "status": "Delivered",
+    "placed_at": "27-SEP-2026 01:08",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "27-SEP-2026 01:08",
+    "delivery_timeline": {
+      "Delivered": "27-SEP-2026 01:09"
+    }
+  },
+  {
+    "order_id": "ORD-20260927190532-591",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      }
+    ],
+    "total": 5402.9,
+    "status": "Pending",
+    "placed_at": "27-SEP-2026 19:05",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "27-SEP-2026 19:05"
+  },
+  {
+    "order_id": "ORD-20260927190911-916",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      },
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      },
+      {
+        "item_id": "MED0186",
+        "medicine": "Amoxicillin 250mg",
+        "batch": "B3362",
+        "qty": 10,
+        "price": 540.29
+      }
+    ],
+    "total": 16208.699999999999,
+    "status": "Pending",
+    "placed_at": "27-SEP-2026 19:09",
+    "location": "Sri Balaji Medicals, Chennai",
+    "otp_verified_at": "27-SEP-2026 19:09"
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "owner": {
+    "id": "OWNER",
+    "name": "Swaminathan (Owner)",
+    "role": "owner",
+    "pin_hash": "8a2fe805a8c06f09714c66ceedd8860ef0999cfd8f9d6941863493c58454b7e4",
+    "active": true,
+    "created_at": "27-SEP-2026 01:24"
+  },
+  "staff": []
+}

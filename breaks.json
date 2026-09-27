@@ -1,0 +1,960 @@
+[
+  {
+    "worker": "RET001",
+    "start": "2026-09-14T21:52:29.890619",
+    "end": "2026-09-14T21:52:39.469537",
+    "duration_min": 0
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T11:46:57.765415",
+    "end": "2026-09-26T11:52:33.770399",
+    "duration_min": 5,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T11:52:49.688966",
+    "end": "2026-09-26T12:09:26.884633",
+    "duration_min": 16,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T12:09:32.532724",
+    "end": "2026-09-26T12:33:46.477159",
+    "duration_min": 24,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T12:34:46.074015",
+    "end": "2026-09-26T14:45:23.180339",
+    "duration_min": 130,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T14:45:30.791119",
+    "end": "2026-09-26T14:45:35.196704",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T14:46:10.412708",
+    "end": "2026-09-26T14:48:15.588598",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T14:48:59.892907",
+    "end": "2026-09-26T15:05:58.978723",
+    "duration_min": 16,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T15:06:00.893087",
+    "end": "2026-09-26T17:10:30.199377",
+    "duration_min": 124,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:11:15.449225",
+    "end": "2026-09-26T17:11:19.845321",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:11:21.114245",
+    "end": "2026-09-26T17:12:45.901206",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:12:52.458239",
+    "end": "2026-09-26T17:12:53.550217",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:13:19.484332",
+    "end": "2026-09-26T17:13:27.003316",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:13:28.477132",
+    "end": "2026-09-26T17:20:29.558639",
+    "duration_min": 7,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:20:31.941657",
+    "end": "2026-09-26T17:20:35.829490",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:25:20.571036",
+    "end": "2026-09-26T17:37:15.288487",
+    "duration_min": 11,
+    "source": "idle"
+  },
+  {
+    "worker": "RET003",
+    "start": "2026-09-26T17:30:50.297063",
+    "end": "2026-09-26T17:30:54.120767",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:37:16.489089",
+    "end": "2026-09-26T17:57:15.641073",
+    "duration_min": 19,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:57:16.581364",
+    "end": "2026-09-26T17:59:50.708630",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:59:52.197323",
+    "end": "2026-09-26T17:59:52.713772",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T17:59:58.598009",
+    "end": "2026-09-26T18:04:19.370696",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:04:20.747963",
+    "end": "2026-09-26T18:30:52.868637",
+    "duration_min": 26,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:32:18.591883",
+    "end": "2026-09-26T18:32:27.282097",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:32:30.318065",
+    "end": "2026-09-26T18:34:02.595954",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:34:13.237834",
+    "end": "2026-09-26T18:34:30.533052",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:34:55.089887",
+    "end": "2026-09-26T18:34:58.652257",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:38:15.573528",
+    "end": "2026-09-26T18:38:57.522438",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:38:59.072642",
+    "end": "2026-09-26T18:39:37.159792",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:39:41.164772",
+    "end": "2026-09-26T18:39:56.486140",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:40:06.886535",
+    "end": "2026-09-26T18:42:10.157252",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:42:12.811651",
+    "end": "2026-09-26T18:42:15.217004",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:42:24.331506",
+    "end": "2026-09-26T18:42:29.626354",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:42:34.213680",
+    "end": "2026-09-26T18:44:43.736048",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:44:49.908590",
+    "end": "2026-09-26T18:46:30.698596",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:46:31.832239",
+    "end": "2026-09-26T18:47:11.180695",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:47:20.311287",
+    "end": "2026-09-26T18:47:23.366021",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:47:28.783695",
+    "end": "2026-09-26T18:47:36.881664",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:47:39.285863",
+    "end": "2026-09-26T18:49:13.229661",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:49:49.874166",
+    "end": "2026-09-26T18:51:05.756826",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:51:06.515242",
+    "end": "2026-09-26T18:51:35.601739",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:51:40.600174",
+    "end": "2026-09-26T18:51:43.074286",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:51:45.075001",
+    "end": "2026-09-26T18:52:31.523476",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:52:33.607873",
+    "end": "2026-09-26T18:52:51.062955",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:52:55.061243",
+    "end": "2026-09-26T18:55:57.414035",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:55:58.602531",
+    "end": "2026-09-26T18:56:25.380125",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:56:32.380897",
+    "end": "2026-09-26T18:56:32.636428",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T18:56:35.636620",
+    "end": "2026-09-26T19:00:30.912891",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:00:37.914161",
+    "end": "2026-09-26T19:00:38.071688",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:00:43.100356",
+    "end": "2026-09-26T19:02:11.066665",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:02:12.109607",
+    "end": "2026-09-26T19:02:34.912313",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:02:52.461619",
+    "end": "2026-09-26T19:04:08.206879",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:04:09.420185",
+    "end": "2026-09-26T19:10:32.131825",
+    "duration_min": 6,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:10:42.511526",
+    "end": "2026-09-26T19:11:14.440933",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:13:45.358731",
+    "end": "2026-09-26T19:13:49.362215",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:14:00.911017",
+    "end": "2026-09-26T19:14:02.749787",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:14:07.751847",
+    "end": "2026-09-26T19:14:07.828919",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:14:10.509942",
+    "end": "2026-09-26T19:16:05.531050",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:16:16.188494",
+    "end": "2026-09-26T19:16:23.213394",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:16:25.067003",
+    "end": "2026-09-26T19:17:38.686876",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:17:56.710998",
+    "end": "2026-09-26T19:17:59.582300",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:18:07.317629",
+    "end": "2026-09-26T19:18:08.009661",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:18:10.582702",
+    "end": "2026-09-26T19:19:55.710794",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:20:10.083072",
+    "end": "2026-09-26T19:20:33.014109",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:20:38.800973",
+    "end": "2026-09-26T19:20:44.047457",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:20:47.975332",
+    "end": "2026-09-26T19:20:51.893583",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:20:56.887065",
+    "end": "2026-09-26T19:22:05.229679",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:22:06.375527",
+    "end": "2026-09-26T19:23:43.101021",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:24:19.601334",
+    "end": "2026-09-26T19:24:57.899655",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:24:59.612678",
+    "end": "2026-09-26T19:25:04.345837",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:25:08.566277",
+    "end": "2026-09-26T19:27:24.515017",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:27:25.347648",
+    "end": "2026-09-26T19:32:16.983647",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:32:18.457744",
+    "end": "2026-09-26T19:33:26.375833",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:33:52.670716",
+    "end": "2026-09-26T19:33:53.936700",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:33:58.220445",
+    "end": "2026-09-26T19:36:25.653298",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T19:36:41.872217",
+    "end": "2026-09-26T22:26:57.550971",
+    "duration_min": 170,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:27:10.767896",
+    "end": "2026-09-26T22:28:39.893193",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:28:41.707951",
+    "end": "2026-09-26T22:28:56.163672",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:28:57.917496",
+    "end": "2026-09-26T22:34:27.204327",
+    "duration_min": 5,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:34:59.195848",
+    "end": "2026-09-26T22:35:14.613895",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:35:23.789757",
+    "end": "2026-09-26T22:36:01.097850",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-26T22:36:03.283578",
+    "end": "2026-09-27T00:59:24.893338",
+    "duration_min": 143,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T00:59:28.972227",
+    "end": "2026-09-27T01:08:20.701197",
+    "duration_min": 8,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:08:28.575621",
+    "end": "2026-09-27T01:08:36.540232",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:09:08.651498",
+    "end": "2026-09-27T01:10:14.417213",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:41:19.685017",
+    "end": "2026-09-27T01:41:41.585830",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:42:05.108635",
+    "end": "2026-09-27T01:55:29.919257",
+    "duration_min": 13,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:56:14.397128",
+    "end": "2026-09-27T01:56:29.268900",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T01:58:13.322653",
+    "end": "2026-09-27T02:03:00.135239",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T02:03:38.141436",
+    "end": "2026-09-27T02:03:49.450416",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T02:04:28.866582",
+    "end": "2026-09-27T02:34:55.095351",
+    "duration_min": 30,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T02:34:56.857585",
+    "end": "2026-09-27T02:34:58.283678",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:40:31.846624",
+    "end": "2026-09-27T17:40:40.529362",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:40:43.744688",
+    "end": "2026-09-27T17:40:53.211547",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:42:19.867150",
+    "end": "2026-09-27T17:47:57.641265",
+    "duration_min": 5,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:48:44.815719",
+    "end": "2026-09-27T17:49:37.025603",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:49:37.415156",
+    "end": "2026-09-27T17:50:10.046413",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:50:36.461908",
+    "end": "2026-09-27T17:51:35.522912",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:51:38.264153",
+    "end": "2026-09-27T17:52:07.269477",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:52:24.718784",
+    "end": "2026-09-27T17:55:51.877201",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:55:53.016158",
+    "end": "2026-09-27T17:56:39.562283",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:56:43.745411",
+    "end": "2026-09-27T17:57:44.870420",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:57:47.839019",
+    "end": "2026-09-27T17:58:32.788107",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:58:35.919566",
+    "end": "2026-09-27T17:59:20.004307",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T17:59:20.924195",
+    "end": "2026-09-27T17:59:54.285685",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:00:25.517648",
+    "end": "2026-09-27T18:00:33.647923",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:00:47.626565",
+    "end": "2026-09-27T18:06:17.146696",
+    "duration_min": 5,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:06:17.791356",
+    "end": "2026-09-27T18:06:19.066341",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:06:21.841209",
+    "end": "2026-09-27T18:09:51.400219",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:10:04.279957",
+    "end": "2026-09-27T18:11:08.592196",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:11:09.997994",
+    "end": "2026-09-27T18:11:23.580358",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:11:25.237540",
+    "end": "2026-09-27T18:11:25.916750",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:11:32.992147",
+    "end": "2026-09-27T18:12:12.896288",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:12:14.200784",
+    "end": "2026-09-27T18:12:16.191754",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:12:17.618963",
+    "end": "2026-09-27T18:12:21.545216",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:12:25.392117",
+    "end": "2026-09-27T18:17:11.279789",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:17:18.451272",
+    "end": "2026-09-27T18:17:30.084692",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:17:31.628394",
+    "end": "2026-09-27T18:20:10.527429",
+    "duration_min": 2,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:20:30.007491",
+    "end": "2026-09-27T18:21:44.094466",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:21:45.067412",
+    "end": "2026-09-27T18:22:27.982859",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:22:39.331744",
+    "end": "2026-09-27T18:22:42.629619",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:22:49.661784",
+    "end": "2026-09-27T18:22:58.130612",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:23:03.206269",
+    "end": "2026-09-27T18:24:01.696524",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:24:03.005024",
+    "end": "2026-09-27T18:24:12.857896",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:24:15.907552",
+    "end": "2026-09-27T18:24:50.984909",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:24:59.387809",
+    "end": "2026-09-27T18:25:28.641782",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:25:30.481843",
+    "end": "2026-09-27T18:27:03.526358",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:27:04.455987",
+    "end": "2026-09-27T18:30:52.760375",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:30:53.792108",
+    "end": "2026-09-27T18:34:46.915562",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:34:50.917477",
+    "end": "2026-09-27T18:34:55.630805",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:34:57.245487",
+    "end": "2026-09-27T18:38:52.997968",
+    "duration_min": 3,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:38:54.115279",
+    "end": "2026-09-27T18:39:36.175277",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:39:37.141913",
+    "end": "2026-09-27T18:44:08.691678",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:44:10.045447",
+    "end": "2026-09-27T18:44:43.946950",
+    "duration_min": 0,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:44:51.597632",
+    "end": "2026-09-27T18:46:01.605826",
+    "duration_min": 1,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:46:12.236055",
+    "end": "2026-09-27T18:57:52.314118",
+    "duration_min": 11,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T18:58:00.139736",
+    "end": "2026-09-27T19:02:02.217012",
+    "duration_min": 4,
+    "source": "hidden"
+  },
+  {
+    "worker": "RET001",
+    "start": "2026-09-27T19:02:25.804163",
+    "end": null,
+    "duration_min": 0,
+    "source": "hidden"
+  }
+]

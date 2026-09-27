@@ -1,0 +1,31 @@
+[
+  {
+    "id": "PROMO-260927021724-2C04",
+    "title": "Monsoon Health Drive",
+    "type": "seasonal",
+    "public_text": "Stock up on ORS, Zinc, and Antibiotics for the monsoon season. Special offers for our valued retailers.",
+    "category": "seasonal_medicines",
+    "extra_discount_pct": 3.0,
+    "audience": "all",
+    "target_retailers": [],
+    "valid_from": "2026-09-27",
+    "valid_until": "2026-10-17",
+    "active": true,
+    "created_at": "27-SEP-2026 02:17",
+    "sent_to": []
+  },
+  {
+    "id": "P1790510475",
+    "title": "Monsoon Health Drive",
+    "segment": "all",
+    "offer_text": "Stock up on ORS, Zinc, and Antibiotics this monsoon.",
+    "badge_lines": [
+      "MONSOON SPECIAL",
+      "12% OFF"
+    ],
+    "valid_until": "17-Oct-2026",
+    "kind": "weekly",
+    "created_at": "27-SEP-2026 17:31",
+    "status": "DRAFT"
+  }
+]

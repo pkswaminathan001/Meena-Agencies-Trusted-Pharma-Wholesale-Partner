@@ -1,0 +1,450 @@
+[
+  {
+    "entry_id": "JV-SEED-0001",
+    "date": "2026-08-27T23:50:30.750542",
+    "date_display": "27-AUG-2026",
+    "description": "Opening balances brought forward",
+    "ref": "OPENING-2026",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "1000",
+        "account_name": "Cash A/c",
+        "debit": 500000,
+        "credit": 0,
+        "narration": "Opening cash in hand"
+      },
+      {
+        "account_code": "1010",
+        "account_name": "Bank A/c",
+        "debit": 200000,
+        "credit": 0,
+        "narration": "Opening bank balance"
+      },
+      {
+        "account_code": "1100",
+        "account_name": "Sundry Debtors",
+        "debit": 360000,
+        "credit": 0,
+        "narration": "Opening debtors (RET001+002+003)"
+      },
+      {
+        "account_code": "1200",
+        "account_name": "Closing Stock",
+        "debit": 400000,
+        "credit": 0,
+        "narration": "Opening stock valuation"
+      },
+      {
+        "account_code": "2000",
+        "account_name": "Sundry Creditors",
+        "debit": 0,
+        "credit": 200000,
+        "narration": "Opening creditors"
+      },
+      {
+        "account_code": "3000",
+        "account_name": "Capital A/c",
+        "debit": 0,
+        "credit": 1260000,
+        "narration": "Capital brought in by owner"
+      }
+    ],
+    "total_debit": 1460000,
+    "total_credit": 1460000
+  },
+  {
+    "entry_id": "JV-SEED-0002",
+    "date": "2026-09-01T23:50:30.750582",
+    "date_display": "01-SEP-2026",
+    "description": "Credit purchase from Sun Pharma \u2014 Paracetamol + Amoxicillin",
+    "ref": "PO-SUN-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "5000",
+        "account_name": "Purchases A/c",
+        "debit": 50000,
+        "credit": 0,
+        "narration": "Goods purchased on credit"
+      },
+      {
+        "account_code": "2200",
+        "account_name": "GST Input Credit",
+        "debit": 6000,
+        "credit": 0,
+        "narration": "GST input credit @ 12%"
+      },
+      {
+        "account_code": "2000",
+        "account_name": "Sundry Creditors",
+        "debit": 0,
+        "credit": 56000,
+        "narration": "Payable to Sun Pharma"
+      }
+    ],
+    "total_debit": 56000,
+    "total_credit": 56000
+  },
+  {
+    "entry_id": "JV-SEED-0003",
+    "date": "2026-09-04T23:50:30.750593",
+    "date_display": "04-SEP-2026",
+    "description": "Credit purchase from Cipla \u2014 Azithromycin + Cough Syrup",
+    "ref": "PO-CIPLA-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "5000",
+        "account_name": "Purchases A/c",
+        "debit": 40000,
+        "credit": 0,
+        "narration": "Goods purchased on credit"
+      },
+      {
+        "account_code": "2200",
+        "account_name": "GST Input Credit",
+        "debit": 4800,
+        "credit": 0,
+        "narration": "GST input credit @ 12%"
+      },
+      {
+        "account_code": "2000",
+        "account_name": "Sundry Creditors",
+        "debit": 0,
+        "credit": 44800,
+        "narration": "Payable to Cipla"
+      }
+    ],
+    "total_debit": 44800,
+    "total_credit": 44800
+  },
+  {
+    "entry_id": "JV-SEED-0004",
+    "date": "2026-09-06T23:50:30.750665",
+    "date_display": "06-SEP-2026",
+    "description": "Cash sale over counter \u2014 walk-in customer",
+    "ref": "CS-2026-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "1000",
+        "account_name": "Cash A/c",
+        "debit": 15680,
+        "credit": 0,
+        "narration": "Cash received from customer"
+      },
+      {
+        "account_code": "4000",
+        "account_name": "Sales A/c",
+        "debit": 0,
+        "credit": 14000,
+        "narration": "Sales"
+      },
+      {
+        "account_code": "2100",
+        "account_name": "GST Output Payable",
+        "debit": 0,
+        "credit": 1680,
+        "narration": "GST output @ 12%"
+      }
+    ],
+    "total_debit": 15680,
+    "total_credit": 15680
+  },
+  {
+    "entry_id": "JV-SEED-0005",
+    "date": "2026-09-11T23:50:30.750676",
+    "date_display": "11-SEP-2026",
+    "description": "Payment received from Sri Balaji Medicals via NEFT",
+    "ref": "PAY-RET001-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "1010",
+        "account_name": "Bank A/c",
+        "debit": 50000,
+        "credit": 0,
+        "narration": "NEFT credited to bank"
+      },
+      {
+        "account_code": "1100",
+        "account_name": "Sundry Debtors",
+        "debit": 0,
+        "credit": 50000,
+        "narration": "Dues reduced"
+      }
+    ],
+    "total_debit": 50000,
+    "total_credit": 50000
+  },
+  {
+    "entry_id": "JV-SEED-0006",
+    "date": "2026-09-14T23:50:30.750684",
+    "date_display": "14-SEP-2026",
+    "description": "Payment made to Sun Pharma via NEFT",
+    "ref": "PAY-SUN-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "2000",
+        "account_name": "Sundry Creditors",
+        "debit": 56000,
+        "credit": 0,
+        "narration": "Creditors reduced"
+      },
+      {
+        "account_code": "1010",
+        "account_name": "Bank A/c",
+        "debit": 0,
+        "credit": 56000,
+        "narration": "NEFT paid"
+      }
+    ],
+    "total_debit": 56000,
+    "total_credit": 56000
+  },
+  {
+    "entry_id": "JV-SEED-0007",
+    "date": "2026-09-16T23:50:30.750691",
+    "date_display": "16-SEP-2026",
+    "description": "Staff salary paid for the month",
+    "ref": "SAL-2026-09",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "6000",
+        "account_name": "Salary A/c",
+        "debit": 25000,
+        "credit": 0,
+        "narration": "Salaries to staff"
+      },
+      {
+        "account_code": "1000",
+        "account_name": "Cash A/c",
+        "debit": 0,
+        "credit": 25000,
+        "narration": "Cash paid"
+      }
+    ],
+    "total_debit": 25000,
+    "total_credit": 25000
+  },
+  {
+    "entry_id": "JV-SEED-0008",
+    "date": "2026-09-18T23:50:30.750697",
+    "date_display": "18-SEP-2026",
+    "description": "Warehouse rent paid",
+    "ref": "RENT-2026-09",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "6100",
+        "account_name": "Rent A/c",
+        "debit": 15000,
+        "credit": 0,
+        "narration": "Monthly warehouse rent"
+      },
+      {
+        "account_code": "1010",
+        "account_name": "Bank A/c",
+        "debit": 0,
+        "credit": 15000,
+        "narration": "Paid by bank"
+      }
+    ],
+    "total_debit": 15000,
+    "total_credit": 15000
+  },
+  {
+    "entry_id": "JV-SEED-0009",
+    "date": "2026-09-21T23:50:30.750703",
+    "date_display": "21-SEP-2026",
+    "description": "Electricity bill paid \u2014 Tamil Nadu EB",
+    "ref": "EB-2026-09",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "6200",
+        "account_name": "Electricity A/c",
+        "debit": 3500,
+        "credit": 0,
+        "narration": "EB bill"
+      },
+      {
+        "account_code": "1000",
+        "account_name": "Cash A/c",
+        "debit": 0,
+        "credit": 3500,
+        "narration": "Cash paid"
+      }
+    ],
+    "total_debit": 3500,
+    "total_credit": 3500
+  },
+  {
+    "entry_id": "JV-SEED-0010",
+    "date": "2026-09-23T23:50:30.750709",
+    "date_display": "23-SEP-2026",
+    "description": "Sales return from Sri Balaji Medicals \u2014 damaged stock",
+    "ref": "SR-2026-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "4100",
+        "account_name": "Sales Returns A/c",
+        "debit": 5000,
+        "credit": 0,
+        "narration": "Sales return"
+      },
+      {
+        "account_code": "2100",
+        "account_name": "GST Output Payable",
+        "debit": 600,
+        "credit": 0,
+        "narration": "GST reversed"
+      },
+      {
+        "account_code": "1100",
+        "account_name": "Sundry Debtors",
+        "debit": 0,
+        "credit": 5600,
+        "narration": "Debit note issued"
+      }
+    ],
+    "total_debit": 5600,
+    "total_credit": 5600
+  },
+  {
+    "entry_id": "JV-SEED-0011",
+    "date": "2026-09-24T23:50:30.750716",
+    "date_display": "24-SEP-2026",
+    "description": "Purchase return to Cipla \u2014 near-expiry stock",
+    "ref": "PR-2026-001",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "2000",
+        "account_name": "Sundry Creditors",
+        "debit": 2240,
+        "credit": 0,
+        "narration": "Creditors reduced"
+      },
+      {
+        "account_code": "5100",
+        "account_name": "Purchase Returns A/c",
+        "debit": 0,
+        "credit": 2000,
+        "narration": "Purchase return"
+      },
+      {
+        "account_code": "2200",
+        "account_name": "GST Input Credit",
+        "debit": 0,
+        "credit": 240,
+        "narration": "GST input reversed"
+      }
+    ],
+    "total_debit": 2240,
+    "total_credit": 2240
+  },
+  {
+    "entry_id": "JV-SEED-0012",
+    "date": "2026-09-25T23:50:30.750725",
+    "date_display": "25-SEP-2026",
+    "description": "Airtel Business Broadband \u2014 monthly bill",
+    "ref": "AIRTEL-2026-09",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "6300",
+        "account_name": "Telephone & Internet",
+        "debit": 1800,
+        "credit": 0,
+        "narration": "Internet + phone"
+      },
+      {
+        "account_code": "1010",
+        "account_name": "Bank A/c",
+        "debit": 0,
+        "credit": 1800,
+        "narration": "Paid by bank"
+      }
+    ],
+    "total_debit": 1800,
+    "total_credit": 1800
+  },
+  {
+    "entry_id": "JV-SEED-0013",
+    "date": "2026-09-25T23:50:30.750731",
+    "date_display": "25-SEP-2026",
+    "description": "Transport charges paid for delivery van",
+    "ref": "TRANS-2026-09",
+    "source": "SEED",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "6400",
+        "account_name": "Transport & Freight",
+        "debit": 4200,
+        "credit": 0,
+        "narration": "Delivery van diesel"
+      },
+      {
+        "account_code": "1000",
+        "account_name": "Cash A/c",
+        "debit": 0,
+        "credit": 4200,
+        "narration": "Cash paid"
+      }
+    ],
+    "total_debit": 4200,
+    "total_credit": 4200
+  },
+  {
+    "entry_id": "JV-20260926233959-0001",
+    "date": "2026-09-26T23:39:59.967512",
+    "date_display": "26-SEP-2026",
+    "description": "Credit sale to Sri Balaji Medicals (Order ORD-20260926171231-936)",
+    "ref": "ORD-20260926171231-936",
+    "source": "AUTO_ORDER",
+    "user": "OWNER",
+    "lines": [
+      {
+        "account_code": "1100",
+        "account_name": "Sundry Debtors",
+        "debit": 2326.91,
+        "credit": 0,
+        "narration": "Being amount due from Sri Balaji Medicals"
+      },
+      {
+        "account_code": "4000",
+        "account_name": "Sales A/c",
+        "debit": 0,
+        "credit": 2077.6,
+        "narration": "Being sales of goods"
+      },
+      {
+        "account_code": "2100",
+        "account_name": "GST Output Payable",
+        "debit": 0,
+        "credit": 249.31,
+        "narration": "Being GST @ 12% on sale"
+      }
+    ],
+    "total_debit": 2326.91,
+    "total_credit": 2326.91
+  }
+]

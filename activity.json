@@ -1,0 +1,368 @@
+[
+  {
+    "ts": "2026-09-14T21:47:57.086264",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T21:48:07.876170",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T21:48:12.153783",
+    "worker": "OWNER",
+    "action": "AI_YEARLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T21:48:14.695271",
+    "worker": "OWNER",
+    "action": "AI_MONTHLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T21:48:18.172272",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T21:48:20.391837",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T22:02:12.745652",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T22:02:15.693465",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T22:04:43.282569",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-14T22:04:55.762640",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T11:48:27.426325",
+    "worker": "OWNER",
+    "action": "AI_YEARLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T11:48:31.586628",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T12:34:24.445228",
+    "worker": "RET001",
+    "action": "LOGOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:16:18.892443",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:16:26.264090",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:16:30.069608",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:17:55.903674",
+    "worker": "OWNER",
+    "action": "AI_YEARLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:18:00.997457",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:18:03.851407",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:24:43.348688",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:29:34.550110",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:30:01.816863",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:30:09.833925",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:30:40.629439",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:30:52.543877",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:31:11.508143",
+    "worker": "OWNER",
+    "action": "AI_MONTHLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:32:31.254828",
+    "worker": "OWNER",
+    "action": "AI_YEARLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:34:09.249604",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:34:37.770435",
+    "worker": "OWNER",
+    "action": "AI_MONTHLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:35:51.930734",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:36:04.234754",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:37:38.704254",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:37:39.621292",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:37:57.958249",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:38:30.526926",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:40:33.854190",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:40:34.756600",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:40:35.757649",
+    "worker": "OWNER",
+    "action": "AI_WEEKLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:40:38.649486",
+    "worker": "OWNER",
+    "action": "AI_MONTHLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T13:40:47.346198",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T14:13:24.622122",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T14:13:25.431639",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T14:13:29.092113",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T17:08:11.098702",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T17:12:49.950566",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260926171231-936 total=\u20b92078"
+  },
+  {
+    "ts": "2026-09-26T17:12:51.177168",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260926171231-936 total=\u20b92078"
+  },
+  {
+    "ts": "2026-09-26T17:21:17.888235",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260926172048-460 total=\u20b913456"
+  },
+  {
+    "ts": "2026-09-26T17:31:04.276042",
+    "worker": "RET003",
+    "action": "LOGOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T18:23:41.802487",
+    "worker": "RET001",
+    "action": "LOGOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T18:30:56.248968",
+    "worker": "RET001",
+    "action": "LOGOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T18:41:30.848059",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T19:11:18.396027",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-26T19:23:58.931459",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T01:08:39.804156",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260927010808-611 total=\u20b95403"
+  },
+  {
+    "ts": "2026-09-27T01:08:45.757465",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260927010808-611 total=\u20b95403"
+  },
+  {
+    "ts": "2026-09-27T01:18:17.525492",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T01:41:47.545405",
+    "worker": "RET001",
+    "action": "LOGOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T18:46:04.545013",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T19:05:43.681135",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260927190532-591 total=\u20b95403"
+  },
+  {
+    "ts": "2026-09-27T19:09:26.589301",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260927190911-916 total=\u20b916209"
+  },
+  {
+    "ts": "2026-09-27T19:09:26.664747",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20260927190911-916 total=\u20b916209"
+  }
+]

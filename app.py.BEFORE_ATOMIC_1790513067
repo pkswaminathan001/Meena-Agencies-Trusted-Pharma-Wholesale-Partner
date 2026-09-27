@@ -1,0 +1,3045 @@
+import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
+import pandas as pd
+from datetime import datetime, timedelta
+import json, os, hashlib, random, string, time
+from auto_tracker import inject_tracker
+# BROKEN-IMPORT-REMOVED: # (broken accounting import removed — was crashing app)
+from breaks import log_lock, log_unlock, get_current_break, get_today_breaks, get_worker_summary
+from intelligence import load_activity, log_activity, calculate_worker_metrics, detect_breaks, analyze_workload_balance, generate_daily_report, generate_weekly_insights, psychological_profile, strategic_recommendations, generate_monthly_report, generate_yearly_report, analyze_worker_problems, compare_to_industry, INDUSTRY_BENCHMARKS
+from security import hash_secret, verify_secret, log_action, check_rate, is_weak_pin, check_session_timeout, SESSION_TIMEOUT, read_audit
+from oi import calculate_health_score, detect_fraud, predict_demand, generate_purchase_orders, answer_whatif, decide_order_probabilistic
+from reports_visual import render_kpi_strip, render_health_bars, render_action_cards, render_root_cause, render_insight, render_health_gauge, render_trend_line, render_retailer_scorecard
+import order_intelligence
+import delivery_ui
+import staff_ui
+import login_ui
+import discounts
+import discounts_ui
+import navigation
+import marketing
+import marketing_ui
+import rbac
+
+# ─── Audit Pro integration ───
+from audit_pro import log_event, read_events, verify_chain, user_summary, all_users_summary, owner_wipe
+from analytics_engine import full_report as analytics_full_report
+from operations import (record_payment, cancel_order, add_stock, search_orders, generate_invoice)
+import forecast_pro
+import catalog
+import invoice_pro
+import animations
+import responsive
+import medicine_cards
+import statement_png
+import statement_pdf
+
+def track(user, action, page="", details=""):
+    """Fire-and-forget audit event. Never raises."""
+    try:
+        log_event(user, action, page=page, details=details)
+    except Exception:
+        pass
+
+def current_user_key():
+    """Best-effort identity from session_state."""
+    try:
+        if st.session_state.get("role") == "owner":
+            return "OWNER"
+        r = st.session_state.get("retailer")
+        if r:
+            return r.get("id", "UNKNOWN")
+    except Exception:
+        pass
+    return "GUEST"
+
+def track_page(page_name):
+    """Record a page view only once per tab switch (dedup by session)."""
+    _key = f"_last_page_{page_name}"
+    import time as _t
+    _now = _t.time()
+    _last = st.session_state.get(_key, 0)
+    if _now - _last > 30:  # only log if 30s+ since last view of this tab
+        st.session_state[_key] = _now
+        track(current_user_key(), "PAGE_VIEW", page=page_name)
+
+
+
+# ═══════════════════════════════════════════════════════════
+# BEAUTIFUL LOGIN PAGE — Meena Agencies branded
+# ═══════════════════════════════════════════════════════════
+def render_login_hero():
+    """Animated login page hero with rotating Lord Murugan Vel logo."""
+    import base64
+    from pathlib import Path as _PL
+
+    # Load logo as base64 (self-contained)
+    logo_b64 = ""
+    if _PL("logo.png").exists():
+        try:
+            logo_b64 = base64.b64encode(_PL("logo.png").read_bytes()).decode()
+        except Exception:
+            pass
+
+    st.markdown(f"""
+    <style>
+    /* ─── Divine gradient background ─── */
+    .login-bg {{
+        padding-bottom: 5px;
+        background: radial-gradient(ellipse at top, #1a1f3a 0%, #0a0e27 60%);
+        background-attachment: fixed;
+        min-height: 80vh;
+        position: relative;
+        overflow: hidden;
+    }}
+    .login-bg::before {{
+        content: '';
+        position: absolute;
+        top: -20%; left: 50%;
+        transform: translateX(-50%);
+        width: 800px; height: 800px;
+        background: radial-gradient(circle, rgba(255,181,71,0.15) 0%, transparent 60%);
+        animation: divineGlow 6s ease-in-out infinite;
+        pointer-events: none;
+    }}
+    .login-bg::after {{
+        content: '';
+        position: absolute;
+        bottom: -10%; left: 50%;
+        transform: translateX(-50%);
+        width: 600px; height: 600px;
+        background: radial-gradient(circle, rgba(123,97,255,0.12) 0%, transparent 60%);
+        animation: divineGlow 8s ease-in-out infinite reverse;
+        pointer-events: none;
+    }}
+    @keyframes divineGlow {{
+        0%, 100% {{ opacity: 0.6; transform: translateX(-50%) scale(1); }}
+        50%      {{ opacity: 1; transform: translateX(-50%) scale(1.15); }}
+    }}
+
+    /* ─── Rotating logo ─── */
+    .rotating-logo {{
+        width: 200px !important; height: 200px !important;
+        border-radius: 50%;
+        animation: gentleSpin 20s linear infinite, logoPulse 4s ease-in-out infinite;
+        box-shadow:
+            0 0 40px rgba(255,181,71,0.6),
+            0 0 80px rgba(0,212,255,0.4),
+            0 0 120px rgba(123,97,255,0.3);
+        border: 4px solid rgba(255,181,71,0.5);
+        display: block;
+        margin: 0 auto 20px auto;
+    }}
+    @keyframes gentleSpin {{
+        from {{ transform: rotate(0deg) scale(1); }}
+        to   {{ transform: rotate(360deg) scale(1); }}
+    }}
+    @keyframes logoPulse {{
+        0%, 100% {{ filter: brightness(1) saturate(1); }}
+        50%      {{ filter: brightness(1.2) saturate(1.3); }}
+    }}
+
+    /* ─── Welcome banner ─── */
+    .welcome-banner {{
+        text-align: center;
+        animation: fadeInUp 0.8s ease-out;
+        padding: 30px 20px 20px 20px;
+        position: relative;
+        z-index: 10;
+    }}
+    .welcome-om {{
+        font-size: 2.5rem;
+        color: #ffb547;
+        text-shadow: 0 0 20px rgba(255,181,71,0.8);
+        animation: float 3s ease-in-out infinite;
+        display: inline-block;
+        margin-bottom: 10px;
+    }}
+    @keyframes float {{
+        0%, 100% {{ transform: translateY(0); }}
+        50%      {{ transform: translateY(-8px); }}
+    }}
+
+    .welcome-title {{
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 3.5rem !important;
+        font-weight: 800;
+        letter-spacing: 2px;
+        background: linear-gradient(90deg, #ffb547 0%, #ff8c42 30%, #c41e3a 60%, #ffb547 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradientShift 4s linear infinite;
+        margin: 0.2rem 0;
+        text-shadow: 0 4px 20px rgba(255,140,66,0.3);
+        line-height: 1.1;
+    }}
+    @keyframes gradientShift {{
+        0%   {{ background-position: 0% center; }}
+        100% {{ background-position: 200% center; }}
+    }}
+
+    .welcome-subtitle {{
+        font-size: 0.95rem;
+        color: #8892b0;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        margin-top: 8px;
+        animation: fadeIn 1.2s ease-out;
+    }}
+
+    .welcome-tamil {{
+        font-size: 1.4rem;
+        color: #ffb547;
+        margin-top: 12px;
+        letter-spacing: 1px;
+        animation: fadeInUp 1s ease-out 0.3s backwards;
+    }}
+
+    /* ─── Decorative divider ─── */
+    .divine-divider {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin: 20px auto;
+        max-width: 500px;
+        animation: fadeIn 1s ease-out 0.5s backwards;
+    }}
+    .divine-divider-line {{
+        height: 1px;
+        flex: 1;
+        background: linear-gradient(90deg, transparent, rgba(255,181,71,0.6), transparent);
+    }}
+    .divine-divider-icon {{
+        color: #ffb547;
+        font-size: 1.2rem;
+        text-shadow: 0 0 12px rgba(255,181,71,0.8);
+    }}
+
+    /* ─── Login button container ─── */
+    .login-btn-wrap {{
+        animation: fadeInUp 1.2s ease-out 0.6s backwards;
+        margin-top: 20px;
+    }}
+
+    /* ─── Devotional blessing text ─── */
+    .blessing {{
+        text-align: center;
+        color: #8892b0;
+        font-size: 0.9rem;
+        letter-spacing: 2px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        font-style: italic;
+        animation: fadeIn 1.5s ease-out 1s backwards;
+    }}
+
+    /* Reduce gap between hero and buttons */
+    .element-container:has(+ .element-container button),
+    div[data-testid="stVerticalBlock"] > div:has(button) {{
+        margin-top: -10px !important;
+    }}
+
+    /* Make button row narrower + centered */
+    div[data-testid="stHorizontalBlock"]:has(button) {{
+        margin-top: -20px !important;
+    }}
+
+    @keyframes fadeIn {{
+        from {{ opacity: 0; }}
+        to   {{ opacity: 1; }}
+    }}
+    @keyframes fadeInUp {{
+        from {{ opacity: 0; transform: translateY(30px); }}
+        to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ─── Hero content ───
+    if logo_b64:
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="rotating-logo" alt="Meena Agencies" />'
+    else:
+        logo_html = '<div class="rotating-logo" style="background:linear-gradient(135deg,#ffb547,#c41e3a);display:flex;align-items:center;justify-content:center;font-size:4rem;">🕉️</div>'
+
+    st.markdown(f"""
+    <div class="login-bg">
+        <div class="welcome-banner">
+            <div class="welcome-om">🕉️</div>
+            {logo_html}
+            <div class="welcome-title">MEENA AGENCIES</div>
+            <div class="welcome-subtitle">Trusted Pharma Wholesale Partner</div>
+            <div class="welcome-tamil">🪔 வணக்கம் · Welcome · स्वागत 🪔</div>
+        </div>
+        <div class="divine-divider">
+            <div class="divine-divider-line"></div>
+            <span class="divine-divider-icon">✨</span>
+            <span class="divine-divider-icon">🔱</span>
+            <span class="divine-divider-icon">✨</span>
+            <div class="divine-divider-line"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="blessing">🙏 "வெற்றி வேல், வீர வேல்" — Lord Murugan blesses your business 🙏</div>', unsafe_allow_html=True)
+
+
+
+def sign_out():
+    """Clear session, log event, return to login screen."""
+    try:
+        # Log before clearing
+        user = current_user_key()
+        track(user, "SIGN_OUT", page="signout")
+    except Exception:
+        pass
+    # Clear all session state
+    for key in list(st.session_state.keys()):
+        try:
+            del st.session_state[key]
+        except Exception:
+            pass
+    st.rerun()
+
+
+# ---------- Cached AI report wrappers (speed) ----------
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_daily(wm, orders, retailers, breaks, _key):
+    return generate_daily_report(wm, orders, retailers, breaks)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_weekly(wm, orders, retailers, breaks, _key):
+    return generate_weekly_insights(wm, orders, retailers, breaks)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_monthly(wm, orders, retailers, breaks, _key):
+    return generate_monthly_report(wm, orders, retailers, breaks)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_yearly(wm, orders, retailers, breaks, _key):
+    return generate_yearly_report(wm, orders, retailers, breaks)
+
+from notify import send_notification, get_active_channel, format_order_sms, format_otp_sms
+import notify_pro
+
+st.set_page_config(page_title="Meena Agencies", page_icon="logo.png", layout="wide", initial_sidebar_state="collapsed")
+
+navigation.init_nav()
+
+# ═══════════════════════════════════════════════════════════
+# GLOBAL BACK BAR — appears on every screen
+# ═══════════════════════════════════════════════════════════
+try:
+    if st.session_state.get("role") is not None:
+        _gb1, _gb2, _gb3 = st.columns([1, 1, 6])
+        with _gb1:
+            if st.button("← Back", key="global_back_btn", use_container_width=True,
+                         disabled=not navigation.can_go_back()):
+                navigation.go_back()
+        with _gb2:
+            if st.button("🏠 Home", key="global_home_btn", use_container_width=True):
+                navigation.clear_history()
+                for _gk in list(st.session_state.keys()):
+                    try:
+                        del st.session_state[_gk]
+                    except Exception:
+                        pass
+                st.rerun()
+except Exception:
+    pass
+
+responsive.inject_responsive()
+
+# ═══════════════════════════════════════════════════════════
+# CORPORATE OVERHAUL — Full-width, Tesla-style layout
+# ═══════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+/* FULL WIDTH LAYOUT — kill Streamlit's narrow container */
+.block-container {
+    max-width: 100% !important;
+    padding: 0 3rem 3rem 3rem !important;
+}
+@media (min-width: 1400px) {
+    .block-container { padding: 0 5rem 3rem 5rem !important; }
+}
+
+/* Kill default top padding so hero touches the top */
+.stApp > header { display: none !important; }
+[data-testid="stAppViewContainer"] > .main { padding-top: 0 !important; }
+[data-testid="stVerticalBlock"] { gap: 0.8rem !important; }
+
+/* Dark premium background */
+.stApp {
+    background: #0a0e27 !important;
+}
+
+/* ============ TESLA-STYLE HERO ============ */
+.corp-hero {
+    position: relative;
+    background: linear-gradient(135deg, #0a1535 0%, #0f1e4a 40%, #1a2851 100%);
+    padding: 4rem 3rem 3rem 3rem;
+    margin: -1rem -3rem 2rem -3rem;
+    border-bottom: 1px solid rgba(0,212,255,0.2);
+    overflow: hidden;
+}
+@media (min-width: 1400px) {
+    .corp-hero { margin: -1rem -5rem 2rem -5rem; padding: 5rem 5rem 4rem 5rem; }
+}
+.corp-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -20%;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(0,212,255,0.15) 0%, transparent 60%);
+    pointer-events: none;
+    animation: heroGlow 8s ease-in-out infinite;
+}
+.corp-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%; left: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(123,97,255,0.12) 0%, transparent 60%);
+    pointer-events: none;
+    animation: heroGlow 10s ease-in-out infinite reverse;
+}
+@keyframes heroGlow {
+    0%, 100% { transform: translate(0,0) scale(1); opacity: 1; }
+    50%      { transform: translate(30px,-30px) scale(1.1); opacity: 0.7; }
+}
+
+.corp-hero-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.corp-eyebrow {
+    display: inline-block;
+    padding: 0.35rem 0.9rem;
+    border-radius: 20px;
+    background: rgba(0,212,255,0.12);
+    border: 1px solid rgba(0,212,255,0.35);
+    color: #00d4ff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+}
+
+.corp-title {
+    font-size: 4rem;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin: 0.5rem 0 1rem 0;
+}
+.corp-title-accent {
+    background: linear-gradient(90deg, #00d4ff 0%, #7b61ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.corp-subtitle {
+    font-size: 1.15rem;
+    color: #a8b2d1;
+    max-width: 700px;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.corp-meta-row {
+    display: flex;
+    gap: 3rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.corp-meta-item {
+    color: #8892b0;
+    font-size: 0.85rem;
+}
+.corp-meta-item strong {
+    display: block;
+    color: #e8eaf6;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+/* ============ SECTION TITLES ============ */
+.corp-section {
+    margin: 2.5rem 0 1.5rem 0;
+}
+.corp-section-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.3rem;
+}
+.corp-section-sub {
+    font-size: 0.9rem;
+    color: #8892b0;
+}
+
+/* ============ PREMIUM METRIC CARDS ============ */
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #0f1a3a 0%, #0a0e27 100%) !important;
+    border: 1px solid rgba(0,212,255,0.18) !important;
+    border-radius: 16px !important;
+    padding: 1.8rem 1.5rem !important;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4) !important;
+    transition: all 0.3s ease !important;
+    position: relative !important;
+}
+[data-testid="stMetric"]::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important; height: 4px !important;
+    background: linear-gradient(90deg, #00d4ff, #7b61ff) !important;
+    border-radius: 16px 16px 0 0 !important;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-4px) !important;
+    border-color: rgba(0,212,255,0.5) !important;
+    box-shadow: 0 20px 60px rgba(0,212,255,0.25) !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #8892b0 !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 2.5rem !important;
+    font-weight: 900 !important;
+    color: #ffffff !important;
+    letter-spacing: -1px !important;
+}
+[data-testid="stMetricDelta"] svg { display: none !important; }
+
+/* ============ TABS — AMAZON-STYLE NAV ============ */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid rgba(0,212,255,0.15) !important;
+    margin-bottom: 2rem !important;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 0 !important;
+    padding: 1rem 1.5rem !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    color: #8892b0 !important;
+    border: none !important;
+    background: transparent !important;
+    position: relative !important;
+    transition: all 0.2s ease !important;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    color: #00d4ff !important;
+    background: rgba(0,212,255,0.04) !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    background: transparent !important;
+}
+.stTabs [aria-selected="true"]::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 1rem; right: 1rem;
+    height: 3px;
+    background: linear-gradient(90deg, #00d4ff, #7b61ff);
+    border-radius: 2px;
+}
+.stTabs [data-baseweb="tab-highlight"] { display: none !important; }
+
+/* ============ BUTTONS ============ */
+.stButton > button {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.7rem 1.5rem !important;
+    border: 1px solid rgba(0,212,255,0.35) !important;
+    background: rgba(15,26,58,0.8) !important;
+    color: #e8eaf6 !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    border-color: #00d4ff !important;
+    color: #00d4ff !important;
+    box-shadow: 0 8px 24px rgba(0,212,255,0.3) !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 12px 36px rgba(0,212,255,0.5) !important;
+}
+
+/* ============ HEADERS ============ */
+h1, h2, h3, h4 {
+    color: #ffffff !important;
+    letter-spacing: -0.5px !important;
+}
+h1 { font-size: 2.5rem !important; font-weight: 900 !important; }
+h2 { font-size: 2rem !important; font-weight: 800 !important; }
+h3 {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-top: 2rem !important;
+    color: #ffffff !important;
+}
+
+/* ============ INPUTS ============ */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input,
+.stSelectbox > div > div,
+.stTextArea textarea,
+.stDateInput > div > div > input {
+    background: rgba(15,26,58,0.8) !important;
+    border: 1px solid rgba(0,212,255,0.2) !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    padding: 0.7rem 1rem !important;
+}
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15) !important;
+}
+
+/* ============ ALERTS ============ */
+.stAlert {
+    border-radius: 12px !important;
+    font-size: 0.9rem !important;
+    border-left-width: 4px !important;
+}
+
+/* ============ DATAFRAMES ============ */
+[data-testid="stDataFrame"] {
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(0,212,255,0.15) !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3) !important;
+}
+
+/* ============ EXPANDERS ============ */
+.streamlit-expanderHeader {
+    background: rgba(15,26,58,0.7) !important;
+    border: 1px solid rgba(0,212,255,0.15) !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+}
+.streamlit-expanderContent {
+    background: rgba(10,14,39,0.6) !important;
+    border: 1px solid rgba(0,212,255,0.1) !important;
+    border-top: none !important;
+    border-radius: 0 0 12px 12px !important;
+}
+
+/* ============ DIVIDERS ============ */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent) !important;
+    margin: 2.5rem 0 !important;
+}
+
+/* ============ CAPTIONS ============ */
+[data-testid="stCaptionContainer"] {
+    color: #8892b0 !important;
+    font-size: 0.85rem !important;
+}
+
+/* ============ SIGN OUT BUTTON (top right) ============ */
+.topnav-signout button {
+    background: transparent !important;
+    border: 1px solid rgba(255,77,109,0.4) !important;
+    color: #ff4d6d !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.85rem !important;
+}
+.topnav-signout button:hover {
+    background: rgba(255,77,109,0.1) !important;
+    border-color: #ff4d6d !important;
+    color: #ff4d6d !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────
+# CORPORATE HERO BUILDER
+# ─────────────────────────────────────────────────────────────
+def render_corp_hero(title, accent, subtitle, eyebrow="", meta=None):
+    # Sign Out — top right (owner)
+    _owner_top_l, _owner_top_r = st.columns([5, 1])
+    with _owner_top_r:
+        if st.button("🚪 Sign Out", key="hero_signout_owner", use_container_width=True):
+            try:
+                log_action("OWNER", "SIGNOUT")
+            except Exception:
+                pass
+            sign_out()
+    meta = meta or []
+    meta_html = ""
+    if meta:
+        meta_html = '<div class="corp-meta-row">'
+        for item in meta:
+            meta_html += f'<div class="corp-meta-item"><strong>{item["value"]}</strong>{item["label"]}</div>'
+        meta_html += '</div>'
+
+    st.markdown(f"""
+    <div class="corp-hero">
+        <div class="corp-hero-inner">
+            {f'<div class="corp-eyebrow">{eyebrow}</div>' if eyebrow else ''}
+            <h1 class="corp-title">{title} <span class="corp-title-accent">{accent}</span></h1>
+            <p class="corp-subtitle">{subtitle}</p>
+            {meta_html}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+# ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# BEAUTY OVERHAUL — Applied globally with !important flags
+# ═══════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+/* Force dark background everywhere */
+.stApp, [data-testid="stAppViewContainer"] {
+    background: radial-gradient(ellipse at top left, #0f1535 0%, #050818 60%) !important;
+    background-attachment: fixed !important;
+}
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stToolbar"] { display: none !important; }
+footer { display: none !important; }
+#MainMenu { display: none !important; }
+
+/* Global font + color */
+html, body, [class*="css"], .stApp {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    color: #e8eaf6 !important;
+}
+
+/* Beautiful metric cards */
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, rgba(26,31,58,0.95) 0%, rgba(15,20,40,0.95) 100%) !important;
+    border: 1px solid rgba(123,97,255,0.25) !important;
+    border-radius: 18px !important;
+    padding: 1.5rem 1.2rem !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+[data-testid="stMetric"]::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00d4ff, #7b61ff);
+    opacity: 0.8;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-6px) !important;
+    border-color: rgba(0,212,255,0.6) !important;
+    box-shadow: 0 16px 48px rgba(0,212,255,0.25), 0 0 0 1px rgba(0,212,255,0.4) !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #8892b0 !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    background: linear-gradient(90deg, #00d4ff, #7b61ff) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    letter-spacing: -0.5px !important;
+}
+
+/* Buttons — bold, lifted, gradient on primary */
+.stButton > button {
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1.2rem !important;
+    border: 1px solid rgba(123,97,255,0.4) !important;
+    background: linear-gradient(145deg, rgba(26,31,58,0.9), rgba(15,20,40,0.9)) !important;
+    color: #e8eaf6 !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 10px 28px rgba(0,212,255,0.35) !important;
+    color: #00d4ff !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%) !important;
+    color: #fff !important;
+    border: none !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 12px 32px rgba(0,212,255,0.55) !important;
+    transform: translateY(-2px) scale(1.01) !important;
+}
+
+/* Tabs — modern pill style */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px !important;
+    background: rgba(15,20,40,0.6) !important;
+    padding: 6px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(123,97,255,0.15) !important;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 10px !important;
+    padding: 8px 18px !important;
+    font-weight: 500 !important;
+    color: #8892b0 !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    background: rgba(0,212,255,0.10) !important;
+    color: #00d4ff !important;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(0,212,255,0.20), rgba(123,97,255,0.20)) !important;
+    color: #00d4ff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 14px rgba(0,212,255,0.25) !important;
+    border: 1px solid rgba(0,212,255,0.3) !important;
+}
+.stTabs [data-baseweb="tab-highlight"] { background: transparent !important; }
+
+/* Inputs — deep, clean */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input,
+.stDateInput > div > div > input,
+.stSelectbox > div > div,
+.stTextArea textarea {
+    background: rgba(15,20,40,0.9) !important;
+    border: 1px solid rgba(123,97,255,0.3) !important;
+    border-radius: 10px !important;
+    color: #e8eaf6 !important;
+    padding: 0.6rem 0.8rem !important;
+}
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus,
+.stTextArea textarea:focus {
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.15) !important;
+}
+
+/* Expanders */
+.streamlit-expanderHeader {
+    background: rgba(26,31,58,0.7) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(123,97,255,0.2) !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+.streamlit-expanderHeader:hover {
+    background: rgba(0,212,255,0.08) !important;
+    border-color: rgba(0,212,255,0.4) !important;
+}
+.streamlit-expanderContent {
+    background: rgba(15,20,40,0.6) !important;
+    border: 1px solid rgba(123,97,255,0.15) !important;
+    border-top: none !important;
+    border-radius: 0 0 12px 12px !important;
+}
+
+/* Alerts */
+.stAlert {
+    border-radius: 12px !important;
+    border-left-width: 4px !important;
+    font-size: 0.9rem !important;
+}
+
+/* Dataframes */
+[data-testid="stDataFrame"] {
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(123,97,255,0.2) !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25) !important;
+}
+
+/* Progress bars */
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, #00d4ff, #7b61ff) !important;
+    border-radius: 6px !important;
+}
+
+/* Radio buttons */
+.stRadio > div {
+    gap: 8px !important;
+}
+.stRadio label {
+    background: rgba(26,31,58,0.6) !important;
+    padding: 8px 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(123,97,255,0.2) !important;
+    transition: all 0.2s ease !important;
+}
+.stRadio label:hover {
+    background: rgba(0,212,255,0.08) !important;
+    border-color: rgba(0,212,255,0.4) !important;
+}
+
+/* Multiselect / selectbox dropdowns */
+[data-baseweb="popover"], [data-baseweb="menu"] {
+    background: #1a1f3a !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(123,97,255,0.3) !important;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+    color: #e8eaf6 !important;
+    letter-spacing: -0.3px !important;
+}
+h3 {
+    font-size: 1.4rem !important;
+    font-weight: 700 !important;
+    border-left: 4px solid #00d4ff !important;
+    padding-left: 12px !important;
+    margin-top: 1.5rem !important;
+}
+h4 {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: #00d4ff !important;
+    margin-top: 1.2rem !important;
+}
+
+/* Horizontal rules */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent) !important;
+    margin: 2rem 0 !important;
+}
+
+/* Captions */
+.stCaption, [data-testid="stCaptionContainer"] {
+    color: #8892b0 !important;
+    font-size: 0.8rem !important;
+}
+
+/* Containers get subtle glow */
+[data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"] {
+    border-radius: 16px;
+}
+
+/* Success/error/info messages bigger */
+.stSuccess, .stError, .stWarning, .stInfo {
+    padding: 1rem 1.2rem !important;
+    font-weight: 500 !important;
+}
+
+/* Logo animation at top */
+.logo-pulse {
+    display: inline-block;
+    animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(0,212,255,0.4)); }
+    50%      { transform: scale(1.05); filter: drop-shadow(0 0 32px rgba(123,97,255,0.6)); }
+}
+</style>
+""", unsafe_allow_html=True)
+# ═══════════════════════════════════════════════════════════
+
+animations.inject_animations()
+
+medicine_cards.inject_card_styles()
+
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); }
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #e8eaf6; }
+    .title { font-size: 2.2rem; font-weight: 700; background: linear-gradient(90deg,#00d4ff,#7b61ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .sub { color: #8892b0; margin-bottom: 2rem; }
+    .lock-badge { display:inline-block; padding: 0.2rem 0.6rem; background: rgba(0,212,255,0.15); border:1px solid #00d4ff; border-radius:6px; font-size:0.7rem; color:#00d4ff; }
+    .mask { color: #ffb547; font-family: monospace; }
+    .otp-box { background: rgba(0,212,255,0.08); border: 2px solid #00d4ff; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center; }
+    .otp-code { font-size: 2.5rem; font-weight: 700; color: #00d4ff; letter-spacing: 0.5rem; }
+    .card { background: rgba(26,31,58,0.7); border: 1px solid rgba(123,97,255,0.3); border-radius: 12px; padding: 1rem; margin: 0.5rem 0; }
+    .flag { background: rgba(255,77,109,0.15); border-left: 3px solid #ff4d6d; padding: 0.5rem 1rem; margin: 0.3rem 0; border-radius: 6px; }
+</style>
+""", unsafe_allow_html=True)
+
+def fmt(dt): return dt.strftime("%d-%b-%Y").upper() if dt else "N/A"
+def fmt_dt(dt): return dt.strftime("%d-%b-%Y %H:%M").upper()
+def hash_pin(p): return hash_secret(p)
+def verify_pin(p, h): return verify_secret(p, h)
+def gen_otp(): return ''.join(random.choices(string.digits, k=6))
+def mask_phone(p):
+    if not p or len(p) < 4: return "****"
+    return p[:2] + "X"*(len(p)-4) + p[-2:]
+
+if 'pending_stock' not in st.session_state:
+    st.session_state.pending_stock = None
+for k in ["role","cart","retailer","pending_order","login_attempts"]:
+    if k not in st.session_state:
+        st.session_state[k] = None if k != "cart" else []
+if st.session_state.login_attempts is None: st.session_state.login_attempts = {}
+if "session_start" not in st.session_state:
+    st.session_state.session_start = datetime.now().isoformat()
+if "last_visibility" not in st.session_state:
+    st.session_state.last_visibility = "visible"
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_inventory():
+    """Read from SQLite — 100x faster than CSV for 10,000+ rows."""
+    import sqlite3
+    conn = sqlite3.connect("inventory.db")
+    try:
+        df = pd.read_sql("SELECT * FROM inventory", conn)
+    finally:
+        conn.close()
+    df["expiry_date"] = pd.to_datetime(df["expiry_date"])
+    today = pd.Timestamp.now()
+    df["days_to_expiry"] = (df["expiry_date"] - today).dt.days
+    df["status"] = df["days_to_expiry"].apply(lambda x: "Expired" if x<0 else ("Critical" if x<30 else ("Warning" if x<90 else "Healthy")))
+    df["selling_price"] = (df["cost_price"] * 1.25).round(2)
+    df["inventory_value"] = df["quantity"] * df["cost_price"]
+    return df
+
+@st.cache_data(ttl=5, show_spinner=False)
+def load_retailers():
+    if os.path.exists("retailers.json"):
+        with open("retailers.json") as f: return json.load(f)
+    retailers = [
+        {"id":"RET001","shop":"Sri Balaji Medicals","owner":"Chitra","phone":"6382130536","pin_hash":hash_pin("3210"),"credit_limit":200000,"outstanding":145000,"payment_days":90,"status":"Active","telegram_chat_id":""},
+        {"id":"RET002","shop":"Annai Pharmacy","owner":"Lakshmi Devi","phone":"9876543211","pin_hash":hash_pin("3211"),"credit_limit":150000,"outstanding":180000,"payment_days":120,"status":"Blocked","telegram_chat_id":""},
+        {"id":"RET003","shop":"Vetri Medicals","owner":"Suresh B","phone":"9876543212","pin_hash":hash_pin("3212"),"credit_limit":100000,"outstanding":35000,"payment_days":90,"status":"Active","telegram_chat_id":""}
+    ]
+    with open("retailers.json","w") as f: json.dump(retailers, f, indent=2)
+    return retailers
+
+def save_retailers(r):
+    with open("retailers.json","w") as f: json.dump(r, f, indent=2)
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_owner():
+    if os.path.exists("owner.json"):
+        with open("owner.json") as f: return json.load(f)
+    o = {"username":"owner","pin_hash":hash_pin("owner2026"),"phone":"9999999999","telegram_chat_id":""}
+    with open("owner.json","w") as f: json.dump(o, f, indent=2)
+    return o
+
+def save_owner(o):
+    with open("owner.json","w") as f: json.dump(o, f, indent=2)
+
+@st.cache_data(ttl=5, show_spinner=False)
+def load_orders():
+    if os.path.exists("orders.json"):
+        with open("orders.json") as f: return json.load(f)
+    return []
+
+def save_orders(o):
+    with open("orders.json","w") as f: json.dump(o, f, indent=2)
+
+# ============ LOGIN ============
+if st.session_state.get("role") is None:
+    login_ui.render_login_page()
+    st.stop()
+
+elif st.session_state.role == "retailer_login":
+    st.markdown('<div class="title">🏪 Retailer Login</div>', unsafe_allow_html=True)
+    retailers = load_retailers()
+    with st.form("rl"):
+        rid = st.text_input("Retailer ID", placeholder="RET001")
+        pin = st.text_input("PIN", type="password", max_chars=4)
+        if st.form_submit_button("🔓 Login", use_container_width=True):
+            attempts = st.session_state.login_attempts.get(rid, 0)
+            if attempts >= 3:
+                st.error("🚫 Too many attempts")
+            else:
+                ret = next((r for r in retailers if r["id"] == rid.strip().upper()), None)
+                if ret and verify_pin(pin, ret["pin_hash"]):
+                    st.session_state.retailer = ret
+                    st.session_state.role = "retailer"
+                    st.session_state.login_attempts[rid] = 0
+                    log_action(rid, "LOGIN_SUCCESS")
+                    track(rid, "LOGIN_SUCCESS", page="login")
+                    track(rid, "LOGIN_SUCCESS", page="login")
+                    st.rerun()
+                else:
+                    st.session_state.login_attempts[rid] = attempts + 1
+                    st.error(f"❌ Invalid. Attempts left: {2-attempts}")
+    if st.button("← Back"):
+        st.session_state.role = None; st.rerun()
+
+# ============ OWNER LOGIN ============
+elif st.session_state.role == "owner_login":
+    st.markdown('<div class="title">👔 Owner Login</div>', unsafe_allow_html=True)
+    owner = load_owner()
+    with st.form("ol"):
+        pin = st.text_input("Owner Password", type="password")
+        if st.form_submit_button("🔓 Login", use_container_width=True):
+            if verify_pin(pin, owner["pin_hash"]):
+                st.session_state.role = "owner"
+                log_action("OWNER", "LOGIN_SUCCESS")
+                track("OWNER", "LOGIN_SUCCESS", page="login")
+                track("OWNER", "LOGIN_SUCCESS", page="login")
+                st.rerun()
+            else:
+                st.error("❌ Invalid")
+    if st.button("← Back"):
+        st.session_state.role = None; st.rerun()
+
+# ============ RETAILER VIEW ============
+elif st.session_state.role in ("retailer", "customer"):
+    retailers = load_retailers()
+    r = next((x for x in retailers if x["id"] == st.session_state.retailer["id"]), st.session_state.retailer)
+    st.session_state.retailer = r
+
+    # ── Corporate Hero for Retailer ──
+    render_corp_hero(
+        title="Meena",
+        accent="Agencies",
+        subtitle=f"Welcome back, {r['owner']}. Place orders, track balance, and manage your pharmacy with {r['shop']}.",
+        eyebrow=f"Retailer Portal · {r['id']}",
+        meta=[
+            {"value": f"₹{r['credit_limit']:,}", "label": "Credit Limit"},
+            {"value": f"₹{r['outstanding']:,}", "label": "Outstanding"},
+            {"value": f"₹{r['credit_limit'] - r['outstanding']:,}", "label": "Available"},
+            {"value": r['owner'], "label": "Contact"},
+            {"value": mask_phone(r['phone']), "label": "Phone"},
+        ]
+    )
+    # Sign Out — top right
+    _t1, _t2 = st.columns([5, 1])
+    with _t2:
+        st.markdown('<div class="topnav-signout">', unsafe_allow_html=True)
+        if st.button("🚪 Sign Out", key="hero_signout_ret", use_container_width=True):
+            try:
+                log_activity(r["id"], "SIGNOUT")
+            except Exception:
+                pass
+            navigation.clear_history()
+            sign_out()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+    used_pct = (r["outstanding"]/r["credit_limit"])*100
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Credit Limit", f"₹{r['credit_limit']:,}")
+    c2.metric("Outstanding", f"₹{r['outstanding']:,}", delta=f"{used_pct:.0f}% used", delta_color="inverse")
+    c3.metric("Available", f"₹{r['credit_limit']-r['outstanding']:,}")
+
+    if r["status"] == "Blocked": st.error("🚫 Account BLOCKED. Contact owner.")
+    elif used_pct > 90: st.warning(f"⚠️ {used_pct:.0f}% credit used.")
+    else: st.success(f"✅ Active. Available: ₹{r['credit_limit']-r['outstanding']:,}")
+
+    # ===== AUTO BREAK TRACKER (no buttons — fully automatic) =====
+    st.markdown("---")
+    # ─── Break tracking runs silently in the background ───
+    # UI removed for privacy — owner can see the data in Audit tab
+    try:
+        inject_tracker(r["id"])
+    except Exception:
+        pass
+
+    st.markdown("---")
+
+    st.markdown("---")
+    if st.session_state.pending_order is not None:
+        po = st.session_state.pending_order
+        st.markdown("### 🔐 OTP Verification Required")
+        st.info(f"OTP sent to your registered contact via {get_active_channel()}.")
+        if get_active_channel() == "console":
+            st.markdown(f'<div class="otp-box"><div class="otp-code">{po["otp"]}</div></div>', unsafe_allow_html=True)
+        entered = st.text_input("Enter 6-digit OTP", max_chars=6, key="otp_input")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✅ Verify & Confirm", use_container_width=True):
+                if entered == po["otp"]:
+                    orders = load_orders()
+                    order = po["order"]; order["status"] = "Pending"
+                    order["otp_verified_at"] = fmt_dt(datetime.now())
+                    orders.append(order); save_orders(orders)
+                    log_activity(r["id"], "ORDER_PLACED", f"order={order['order_id']} total=₹{order['total']:.0f}")
+                    
+                    # Send welcome (if first order) + thank you
+                    prior_count = len([o for o in orders if o.get("retailer_id") == r["id"] and o.get("status") != "Awaiting OTP"]) - 1
+                    if prior_count <= 0:
+                        notify_pro.notify_retailer(r, notify_pro.format_welcome(r), prefer_sms=False)
+                    notify_pro.notify_retailer(r, notify_pro.format_thank_you(r, order), prefer_sms=False)
+                    ret_msg = format_order_sms(order, r, include_balance=True, for_owner=False)
+                    send_notification(get_active_channel(), r.get("telegram_chat_id",""), ret_msg)
+                    owner = load_owner()
+                    own_msg = format_order_sms(order, r, include_balance=False, for_owner=True)
+                    send_notification(get_active_channel(), owner.get("telegram_chat_id",""), own_msg)
+                    st.session_state.pending_order = None
+                    st.session_state.cart = []
+                    st.success("✅ Order confirmed!")
+                    st.balloons(); st.rerun()
+                else: st.error("❌ Wrong OTP")
+        with c2:
+            if st.button("❌ Cancel", use_container_width=True):
+                st.session_state.pending_order = None; st.rerun()
+        st.stop()
+
+    
+    # ═══════════════════════════════════════════════════════════
+    # QUICK DASHBOARD — fills the gap between hero and Place Order
+    # ═══════════════════════════════════════════════════════════
+
+    # Pull this retailer's order history
+    _my_orders = [o for o in load_orders()
+                  if o.get("retailer_id") == r["id"] and o.get("status") != "Awaiting OTP"]
+    _my_approved = [o for o in _my_orders if o.get("status") == "Approved"]
+    _my_pending = [o for o in _my_orders if o.get("status") == "Pending"]
+    _my_total_spent = sum(o.get("total", 0) for o in _my_approved)
+    _my_last_order = _my_orders[-1] if _my_orders else None
+    _my_avg_order = _my_total_spent / len(_my_approved) if _my_approved else 0
+
+    # ─── Quick Stats Row ───
+    st.markdown('<div class="corp-section"><div class="corp-section-title">Your Dashboard</div>'
+                '<div class="corp-section-sub">Everything about your pharmacy at a glance</div></div>',
+                unsafe_allow_html=True)
+
+    _qs1, _qs2, _qs3, _qs4 = st.columns(4)
+    with _qs1:
+        st.metric("📦 Total Orders", len(_my_orders), help="All your orders till date")
+    with _qs2:
+        st.metric("💰 Total Spent", f"₹{_my_total_spent:,.0f}", help="Approved orders only")
+    with _qs3:
+        st.metric("🛒 Avg Order", f"₹{_my_avg_order:,.0f}", help="Average per approved order")
+    with _qs4:
+        _last_dt = _my_last_order.get("placed_at", "—").split(" ")[0] if _my_last_order else "—"
+        st.metric("🕐 Last Order", _last_dt, help="Date of your most recent order")
+
+    st.markdown("---")
+
+    # ─── Quick Actions + Seasonal Recs (2 columns) ───
+    _qa_col, _rec_col = st.columns([1, 1])
+
+    with _qa_col:
+        st.markdown('<div class="corp-section"><div class="corp-section-title">⚡ Quick Actions</div>'
+                    '<div class="corp-section-sub">One click to get things done</div></div>',
+                    unsafe_allow_html=True)
+
+        _a1, _a2 = st.columns(2)
+        with _a1:
+            if st.button("🔄 Reorder Last", key="qa_reorder", use_container_width=True,
+                         help="Add your last order items to cart"):
+                if _my_last_order and _my_last_order.get("items"):
+                    for _it in _my_last_order["items"]:
+                        st.session_state.cart.append({
+                            "item_id": _it.get("item_id", ""),
+                            "medicine": _it.get("medicine", ""),
+                            "batch": _it.get("batch", ""),
+                            "qty": _it.get("qty", 1),
+                            "price": _it.get("price", 0),
+                        })
+                    st.success(f"✅ Added {len(_my_last_order['items'])} items from your last order to cart")
+                    st.rerun()
+                else:
+                    st.info("No previous order to reorder.")
+
+            # ── Statement Download (PDF + PNG) ──
+            if st.button("📄 Generate Statement", key="qa_statement", use_container_width=True,
+                         help="Download your account statement"):
+                try:
+                    import json as _json_stmt
+                    from pathlib import Path as _P_stmt
+                    _company = {}
+                    if _P_stmt("company.json").exists():
+                        _company = _json_stmt.loads(_P_stmt("company.json").read_text())
+
+                    _ts = datetime.now().strftime('%Y%m%d_%H%M')
+
+                    # ── PDF Version ──
+                    try:
+                        _pdf_bytes = statement_pdf.generate_statement_pdf(r, _my_orders, _company)
+                        st.download_button(
+                            "📥 Download PDF (printable)",
+                            data=_pdf_bytes,
+                            file_name=f"MeenaStatement_{r['id']}_{_ts}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key="qa_statement_pdf_dl"
+                        )
+                        st.caption("✅ PDF — white background, print-ready, professional format")
+                    except Exception as _e_pdf:
+                        st.warning(f"PDF generation failed: {_e_pdf}")
+
+                    # ── PNG Version ──
+                    try:
+                        _png_bytes = statement_png.generate_statement_png(r, _my_orders, _company)
+                        st.download_button(
+                            "📥 Download PNG (screenshot-friendly)",
+                            data=_png_bytes,
+                            file_name=f"MeenaStatement_{r['id']}_{_ts}.png",
+                            mime="image/png",
+                            use_container_width=True,
+                            key="qa_statement_png_dl"
+                        )
+                        st.caption("✅ PNG — dark theme, share via WhatsApp/email")
+                    except Exception as _e_png:
+                        st.warning(f"PNG generation failed: {_e_png}")
+
+                    st.success("✅ Both formats generated. Choose your download above.")
+                    st.caption("🔒 Both are non-editable formats — cannot be modified like text.")
+                except Exception as _e:
+                    st.error(f"Statement generation failed: {_e}")
+
+        with _a2:
+            if st.button("📞 Contact Us", key="qa_contact", use_container_width=True,
+                         help="Call or message us"):
+                st.info(f"📞 Call: 6382130536\n✉️ meena.agencies@gmail.com")
+
+            if st.button("📊 Payment History", key="qa_pay_hist", use_container_width=True,
+                         help="View all payments recorded against your account"):
+                _pays = r.get("payment_history", [])
+                if not _pays:
+                    st.info("💡 No payments recorded yet. Your account shows an outstanding balance. Contact us to settle.")
+                else:
+                    import pandas as _pd_ph
+                    _ph_df = _pd_ph.DataFrame([{
+                        "Date": p["date"][:16].replace("T", " "),
+                        "Amount": f"₹{p['amount']:,.0f}",
+                        "Mode": p.get("mode", "cash").upper(),
+                        "Reference": p.get("reference", "—"),
+                        "Note": p.get("note", ""),
+                    } for p in reversed(_pays[-20:])])
+                    st.dataframe(_ph_df, use_container_width=True, hide_index=True, height=200)
+
+                    _total_paid = sum(p["amount"] for p in _pays)
+                    st.success(f"💰 Total paid to Meena Agencies: **₹{_total_paid:,.0f}**")
+                    st.caption(f"Outstanding balance: ₹{r['outstanding']:,.0f}")
+
+    with _rec_col:
+        st.markdown('<div class="corp-section"><div class="corp-section-title">🌦️ Seasonal Picks</div>'
+                    '<div class="corp-section-sub">Recommended for this season</div></div>',
+                    unsafe_allow_html=True)
+
+        try:
+            import forecast_pro as _fp
+            _season_key, _season_info = _fp.current_season()
+            _season_diseases = _fp.SEASON_DISEASES.get(_season_key, [])
+            _season_meds = set()
+            for _d in _season_diseases:
+                for _m in _fp.DISEASE_MEDICINES.get(_d, []):
+                    _season_meds.add(_m)
+
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,rgba(0,212,255,0.10),rgba(123,97,255,0.10));
+                        border:1px solid rgba(0,212,255,0.3);border-radius:14px;
+                        padding:1rem 1.2rem;margin-bottom:1rem;">
+                <div style="font-size:0.75rem;color:#8892b0;letter-spacing:1.5px;">CURRENT SEASON</div>
+                <div style="font-size:1.6rem;font-weight:800;color:#00d4ff;margin:0.3rem 0;">
+                    {_season_info['emoji']} {_season_info['name']}
+                </div>
+                <div style="color:#8892b0;font-size:0.8rem;">
+                    Watch for: {', '.join(_season_diseases[:3])}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Match against inventory to show 4 suggestions
+            _df_sugg = load_inventory()
+            _shown = set()
+            _count = 0
+            for _, _row in _df_sugg.iterrows():
+                if _count >= 4:
+                    break
+                _matches = _fp.match_medicine(_row["medicine_name"])
+                for _m in _matches:
+                    if _m in _season_meds and _row["medicine_name"] not in _shown:
+                        _shown.add(_row["medicine_name"])
+                        st.markdown(f"""
+                        <div style="background:rgba(26,31,58,0.7);border-left:3px solid #00d47a;
+                                    border-radius:8px;padding:0.5rem 0.8rem;margin:0.3rem 0;">
+                            <b>{_row['medicine_name']}</b>
+                            <span style="color:#00d47a;font-size:0.75rem;float:right;">
+                                ₹{_row['selling_price']:.2f}
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        _count += 1
+                        break
+        except Exception as _e:
+            st.caption(f"Seasonal picks unavailable: {_e}")
+
+    st.markdown("---")
+
+    # ─── Spending Trend Chart (last 6 months) ───
+    if _my_approved:
+        try:
+            import plotly.graph_objects as _go_gap
+            from datetime import datetime as _dt_gap, timedelta as _td_gap
+            _now_gap = _dt_gap.now()
+            _months = []
+            _totals = []
+            for _i in range(5, -1, -1):
+                _m_start = (_now_gap.replace(day=1) - _td_gap(days=_i * 30)).replace(day=1)
+                _m_end = (_m_start.replace(day=28) + _td_gap(days=4)).replace(day=1)
+                _month_total = 0
+                for _o in _my_approved:
+                    try:
+                        _od = _dt_gap.strptime(_o.get("placed_at", "")[:11], "%d-%b-%Y")
+                        if _m_start <= _od < _m_end:
+                            _month_total += _o.get("total", 0)
+                    except Exception:
+                        pass
+                _months.append(_m_start.strftime("%b"))
+                _totals.append(_month_total)
+
+            st.markdown('<div class="corp-section"><div class="corp-section-title">📈 Your Spending</div>'
+                        '<div class="corp-section-sub">Last 6 months trend</div></div>',
+                        unsafe_allow_html=True)
+
+            _fig_gap = _go_gap.Figure(data=[_go_gap.Bar(
+                x=_months, y=_totals,
+                marker=dict(color="#00d4ff", line=dict(color="#7b61ff", width=2)),
+                text=[f"₹{v:,.0f}" if v > 0 else "" for v in _totals],
+                textposition="outside",
+                hovertemplate="<b>%{x}</b><br>₹%{y:,.0f}<extra></extra>",
+            )])
+            _fig_gap.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e8eaf6"),
+                height=280,
+                margin=dict(l=20, r=20, t=20, b=40),
+                xaxis=dict(showgrid=False, title=""),
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", title="Amount (₹)"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_gap, use_container_width=True, key="gap_spend_chart")
+        except Exception:
+            pass
+
+
+    st.markdown("### 📦 Place Order")
+
+    # Build catalog (cached)
+    @st.cache_data(show_spinner=False, ttl=300)
+    def _get_catalog(_df):
+        return catalog.build_catalog(_df)
+
+    df = load_inventory()
+    _cat = _get_catalog(df)
+
+    # Session state
+    if "catalog_category" not in st.session_state:
+        st.session_state.catalog_category = None
+    if "catalog_search" not in st.session_state:
+        st.session_state.catalog_search = ""
+    if "catalog_medicine" not in st.session_state:
+        st.session_state.catalog_medicine = None
+
+    # ─── Breadcrumb ───
+    _bc = []
+    if st.session_state.catalog_category:
+        _bc.append(st.session_state.catalog_category)
+    if st.session_state.catalog_medicine:
+        _bc.append(st.session_state.catalog_medicine)
+    if _bc:
+        st.caption("📍 " + " › ".join(["🏠 All Categories"] + _bc))
+
+    # ─── Level 3: Auto-FIFO order placement ───
+    if st.session_state.catalog_medicine:
+        _med = _cat["by_medicine"].get(st.session_state.catalog_medicine)
+        if _med:
+            st.markdown(f"#### 💊 {_med['name']}")
+            _cat_info = catalog.CATEGORIES.get(_med["category"], catalog.CATEGORIES["Other"])
+            st.markdown(
+                f"<span style='background:{_cat_info['color']}22;color:{_cat_info['color']};"
+                f"padding:3px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;'>"
+                f"{_cat_info['emoji']} {_med['category']}</span> "
+                f"<span style='color:#8892b0;font-size:0.8rem;'>"
+                f"• {_med['total_qty']} units available"
+                f"</span>",
+                unsafe_allow_html=True,
+            )
+
+            if st.button("← Back to category", key="back_to_cat", use_container_width=False):
+                st.session_state.catalog_medicine = None
+                st.rerun()
+
+            # ─── AUTO-FIFO: Pick earliest-expiry batch with stock ───
+            # Batches already sorted by expiry ascending in catalog.py
+            _auto_batch = None
+            for _b in _med["batches"]:
+                if _b["qty"] > 0:
+                    _auto_batch = _b
+                    break
+
+            if not _auto_batch:
+                st.error("⚠️ This medicine is out of stock across all batches.")
+            else:
+                # Show only customer-friendly info (no batch number!)
+                _exp = _auto_batch["expiry"]
+                _exp_str = _exp.strftime("%b-%Y") if hasattr(_exp, "strftime") else str(_exp)[:7]
+                _unit_price = _auto_batch["price"]
+
+                st.markdown(f"""
+                <div style="background:rgba(0,212,122,0.08);border-left:4px solid #00d47a;
+                            border-radius:12px;padding:1rem;margin:1rem 0;">
+                    <div style="color:#00d47a;font-weight:600;font-size:0.9rem;">✅ Available</div>
+                    <div style="color:#e8eaf6;font-size:1.1rem;margin-top:0.4rem;">
+                        <b>₹{_unit_price:,.2f}</b> per unit
+                    </div>
+                    <div style="color:#8892b0;font-size:0.8rem;margin-top:0.2rem;">
+                        Fresh stock · Expires {_exp_str} · {_auto_batch['qty']:,} units in stock
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                _qty = st.number_input(
+                    "Quantity",
+                    min_value=1,
+                    max_value=int(_auto_batch["qty"]),
+                    value=min(10, int(_auto_batch["qty"])),
+                    key="fifo_qty",
+                )
+
+                _line_total = _qty * _unit_price
+                st.markdown(f"**Line total:** ₹{_line_total:,.2f}")
+
+                # Placeholder for cart preview confirmation
+                if st.button("🛒 Add to Cart", key="add_fifo_cart", use_container_width=True):
+                    st.session_state.cart.append({
+                        "item_id": _auto_batch["item_id"],
+                        "medicine": _med["name"],
+                        "batch": _auto_batch["batch"],
+                        "qty": int(_qty),
+                        "price": float(_unit_price),
+                    })
+                    st.session_state.catalog_medicine = None
+                    st.success(f"✅ Added {_qty} × {_med['name']} to cart")
+                    st.rerun()
+
+    # ─── Level 3: Batch selection for a medicine ───
+
+    elif st.session_state.catalog_category:
+        _cat_name = st.session_state.catalog_category
+        _meds = _cat["categories"].get(_cat_name, [])
+        _cat_info = catalog.CATEGORIES.get(_cat_name, catalog.CATEGORIES["Other"])
+
+        st.markdown(f"#### {_cat_info['emoji']} {_cat_name}")
+        st.caption(f"{len(_meds)} unique medicines")
+
+        _c1, _c2 = st.columns([3, 1])
+        with _c1:
+            _q = st.text_input("🔍 Search in " + _cat_name, key="cat_search_input", placeholder="Type a name...")
+        with _c2:
+            st.write("")
+            if st.button("← All Categories", key="back_to_cats", use_container_width=True):
+                st.session_state.catalog_category = None
+                st.rerun()
+
+        _filtered = [m for m in _meds if _q.lower() in m["name"].lower()] if _q else _meds
+        _filtered = _filtered[:60]
+
+        # Grid of medicine tiles
+        for i in range(0, len(_filtered), 3):
+            _cols = st.columns(3)
+            for j, _m in enumerate(_filtered[i:i+3]):
+                with _cols[j]:
+                    _exp = _m["next_expiry"].strftime("%b-%Y") if hasattr(_m["next_expiry"], "strftime") else str(_m["next_expiry"])[:7]
+                    st.markdown(f"""
+                    <div class="med-card" style="--card-color: {_cat_info['color']};">
+                        <div class="med-emoji" style="font-size:2.2rem;">{_cat_info['emoji']}</div>
+                        <div style="font-weight:700;font-size:0.85rem;color:#e8eaf6;margin-top:0.4rem;min-height:2.2rem;">{_m['name'][:30]}</div>
+                        <div style="color:#8892b0;font-size:0.7rem;">Exp: {_exp}</div>
+                        <div style="color:{_cat_info['color']};font-weight:700;margin-top:0.3rem;">₹{_m['avg_price']:,.2f}</div>
+                        <div style="color:#00d47a;font-size:0.7rem;">{_m['total_qty']} units · {_m['batch_count']} batches</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("Select", key=f"pick_{_m['name']}", use_container_width=True):
+                        st.session_state.catalog_medicine = _m["name"]
+                        st.rerun()
+
+        if len(_filtered) == 0:
+            st.info("No medicines found matching your search.")
+
+    # ─── Level 1: Category tiles ───
+    else:
+        _summaries = catalog.category_summary(_cat)
+
+        st.markdown("#### 📂 Browse by Category")
+        _overall_search = st.text_input(
+            "🔍 Search all medicines",
+            key="global_search",
+            placeholder="Type any medicine name (e.g., Paracetamol)...",
+        )
+
+        if _overall_search.strip():
+            _results = catalog.search_catalog(_cat, _overall_search, limit=40)
+            st.caption(f"{len(_results)} result(s)")
+            for i in range(0, len(_results), 3):
+                _cols = st.columns(3)
+                for j, _m in enumerate(_results[i:i+3]):
+                    with _cols[j]:
+                        _c_info = catalog.CATEGORIES.get(_m["category"], catalog.CATEGORIES["Other"])
+                        _exp = _m["next_expiry"].strftime("%b-%Y") if hasattr(_m["next_expiry"], "strftime") else str(_m["next_expiry"])[:7]
+                        st.markdown(f"""
+                        <div class="med-card" style="--card-color: {_c_info['color']};">
+                            <div class="med-emoji" style="font-size:2.2rem;">{_c_info['emoji']}</div>
+                            <div style="font-weight:700;font-size:0.85rem;color:#e8eaf6;margin-top:0.4rem;min-height:2.2rem;">{_m['name'][:30]}</div>
+                            <div style="color:#8892b0;font-size:0.7rem;">{_m['category']} · Exp: {_exp}</div>
+                            <div style="color:{_c_info['color']};font-weight:700;margin-top:0.3rem;">₹{_m['avg_price']:,.2f}</div>
+                            <div style="color:#00d47a;font-size:0.7rem;">{_m['total_qty']} units</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("Select", key=f"gs_pick_{_m['name']}", use_container_width=True):
+                            st.session_state.catalog_medicine = _m["name"]
+                            st.rerun()
+        else:
+            st.caption(f"📊 {_cat['total_unique_medicines']} unique medicines · {_cat['total_batches']} total batches")
+            for i in range(0, len(_summaries), 4):
+                _cols = st.columns(4)
+                for j, _s in enumerate(_summaries[i:i+4]):
+                    with _cols[j]:
+                        st.markdown(f"""
+                        <div class="med-card" style="--card-color: {_s['color']};text-align:center;">
+                            <div style="font-size:2.5rem;">{_s['emoji']}</div>
+                            <div style="font-weight:700;font-size:1rem;color:#e8eaf6;margin-top:0.5rem;">{_s['name']}</div>
+                            <div style="color:#8892b0;font-size:0.8rem;margin-top:0.3rem;">{_s['count']} medicines</div>
+                            <div style="color:{_s['color']};font-size:0.75rem;margin-top:0.2rem;">{_s['total_qty']:,} units</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("Open →", key=f"cat_{_s['name']}", use_container_width=True):
+                            st.session_state.catalog_category = _s["name"]
+                            st.rerun()
+
+
+    if st.session_state.cart:
+        st.markdown("### 🛒 Cart")
+        cart_df = pd.DataFrame(st.session_state.cart)
+        cart_df["Total"] = cart_df["qty"] * cart_df["price"]
+        st.dataframe(cart_df, use_container_width=True, hide_index=True)
+        total = cart_df["Total"].sum()
+        st.markdown(f"**Total: ₹{total:,.2f}**")
+        location = st.text_input("Delivery location", value=r["shop"] + ", Chennai", key="loc")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("📤 Submit (Get OTP)", use_container_width=True):
+                if not location.strip(): st.error("Enter location")
+                else:
+                    allowed, remaining = check_rate(r["id"])
+                    if not allowed:
+                        st.error("🚫 Too many OTP requests. Wait 1 hour.")
+                    else:
+                        otp = gen_otp()
+                        order = {"order_id": f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100,999)}","retailer_id":r["id"],"shop":r["shop"],"items":st.session_state.cart,"total":float(total),"status":"Awaiting OTP","placed_at":fmt_dt(datetime.now()),"location":location.strip()}
+                        st.session_state.pending_order = {"otp": otp, "order": order}
+                        # Multi-channel OTP (Telegram preferred, SMS if configured)
+                        otp_msg = notify_pro.format_otp(order, otp)
+                        notify_result = notify_pro.notify_retailer(r, otp_msg, prefer_sms=False)
+                        log_action(r["id"], "OTP_REQUESTED", f"order={order['order_id']}")
+                        track(r["id"], "ORDER_SUBMIT", page="RetailerOrders", details=f"total=Rs{total:.0f}")
+                        st.success("OTP sent!"); st.rerun()
+        with c2:
+            if st.button("🗑 Clear", use_container_width=True):
+                st.session_state.cart = []; st.rerun()
+
+    st.markdown("---")
+    with st.expander("🔐 Change My PIN"):
+        with st.form("cp"):
+            old = st.text_input("Current PIN", type="password", max_chars=4)
+            new = st.text_input("New PIN", type="password", max_chars=4)
+            new2 = st.text_input("Confirm", type="password", max_chars=4)
+            if st.form_submit_button("Update PIN"):
+                if not verify_pin(old, r["pin_hash"]): st.error("Wrong current PIN")
+                elif new != new2: st.error("Don't match")
+                elif len(new) != 4 or not new.isdigit(): st.error("4 digits only")
+                else:
+                    for rt in retailers:
+                        if rt["id"] == r["id"]: rt["pin_hash"] = hash_pin(new)
+                    save_retailers(retailers); st.success("✅ PIN updated")
+
+    with st.expander("📱 Update My Contact"):
+        with st.form("uc"):
+            new_phone = st.text_input("Phone Number", value=r["phone"])
+            new_tg = st.text_input("Telegram Chat ID", value=r.get("telegram_chat_id",""))
+            if st.form_submit_button("Save"):
+                for rt in retailers:
+                    if rt["id"] == r["id"]:
+                        rt["phone"] = new_phone; rt["telegram_chat_id"] = new_tg
+                save_retailers(retailers); st.success("✅ Updated")
+
+    st.markdown("### 📋 My Orders (only yours)")
+
+    # ─── DELIVERY TRACKING (only after owner approval) ───
+    _delivery_orders = [o for o in load_orders()
+                        if o.get("retailer_id") == r["id"]
+                        and o.get("status") not in ("Awaiting OTP", "Pending", "Rejected", "Cancelled")]
+    if _delivery_orders:
+        st.markdown("### 🚚 Track Your Deliveries")
+        for _dlv_o in _delivery_orders[-3:][::-1]:
+            with st.expander(f"📦 {_dlv_o['order_id']} — ₹{_dlv_o['total']:,.0f}"):
+                try:
+                    delivery_ui.render_retailer_delivery(_dlv_o, r)
+                except Exception as _dlv_e:
+                    st.caption(f"Tracking unavailable: {_dlv_e}")
+
+    orders = [o for o in load_orders() if o["retailer_id"]==r["id"] and o["status"] != "Awaiting OTP"]
+    if orders:
+        odf = pd.DataFrame([{"Order":o["order_id"],"Total":f"₹{o['total']:,.2f}","Status":o["status"],"Placed":o["placed_at"],"Location":o.get("location","")} for o in orders])
+        st.dataframe(odf, use_container_width=True, hide_index=True)
+    else: st.info("No orders yet.")
+
+# ============ OWNER VIEW WITH OI TABS ============
+elif st.session_state.role == "staff":
+    st.markdown("### 👨‍💼 Staff Dashboard")
+    st.info("Staff view — Feature coming soon")
+    st.markdown("---")
+    if st.button("🚪 Sign Out", key="staff_signout"):
+        for _k in list(st.session_state.keys()):
+            try:
+                del st.session_state[_k]
+            except Exception:
+                pass
+        st.rerun()
+
+elif st.session_state.role == "owner":
+    st.markdown(animations.hero('👔 Owner Dashboard', f'Control Center • {fmt_dt(datetime.now())}'), unsafe_allow_html=True)
+    _signout_spacer, _signout_btn = st.columns([6, 1])
+    with _signout_btn:
+        if st.button("🚪 Sign Out", key="owner_logout_final_2024", use_container_width=True):
+            for _sk in list(st.session_state.keys()):
+                try:
+                    del st.session_state[_sk]
+                except Exception:
+                    pass
+            st.rerun()
+    orders_all = load_orders()
+    orders = [o for o in orders_all if o["status"] != "Awaiting OTP"]
+    pending = [o for o in orders if o["status"]=="Pending"]
+    retailers = load_retailers()
+    df = load_inventory()
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Pending Orders", len(pending))
+    c2.metric("Total Orders", len(orders))
+    c3.metric("Approved", len([o for o in orders if o["status"]=="Approved"]))
+    c4.metric("Pending Value", f"₹{sum(o['total'] for o in pending):,.0f}")
+
+    st.markdown("---")
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs(["📋 Approvals", "🏥 Health", "🚨 Fraud", "📦 Auto POs", "🔮 Forecast", "💬 What-If", "🧠 Intelligence", "⚙️ Settings", "🔒 Audit", "💼 Ops", "📚 Accounting", "💰 Discounts", "📢 Marketing"])
+
+    # ===== TAB 1: APPROVALS =====
+    with tab1:
+
+        track_page("Approvals")
+
+        track_page("Approvals")
+        st.markdown("### 📋 Pending Approvals")
+        if not pending:
+            st.info("No pending orders.")
+        else:
+            for idx_o, o in enumerate(pending):
+                with st.expander(f"🔔 {o['order_id']} — {o['shop']} — ₹{o['total']:,.2f}"):
+                    st.write(f"**Placed:** {o['placed_at']} | **Location:** {o.get('location','')}")
+                    items_df = pd.DataFrame(o["items"]); items_df["Total"] = items_df["qty"] * items_df["price"]
+                    st.dataframe(items_df, use_container_width=True, hide_index=True)
+                    ret = next((x for x in retailers if x["id"]==o["retailer_id"]), None)
+                    if ret:
+                        new_out = ret["outstanding"] + o["total"]
+                        st.write(f"**Current outstanding:** ₹{ret['outstanding']:,} → **After:** ₹{new_out:,}")
+                        if new_out > ret["credit_limit"]:
+                            st.error(f"⚠️ Exceeds limit by ₹{new_out-ret['credit_limit']:,}")
+                        flags = detect_fraud(o, ret, orders)
+                        if flags:
+                            st.markdown("**🚨 Fraud Flags:**")
+                            for f in flags:
+                                st.markdown(f'<div class="flag">{f}</div>', unsafe_allow_html=True)
+
+                        # ─── ORDER INTELLIGENCE ───
+                        try:
+                            oi = order_intelligence.score_order(o, ret, orders)
+                            _score_color = "#00d47a" if oi["score"] >= 75 else ("#ffb547" if oi["score"] >= 50 else "#ff4d6d")
+                            _emoji = {"auto_approve": "✅", "soft_review": "⚠️", "hard_review": "🔴"}.get(oi["decision"], "❓")
+                            st.markdown(f"""
+                            <div style="background:rgba(26,31,58,0.75);border-left:4px solid {_score_color};
+                                        border-radius:10px;padding:0.8rem 1rem;margin:0.6rem 0;">
+                                <div style="font-size:0.75rem;color:#8892b0;letter-spacing:1px;">🤖 ORDER INTELLIGENCE</div>
+                                <div style="font-size:1.4rem;font-weight:800;color:{_score_color};margin:0.2rem 0;">
+                                    {_emoji} Score: {oi['score']}/100 — {oi['action_label']}
+                                </div>
+                                <div style="font-size:0.75rem;color:#8892b0;margin-top:0.4rem;">
+                                    Credit: {oi['breakdown'].get('credit',0)} · 
+                                    Payment: {oi['breakdown'].get('payment',0)} · 
+                                    History: {oi['breakdown'].get('history',0)} · 
+                                    Aging: {oi['breakdown'].get('aging',0)}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if oi["warnings"]:
+                                for w in oi["warnings"][:4]:
+                                    st.markdown(f'<div class="flag">⚠️ {w}</div>', unsafe_allow_html=True)
+                        except Exception as _oi_e:
+                            st.caption(f"Intelligence unavailable: {_oi_e}")
+
+                        # ─── DELIVERY ESTIMATE + CONTROLS ───
+                        try:
+                            delivery_ui.render_owner_delivery(o, ret, save_orders, orders_all)
+                        except Exception as _dlv_e:
+                            st.caption(f"Delivery estimate unavailable: {_dlv_e}")
+
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("✅ Approve", key=f"a_{o['order_id']}_{idx_o}", use_container_width=True):
+                            for oi in orders_all:
+                                if oi["order_id"] == o["order_id"]:
+                                    oi["status"] = "Approved"; oi["approved_at"] = fmt_dt(datetime.now())
+                            save_orders(orders_all)
+                            if ret:
+                                ret["outstanding"] += o["total"]; save_retailers(retailers)
+                            track("OWNER", "APPROVE", page="Approvals", details=f"order={o['order_id']}")
+                            st.success("Approved"); st.rerun()
+                    with c2:
+                        if st.button("❌ Reject", key=f"r_{o['order_id']}_{idx_o}", use_container_width=True):
+                            for oi in orders_all:
+                                if oi["order_id"] == o["order_id"]:
+                                    oi["status"] = "Rejected"; oi["rejected_at"] = fmt_dt(datetime.now())
+                            save_orders(orders_all); track("OWNER", "REJECT", page="Approvals", details=f"order={o['order_id']}")
+                            st.warning("Rejected"); st.rerun()
+
+    # ===== TAB 2: HEALTH SCORES =====
+    with tab2:
+
+        track_page("Health")
+
+        track_page("Health")
+        st.markdown("### 🏥 Retailer Health Scores")
+        st.caption("Based on credit utilization, order frequency, and consistency.")
+        for r in retailers:
+            h = calculate_health_score(r, orders)
+            st.markdown(f"""
+            <div class="card">
+                <b>{h['grade']} {r['shop']}</b> — Score: <b>{h['overall']}/100</b> ({h['risk']} risk)<br>
+                <small>Credit: {h['credit']}/100 • Frequency: {h['frequency']}/100 • Consistency: {h['consistency']}/100</small><br>
+                <small>Limit: ₹{r['credit_limit']:,} • Outstanding: ₹{r['outstanding']:,} • Status: {r['status']}</small>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ===== TAB 3: FRAUD =====
+    with tab3:
+
+        track_page("Fraud")
+
+        track_page("Fraud")
+        st.markdown("### 🚨 Fraud & Anomaly Alerts")
+        st.caption("Auto-scans all orders for suspicious patterns.")
+        found = False
+        for o in orders:
+            ret = next((x for x in retailers if x["id"]==o["retailer_id"]), None)
+            if ret:
+                flags = detect_fraud(o, ret, orders)
+                if flags:
+                    found = True
+                    st.markdown(f"**{o['order_id']} — {o['shop']} — ₹{o['total']:,.0f}**")
+                    for f in flags: st.markdown(f'<div class="flag">{f}</div>', unsafe_allow_html=True)
+                    st.markdown("")
+        if not found:
+            st.success("✅ No anomalies detected in current orders.")
+
+    # ===== TAB 4: AUTO POs =====
+    with tab4:
+
+        track_page("AutoPOs")
+
+        track_page("AutoPOs")
+        st.markdown("### 📦 Auto Purchase Order Suggestions")
+        st.caption("Items low in stock with healthy shelf life.")
+        pos = generate_purchase_orders(df)
+        if not pos:
+            st.info("No purchase orders needed right now.")
+        else:
+            for po in pos:
+                st.markdown(f"""
+                <div class="card">
+                    <b>{po['medicine']}</b> from <b>{po['supplier']}</b><br>
+                    Current: {po['current_qty']} units → Order: <b>{po['recommended_qty']} units</b><br>
+                    Cost: <b>₹{po['cost']:,.0f}</b><br>
+                    <small>{po['reason']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ===== TAB 5: FORECAST =====
+    with tab5:
+
+        track_page("Forecast")
+
+        track_page("Forecast")
+        st.markdown("### 🔮 Demand Forecast")
+
+        # Sub-tabs: current simple + new smart forecast
+        f_sub1, f_sub2 = st.tabs(["📊 Simple Forecast", "🌦️ Smart Forecast (Climate + Disease)"])
+
+        with f_sub1:
+            pass  # original content stays below in its own scope
+
+        with f_sub2:
+            st.caption("Combines order history + season + disease patterns + weather")
+            _fc_ret = st.selectbox("Select retailer",
+                                    [f"{r['id']} — {r['shop']}" for r in retailers],
+                                    key="smart_fc_ret")
+            _fc_rid = _fc_ret.split(" — ")[0] if _fc_ret else ""
+            _fc_retailer = next((r for r in retailers if r["id"] == _fc_rid), None)
+
+            if st.button("🌦️ Run Smart Forecast", key="smart_fc_run", use_container_width=True):
+                with st.spinner("Analyzing season + disease patterns + order history..."):
+                    _fc_result = forecast_pro.forecast_retailer(_fc_retailer, orders, df)
+                    _weather = forecast_pro.get_weather("Chennai")
+
+                # Weather card
+                _w = _weather
+                st.markdown(f"""
+                <div style="background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(123,97,255,0.15));
+                            border:1px solid #7b61ff;border-radius:12px;padding:1rem;margin:0.5rem 0;">
+                    <div style="font-size:0.75rem;color:#8892b0;letter-spacing:1px;">WEATHER — {_w['city'].upper()}</div>
+                    <div style="font-size:1.8rem;font-weight:800;color:#00d4ff;margin:0.3rem 0;">{_w['temp']}°C</div>
+                    <div style="color:#e8eaf6;">{_w['condition']} · {_w['description']}</div>
+                    <div style="color:#8892b0;font-size:0.8rem;">Humidity: {_w['humidity']}% · Source: {_w['source']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Season summary
+                st.markdown(f"### {_fc_result['season_emoji']} {_fc_result['season']} Season")
+                for line in _fc_result["summary_lines"]:
+                    st.markdown(f"• {line}", unsafe_allow_html=True)
+
+                # Forecast table
+                if _fc_result["forecasts"]:
+                    st.markdown("#### 📊 Demand Forecast (30 days)")
+                    import pandas as _pd_fc
+                    _fdf = _pd_fc.DataFrame([{
+                        "Medicine": f["medicine"],
+                        "Predicted Qty": f["predicted_qty"],
+                        "Confidence": f"{f['confidence']}%",
+                        "Seasonal Score": f["seasonal_score"],
+                        "Trend": f["trend"],
+                        "Samples": f["history_samples"],
+                    } for f in sorted(_fc_result["forecasts"], key=lambda x: -x["predicted_qty"])])
+                    st.dataframe(_fdf, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No order history for this retailer yet — showing seasonal promotions below.")
+
+                # Promotion recommendations
+                if _fc_result["promotions"]:
+                    st.markdown("#### 📢 Promotion Recommendations")
+                    for p in _fc_result["promotions"][:8]:
+                        _stock_color = "#00d47a" if p["stock"] > 100 else ("#ffb547" if p["stock"] > 20 else "#ff4d6d")
+                        st.markdown(f"""
+                        <div style="background:rgba(26,31,58,0.7);border-left:4px solid #00d4ff;
+                                    border-radius:10px;padding:0.8rem 1rem;margin:0.4rem 0;">
+                            <b>{p['medicine']}</b>
+                            <span style="color:{_stock_color};font-size:0.8rem;float:right;">Stock: {p['stock']}</span><br>
+                            <span style="color:#8892b0;font-size:0.8rem;">💡 {p['reason']}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("No specific promotions for this season.")
+
+        
+        st.caption("LLM predicts next 30 days demand per retailer.")
+        ret_choice = st.selectbox("Select retailer", [r["id"] + " - " + r["shop"] for r in retailers], key="forecast_retailer_select")
+        rid = ret_choice.split(" - ")[0]
+        ret = next((x for x in retailers if x["id"]==rid), None)
+        if st.button("Run Forecast"):
+            with st.spinner("AI analyzing order history..."):
+                pred = predict_demand(ret, orders, df)
+            st.markdown(f"**Summary:** {pred['summary']}")
+            if pred["items"]:
+                fdf = pd.DataFrame(pred["items"])
+                fdf.columns = ["Medicine", "Predicted Qty (30d)", "Confidence"]
+                st.dataframe(fdf, use_container_width=True, hide_index=True)
+
+    # ===== TAB 6: WHAT-IF =====
+    with tab6:
+
+        track_page("WhatIf")
+
+        track_page("WhatIf")
+        st.markdown("### 💬 What-If Simulator")
+        st.caption("Ask AI hypothetical business questions.")
+        context = f"""Retailers: {len(retailers)}
+Total outstanding: ₹{sum(r['outstanding'] for r in retailers):,.0f}
+Total credit limits: ₹{sum(r['credit_limit'] for r in retailers):,.0f}
+Pending orders: {len(pending)}
+Inventory value: ₹{df['inventory_value'].sum():,.0f}
+Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
+        q = st.text_area("Your question", placeholder="What if I raise RET001's credit limit by ₹50,000?", height=100)
+        if st.button("Ask AI") and q.strip():
+            with st.spinner("Thinking..."):
+                answer = answer_whatif(q, context)
+            st.markdown(f'<div class="card">{answer}</div>', unsafe_allow_html=True)
+
+    # ===== TAB 7: INTELLIGENCE (ENHANCED) =====
+    with tab7:
+
+        track_page("Intelligence")
+
+        track_page("Intelligence")
+        st.markdown("### 🧠 Owner Intelligence Center")
+        st.caption("AI-powered analysis of workers, orders, business patterns, and industry benchmarks.")
+
+        activity = load_activity()
+        worker_metrics = calculate_worker_metrics(activity, orders, days=7)
+        breaks = detect_breaks(activity, min_break_minutes=15)
+        problems = analyze_worker_problems(activity, orders)
+        benchmarks = compare_to_industry(retailers, orders)
+
+        # Sub-tabs
+        t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
+            "📊 Live Activity", "👥 Workers", "⏱ Breaks",
+            "📈 AI Reports", "🎯 Strategy", "⚠️ Problems",
+            "📉 Charts", "🌐 Industry"
+        ])
+
+        # --- LIVE ACTIVITY ---
+        with t1:
+            st.markdown("#### Recent Activity (last 50 events)")
+            if activity:
+                recent = sorted(activity, key=lambda x: x["ts"], reverse=True)[:50]
+                for a in recent:
+                    ts = datetime.fromisoformat(a["ts"]).strftime("%d-%b %H:%M")
+                    st.markdown(f"`{ts}` **{a['worker']}** — {a['action']} {a.get('details','')}")
+            else:
+                st.info("No activity yet. Workers need to log in.")
+
+        # --- WORKER PERFORMANCE ---
+        with t2:
+            st.markdown("#### Worker Performance (last 7 days)")
+            if worker_metrics:
+                balance = analyze_workload_balance(worker_metrics)
+                for w, m in worker_metrics.items():
+                    b = balance.get(w, {})
+                    st.markdown(f"""<div class="card">
+                        <b>{w}</b> {b.get('status','')}<br>
+                        Orders: <b>{m['orders_placed']}</b> | Logins: {m['logins']} | Session: {m['session_minutes']} min<br>
+                        <small>{b.get('advice','')}</small>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.info("No worker data yet. Need workers to log in and place orders.")
+
+        # --- BREAKS ---
+        with t3:
+            st.markdown("#### ⏱ Break Timer Dashboard")
+            st.caption("Live break tracking from worker screen locks (Windows+L) + manual break buttons.")
+            
+            from auto_tracker import inject_tracker
+            # (removed broken accounting import)
+            from breaks import load_breaks as _load_brks
+
+            all_breaks = _load_brks()
+            today = datetime.now().date()
+            today_breaks_all = [b for b in all_breaks if datetime.fromisoformat(b["start"]).date() == today]
+            
+            # Live lock status
+            active_locks = [b for b in all_breaks if b.get("end") is None]
+            if active_locks:
+                st.warning(f"🔒 {len(active_locks)} worker(s) currently on break")
+                for b in active_locks:
+                    start = datetime.fromisoformat(b["start"])
+                    elapsed = int((datetime.now() - start).total_seconds() / 60)
+                    st.markdown(f"**{b['worker']}** — locked since {start.strftime('%H:%M')} ({elapsed} min)")
+            else:
+                st.success("✅ All workers active")
+            
+            st.markdown("---")
+            st.markdown("#### Today's Break Log")
+            if today_breaks_all:
+                for b in today_breaks_all:
+                    start = b["start"][11:16]
+                    end = b["end"][11:16] if b.get("end") else "ongoing"
+                    dur = b.get("duration_min", 0)
+                    badge = "🔴" if dur > 30 else ("🟡" if dur > 15 else "🟢")
+                    st.markdown(f"{badge} `{start}` → `{end}` | **{b['worker']}** | **{dur} min**")
+            else:
+                st.info("No breaks logged today.")
+            
+            st.markdown("---")
+            st.markdown("#### Weekly Break Summary Per Worker")
+            weekly = {}
+            for b in all_breaks:
+                start = datetime.fromisoformat(b["start"])
+                if (datetime.now() - start).days <= 7:
+                    weekly[b["worker"]] = weekly.get(b["worker"], 0) + b.get("duration_min", 0)
+            if weekly:
+                for w, mins in sorted(weekly.items(), key=lambda x: -x[1]):
+                    st.markdown(f"- **{w}**: {mins} min total")
+            else:
+                st.info("No break data in last 7 days.")
+
+        # --- AI REPORTS ---
+        with t4:
+            st.markdown("#### AI Business Reports")
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                if st.button("📅 Daily", use_container_width=True):
+                    with st.spinner("Generating..."):
+                        # --- Visual Daily Dashboard ---
+                            st.markdown("### 📊 Today at a Glance")
+                            total_rev = sum(o.get("total", 0) for o in orders)
+                            pending_count = len([o for o in orders if o.get("status") == "Pending"])
+                            worker_count = len(worker_metrics)
+                            break_count = len(breaks)
+                            render_kpi_strip({
+                                "Orders":  {"value": len(orders), "delta": "today", "rag": "green" if orders else "red"},
+                                "Revenue": {"value": f"₹{total_rev:,.0f}", "delta": "total", "rag": "green" if total_rev > 0 else "red"},
+                                "Pending": {"value": pending_count, "delta": "awaiting", "rag": "amber" if pending_count else "green"},
+                                "Workers": {"value": worker_count, "delta": "active", "rag": "green"},
+                                "Breaks":  {"value": break_count, "delta": "detected", "rag": "amber" if break_count > 2 else "green"},
+                            })
+                            st.markdown("---")
+                            col_left, col_right = st.columns([2, 1])
+                            with col_left:
+                                st.markdown("#### 📈 Business Health Signals")
+                                rev_health = 100 if total_rev > 100000 else (60 if total_rev > 0 else 0)
+                                staff_health = min(100, worker_count * 40)
+                                order_flow = min(100, len(orders) * 20)
+                                risk_level = 100 - min(100, break_count * 15)
+                                render_health_bars([
+                                    {"label": "Revenue Health", "pct": rev_health, "color": "green" if rev_health > 70 else ("amber" if rev_health > 30 else "red")},
+                                    {"label": "Staff Engagement", "pct": staff_health, "color": "green" if staff_health > 70 else ("amber" if staff_health > 30 else "red")},
+                                    {"label": "Order Flow", "pct": order_flow, "color": "green" if order_flow > 70 else ("amber" if order_flow > 30 else "red")},
+                                    {"label": "Operational Safety", "pct": risk_level, "color": "green" if risk_level > 70 else ("amber" if risk_level > 30 else "red")},
+                                ])
+                            with col_right:
+                                overall = int((rev_health + staff_health + order_flow + risk_level) / 4)
+                                render_health_gauge(overall, "Overall Health")
+                            st.markdown("---")
+                            st.markdown("#### 🧠 AI Narrative")
+                            ai_text = generate_daily_report(worker_metrics, orders, retailers, breaks)
+                            render_insight(ai_text, "📝 TODAY'S BRIEFING")
+                            st.markdown("---")
+                            st.markdown("#### 🔍 Root Cause Analysis")
+                            if len(orders) == 0:
+                                render_root_cause(["Zero orders received today", "No customers attempted to place orders", "Either catalogue not visible OR no demand generation", "Likely catalogue/pricing issue OR lack of outreach", "Action: verify catalogue is live; call top 3 retailers"])
+                            else:
+                                render_root_cause([f"{len(orders)} orders received", f"Total value ₹{total_rev:,.0f}", f"{pending_count} pending approval", "Pipeline is active", "Action: clear pending approvals to maintain flow"])
+                            st.markdown("---")
+                            st.markdown("#### 💡 Recommended Actions")
+                            if len(orders) == 0:
+                                actions = [
+                                    {"icon": "📞", "title": "Call top retailers", "desc": "Direct outreach to top 3 by outstanding", "effort": "Low", "impact": "High"},
+                                    {"icon": "📦", "title": "Audit catalogue", "desc": "Verify stock items visible & priced", "effort": "Medium", "impact": "High"},
+                                    {"icon": "🎯", "title": "Set daily target", "desc": "Assign a minimum order goal per retailer", "effort": "Low", "impact": "Medium"},
+                                ]
+                            else:
+                                actions = [
+                                    {"icon": "✅", "title": "Clear approvals", "desc": f"{pending_count} orders awaiting your action", "effort": "Low", "impact": "High"},
+                                    {"icon": "📊", "title": "Review retailers", "desc": "Check credit utilization dashboard", "effort": "Low", "impact": "Medium"},
+                                    {"icon": "📦", "title": "Restock check", "desc": "Review Auto POs tab for low stock", "effort": "Medium", "impact": "High"},
+                                ]
+                            render_action_cards(actions)
+                            st.markdown("---")
+                            st.markdown("#### 🏪 Retailer Scorecard")
+                            ret_list = []
+                            for r in retailers:
+                                out = r["outstanding"]
+                                lim = max(r["credit_limit"], 1)
+                                util = int(out / lim * 100)
+                                health = max(0, 100 - util)
+                                risk = "Low" if util < 50 else ("Medium" if util < 80 else "High")
+                                ret_list.append({"shop": r["shop"], "health": health, "risk": risk, "outstanding": out, "utilization": util})
+                            render_retailer_scorecard(ret_list)
+                    log_activity("OWNER", "AI_DAILY_REPORT")
+            with c2:
+                if st.button("📆 Weekly", use_container_width=True):
+                    with st.spinner("Generating..."):
+                        st.markdown(generate_weekly_insights(worker_metrics, orders, retailers, breaks))
+                    log_activity("OWNER", "AI_WEEKLY_REPORT")
+            with c3:
+                if st.button("🗓 Monthly", use_container_width=True):
+                    with st.spinner("Generating..."):
+                        st.markdown(generate_monthly_report(worker_metrics, orders, retailers, breaks))
+                    log_activity("OWNER", "AI_MONTHLY_REPORT")
+            with c4:
+                if st.button("📊 Yearly", use_container_width=True):
+                    with st.spinner("Generating..."):
+                        st.markdown(generate_yearly_report(worker_metrics, orders, retailers, breaks))
+                    log_activity("OWNER", "AI_YEARLY_REPORT")
+
+            st.markdown("---")
+            if st.button("🧠 Psychological Profile", use_container_width=True):
+                with st.spinner("Analyzing worker patterns..."):
+                    st.markdown(psychological_profile(worker_metrics, breaks))
+                log_activity("OWNER", "AI_PSYCH_PROFILE")
+
+        # --- STRATEGY ---
+        with t5:
+            st.markdown("#### Strategic Recommendations")
+            if st.button("🎯 Generate Strategic Advice", use_container_width=True):
+                with st.spinner("Analyzing business..."):
+                    st.markdown(strategic_recommendations(worker_metrics, orders, retailers, breaks))
+                log_activity("OWNER", "AI_STRATEGY")
+
+        # --- PROBLEMS ---
+        with t6:
+            st.markdown("#### ⚠️ Detected Worker Problems")
+            st.caption("AI detects difficulties from activity patterns.")
+            if problems:
+                for p in problems:
+                    st.markdown(f"""<div class="card">
+                        <b>{p['worker']}</b> — <b>{p['type']}</b> ({p['severity']})<br>
+                        {p['detail']}<br>
+                        <small>💡 <b>Fix:</b> {p['fix']}</small>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.success("✅ No worker problems detected.")
+
+        # --- CHARTS ---
+        with t7:
+            st.markdown("#### 📉 Business Charts")
+            if worker_metrics:
+                # Chart 1: Orders per worker
+                workers = list(worker_metrics.keys())
+                orders_count = [worker_metrics[w]["orders_placed"] for w in workers]
+                fig = go.Figure(data=[go.Bar(x=workers, y=orders_count, marker_color="#00d4ff")])
+                fig.update_layout(title="Orders per Worker", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Chart 2: Session minutes
+                sessions = [worker_metrics[w]["session_minutes"] for w in workers]
+                fig2 = go.Figure(data=[go.Bar(x=workers, y=sessions, marker_color="#7b61ff")])
+                fig2.update_layout(title="Session Minutes per Worker", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
+                st.plotly_chart(fig2, use_container_width=True)
+            else:
+                st.info("No data yet for charts.")
+            
+            # Chart 3: Retailer outstanding
+            fig3 = go.Figure(data=[go.Pie(labels=[r["shop"] for r in retailers], values=[r["outstanding"] for r in retailers], hole=0.5)])
+            fig3.update_layout(title="Outstanding by Retailer", paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
+            st.plotly_chart(fig3, use_container_width=True)
+
+        # --- INDUSTRY ---
+        with t8:
+            st.markdown("#### 🌐 Industry Benchmark Comparison")
+            st.caption("How your business compares to typical Indian pharma wholesalers.")
+            for b in benchmarks:
+                icon = "🟢" if b["status"] == "good" else ("🔴" if b["status"] == "bad" else "⚪")
+                st.markdown(f"""<div class="card">
+                    {icon} <b>{b['metric']}</b><br>
+                    Industry: {b['industry']} | Yours: <b>{b['yours']}</b>
+                </div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+    # ===== TAB 8: SETTINGS =====
+    with tab8:
+
+        track_page("Settings")
+
+        track_page("Settings")
+        st.markdown("### 🏪 Retailer Management")
+        rdf = pd.DataFrame([{
+            "ID":r["id"],"Shop":r["shop"],"Owner":r["owner"],"Phone":r["phone"],
+            "Telegram":r.get("telegram_chat_id","") or "❌",
+            "Limit":f"₹{r['credit_limit']:,}","Outstanding":f"₹{r['outstanding']:,}",
+            "Status":r["status"]
+        } for r in retailers])
+        st.dataframe(rdf, use_container_width=True, hide_index=True)
+
+        with st.expander("➕ Add New Retailer"):
+            with st.form("add_retailer"):
+                new_id = st.text_input("Retailer ID", placeholder="RET004")
+                new_shop = st.text_input("Shop Name")
+                new_owner = st.text_input("Owner Name")
+                new_phone = st.text_input("Phone", max_chars=10)
+                new_pin = st.text_input("Initial PIN (4 digits)", max_chars=4, type="password")
+                new_limit = st.number_input("Credit Limit (₹)", min_value=0, value=100000, step=10000)
+                new_tg = st.text_input("Telegram Chat ID (optional)")
+                if st.form_submit_button("Add Retailer"):
+                    if not new_id or not new_shop or not new_phone or len(new_pin) != 4:
+                        st.error("All fields required, PIN = 4 digits")
+                    elif any(x["id"] == new_id for x in retailers):
+                        st.error("ID already exists")
+                    else:
+                        retailers.append({"id":new_id.upper(), "shop":new_shop, "owner":new_owner,"phone":new_phone, "pin_hash":hash_pin(new_pin),"credit_limit":int(new_limit), "outstanding":0,"payment_days":90, "status":"Active","telegram_chat_id":new_tg})
+                        save_retailers(retailers); st.success(f"Added {new_id}"); st.rerun()
+
+        with st.expander("✏️ Edit Retailer"):
+            edit_id = st.selectbox("Select retailer", [r["id"]+" - "+r["shop"] for r in retailers], key="edit_retailer_select")
+            rid_code = edit_id.split(" - ")[0] if edit_id else None
+            ret = next((x for x in retailers if x["id"] == rid_code), None)
+            if ret:
+                with st.form("edit_retailer"):
+                    e_shop = st.text_input("Shop Name", value=ret["shop"])
+                    e_owner = st.text_input("Owner Name", value=ret["owner"])
+                    e_phone = st.text_input("Phone", value=ret["phone"], max_chars=10)
+                    e_tg = st.text_input("Telegram Chat ID", value=ret.get("telegram_chat_id",""))
+                    e_limit = st.number_input("Credit Limit (₹)", min_value=0, value=int(ret["credit_limit"]), step=10000)
+                    e_out = st.number_input("Current Outstanding (₹)", min_value=0, value=int(ret["outstanding"]), step=1000)
+                    e_status = st.selectbox("Status", ["Active", "Blocked"], index=0 if ret["status"]=="Active" else 1)
+                    e_pin = st.text_input("Reset PIN (leave blank to keep)", type="password", max_chars=4)
+                    if st.form_submit_button("Save Changes"):
+                        for rt in retailers:
+                            if rt["id"] == rid_code:
+                                rt["shop"] = e_shop; rt["owner"] = e_owner
+                                rt["phone"] = e_phone; rt["telegram_chat_id"] = e_tg
+                                rt["credit_limit"] = int(e_limit); rt["outstanding"] = int(e_out)
+                                rt["status"] = e_status
+                                if e_pin and len(e_pin) == 4: rt["pin_hash"] = hash_pin(e_pin)
+                        save_retailers(retailers); st.success("✅ Updated"); st.rerun()
+
+        st.markdown("### ⚙️ Owner Settings")
+        owner = load_owner()
+        with st.expander("📱 Contact & Telegram"):
+            with st.form("oc"):
+                o_phone = st.text_input("Owner Phone", value=owner.get("phone",""))
+                o_tg = st.text_input("Owner Telegram Chat ID", value=owner.get("telegram_chat_id",""))
+                if st.form_submit_button("Save"):
+                    owner["phone"] = o_phone; owner["telegram_chat_id"] = o_tg
+                    save_owner(owner); st.success("✅ Updated")
+
+        with st.expander("🔐 Change Owner Password"):
+            with st.form("op"):
+                old = st.text_input("Current", type="password")
+                new = st.text_input("New", type="password")
+                new2 = st.text_input("Confirm", type="password")
+                if st.form_submit_button("Update"):
+                    if not verify_pin(old, owner["pin_hash"]): st.error("Wrong")
+                    elif new != new2: st.error("Don't match")
+                    elif len(new) < 6: st.error("Min 6 chars")
+                    else:
+                        owner["pin_hash"] = hash_pin(new); save_owner(owner)
+                        st.success("✅ Password updated")
+
+    # ===== TAB 8: AUDIT LOG =====
+    with tab9:
+        track_page("Audit")
+        st.markdown("### 🛡 Audit & Workforce Intelligence")
+        st.caption("Tamper-proof · Owner-only · Live monitoring")
+
+        # ── KPI strip ──
+        from datetime import datetime as _dt
+        import pandas as _pd
+        _today = _dt.now().strftime("%d-%b-%Y").upper()
+        _all_events = read_events(limit=100000)
+        _today_events = [e for e in _all_events if e.get("ts_date") == _today]
+        _chain = verify_chain()
+        _users = set(e["user"] for e in _today_events)
+        _user_count = len(_users)
+        _total_clicks = len([e for e in _today_events if e["action"] == "CLICK"])
+        _all_time = _dt.now().replace(hour=0,minute=0,second=0,microsecond=0)
+        _hours_today = round(len(_today_events) * 0.4 / 60, 1)  # rough proxy
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            _c = "#00d47a" if _chain["ok"] else "#ff4d6d"
+            st.markdown(f"""<div style="background:rgba(26,31,58,0.7);border:2px solid {_c};border-radius:12px;padding:1rem;text-align:center;">
+                <div style="color:#8892b0;font-size:0.75rem;letter-spacing:1px;">CHAIN STATUS</div>
+                <div style="color:{_c};font-size:1.6rem;font-weight:700;">{'🟢 VALID' if _chain['ok'] else '🔴 BROKEN'}</div>
+                <div style="color:#8892b0;font-size:0.7rem;">{_chain['total']} total events</div>
+            </div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""<div style="background:rgba(26,31,58,0.7);border:2px solid #00d4ff;border-radius:12px;padding:1rem;text-align:center;">
+                <div style="color:#8892b0;font-size:0.75rem;letter-spacing:1px;">ACTIVE USERS</div>
+                <div style="color:#00d4ff;font-size:1.6rem;font-weight:700;">{_user_count}</div>
+                <div style="color:#8892b0;font-size:0.7rem;">today</div>
+            </div>""", unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""<div style="background:rgba(26,31,58,0.7);border:2px solid #7b61ff;border-radius:12px;padding:1rem;text-align:center;">
+                <div style="color:#8892b0;font-size:0.75rem;letter-spacing:1px;">EVENTS TODAY</div>
+                <div style="color:#7b61ff;font-size:1.6rem;font-weight:700;">{len(_today_events)}</div>
+                <div style="color:#8892b0;font-size:0.7rem;">{_hours_today}h tracked</div>
+            </div>""", unsafe_allow_html=True)
+        with col4:
+            st.markdown(f"""<div style="background:rgba(26,31,58,0.7);border:2px solid #ffb547;border-radius:12px;padding:1rem;text-align:center;">
+                <div style="color:#8892b0;font-size:0.75rem;letter-spacing:1px;">CLICKS TODAY</div>
+                <div style="color:#ffb547;font-size:1.6rem;font-weight:700;">{_total_clicks}</div>
+                <div style="color:#8892b0;font-size:0.7rem;">user actions</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── Per-user cards ──
+        st.markdown("#### 👥 User Activity Today")
+        _summaries = all_users_summary(date=_today)
+        if not _summaries:
+            st.info("No activity recorded today yet.")
+        else:
+            _ucols = st.columns(min(len(_summaries), 3))
+            for i, (u, m) in enumerate(_summaries.items()):
+                with _ucols[i % len(_ucols)]:
+                    _pages = m.get("pages", {})
+                    _top_page = max(_pages.items(), key=lambda x: x[1])[0] if _pages else "—"
+                    _dur = m.get("duration_min", 0)
+                    _clicks = m.get("clicks", 0)
+                    _evts = m.get("events", 0)
+                    st.markdown(f"""<div style="background:rgba(26,31,58,0.7);border-left:4px solid #00d4ff;border-radius:10px;padding:1rem;margin-bottom:0.8rem;">
+                        <div style="font-size:1.3rem;">👤 <b>{u}</b></div>
+                        <div style="color:#8892b0;font-size:0.75rem;margin-top:0.3rem;">⏱ {_dur} min · 🖱 {_clicks} clicks · 📊 {_evts} events</div>
+                        <div style="color:#00d4ff;font-size:0.8rem;margin-top:0.4rem;">📍 Top page: {_top_page}</div>
+                    </div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── Top pages bar chart ──
+        st.markdown("#### 📈 Top Pages Today")
+        _page_counts = {}
+        for e in _today_events:
+            if e.get("page"):
+                _page_counts[e["page"]] = _page_counts.get(e["page"], 0) + 1
+        if _page_counts:
+            import plotly.graph_objects as _go
+            _sorted = sorted(_page_counts.items(), key=lambda x: -x[1])
+            _fig = _go.Figure(data=[_go.Bar(
+                x=[p[1] for p in _sorted],
+                y=[p[0] for p in _sorted],
+                orientation="h",
+                marker_color="#7b61ff",
+                text=[p[1] for p in _sorted],
+                textposition="outside",
+            )])
+            _fig.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font={"color": "#e8eaf6"}, height=max(200, len(_sorted)*40),
+                margin=dict(l=20, r=40, t=10, b=10),
+                xaxis=dict(showgrid=False, visible=False),
+                yaxis=dict(showgrid=False, autorange="reversed"),
+            )
+            st.plotly_chart(_fig, use_container_width=True)
+        else:
+            st.info("No page views yet today.")
+
+        st.markdown("---")
+        st.markdown("#### 🧠 Behavioral Analytics (auto-generated)")
+        try:
+            _rep = analytics_full_report(days_back=1)
+
+            # Efficiency score per user
+            if _rep["efficiency"]:
+                st.markdown("**📊 Efficiency Score per User**")
+                for _u, _s in _rep["efficiency"].items():
+                    _bar = "█" * (_s // 5) + "░" * (20 - _s // 5)
+                    _col = "#00d47a" if _s >= 70 else ("#ffb547" if _s >= 40 else "#ff4d6d")
+                    st.markdown(f'<div style="font-family:monospace;font-size:0.9rem;margin-bottom:0.3rem;"><b>{_u}</b> <span style="color:{_col};">{_bar}</span> {_s}/100</div>', unsafe_allow_html=True)
+
+            # Time per section
+            st.markdown("**⏱ Time per Section (minutes today)**")
+            if _rep["section_time"]:
+                for _u, _pages in _rep["section_time"].items():
+                    _total = sum(_pages.values())
+                    with st.expander(f"👤 {_u} — {_total:.0f} min total"):
+                        for _pg, _mins in sorted(_pages.items(), key=lambda x: -x[1]):
+                            _bar = "▓" * int(_mins) + "░" * max(0, 30 - int(_mins))
+                            st.markdown(f"`{_pg:20s}` {_bar} **{_mins} min**")
+            else:
+                st.caption("No section data yet.")
+
+            # Repetitions
+            st.markdown("**🔁 Repetition Detector (automation candidates)**")
+            if _rep["repetitions"]:
+                for _r in _rep["repetitions"][:8]:
+                    st.markdown(f'<div style="background:rgba(255,181,71,0.12);border-left:3px solid #ffb547;padding:0.5rem 0.8rem;border-radius:6px;margin:0.3rem 0;"><b>{_r["user"]}</b> clicked <b>{_r["label"]}</b> {_r["repeats"]}× in {_r["window_min"]} min</div>', unsafe_allow_html=True)
+            else:
+                st.success("No repetitive patterns found.")
+
+            # Automations
+            st.markdown("**💡 Automation Opportunities (₹ impact)**")
+            if _rep["automations"]:
+                for _op in _rep["automations"][:5]:
+                    st.markdown(f'<div style="background:linear-gradient(135deg,rgba(0,212,255,0.10),rgba(123,97,255,0.10));border:1px solid #7b61ff;padding:0.7rem 1rem;border-radius:8px;margin:0.3rem 0;"><b>{_op["suggestion"]}</b><br><span style="color:#00d47a;">💰 ~₹{_op["estimated_inr_saved_per_month"]:,}/month</span> · ~{_op["estimated_min_saved_per_day"]} min/day saved</div>', unsafe_allow_html=True)
+            else:
+                st.info("No automation opportunities yet.")
+
+            # Idle gaps
+            st.markdown("**😴 Idle Gaps (>5 min)**")
+            if _rep["idle_gaps"]:
+                _any = False
+                for _u, _gaps in _rep["idle_gaps"].items():
+                    if _gaps:
+                        _any = True
+                        st.markdown(f"**{_u}:** " + ", ".join([f"{_g['from']}→{_g['to']} ({_g['minutes']}m)" for _g in _gaps[:5]]))
+                if not _any:
+                    st.caption("No significant idle gaps.")
+            else:
+                st.caption("No idle gap data.")
+        except Exception as _e:
+            st.caption(f"Analytics unavailable: {_e}")
+
+        st.markdown("---")
+
+        st.markdown("---")
+
+        # ── Anomaly alerts ──
+        st.markdown("#### 🔥 Activity Heatmap (Hour × Day)")
+        try:
+            import plotly.graph_objects as _go2
+            import pandas as _pd2
+            from datetime import datetime as _dt2, timedelta as _td2
+
+            # Build last 7 days × 24 hours grid
+            _now = _dt2.now()
+            _days = [(_now - _td2(days=i)).strftime("%d-%b").upper() for i in range(6, -1, -1)]
+            _hours = [f"{h:02d}" for h in range(24)]
+            _grid = [[0]*24 for _ in range(7)]
+
+            for _e in _all_events:
+                try:
+                    _ts = _dt2.fromisoformat(_e["ts_iso"])
+                    _day_delta = (_now.date() - _ts.date()).days
+                    if 0 <= _day_delta <= 6:
+                        _row = 6 - _day_delta
+                        _grid[_row][_ts.hour] += 1
+                except Exception:
+                    pass
+
+            _heat = _go2.Figure(data=_go2.Heatmap(
+                z=_grid, x=_hours, y=_days,
+                colorscale=[[0, "#0a0e27"], [0.5, "#7b61ff"], [1, "#00d4ff"]],
+                showscale=True,
+                hovertemplate="Day: %{y}<br>Hour: %{x}<br>Events: %{z}<extra></extra>",
+            ))
+            _heat.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font={"color": "#e8eaf6"}, height=280,
+                margin=dict(l=20, r=20, t=20, b=40),
+                xaxis=dict(title="Hour of Day", showgrid=False),
+                yaxis=dict(title="", showgrid=False),
+            )
+            st.plotly_chart(_heat, use_container_width=True)
+        except Exception as _e:
+            st.caption(f"Heatmap unavailable: {_e}")
+
+        st.markdown("---")
+        st.markdown("#### 📈 Weekly Trend (events per day)")
+        try:
+            from datetime import datetime as _dt3, timedelta as _td3
+            _now = _dt3.now()
+            _days_labels = []
+            _counts = []
+            for i in range(6, -1, -1):
+                _d = (_now - _td3(days=i)).date()
+                _days_labels.append(_d.strftime("%a %d"))
+                _count = 0
+                for _e in _all_events:
+                    try:
+                        if _dt3.fromisoformat(_e["ts_iso"]).date() == _d:
+                            _count += 1
+                    except Exception:
+                        pass
+                _counts.append(_count)
+
+            _trend = _go2.Figure(data=_go2.Scatter(
+                x=_days_labels, y=_counts,
+                mode="lines+markers",
+                line=dict(color="#00d4ff", width=3),
+                marker=dict(size=10, color="#00d4ff"),
+                fill="tozeroy", fillcolor="rgba(0,212,255,0.10)",
+            ))
+            _trend.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font={"color": "#e8eaf6"}, height=250,
+                margin=dict(l=20, r=20, t=20, b=40),
+                xaxis=dict(showgrid=False),
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
+            )
+            st.plotly_chart(_trend, use_container_width=True)
+        except Exception as _e:
+            st.caption(f"Trend unavailable: {_e}")
+
+        st.markdown("---")
+        st.markdown("#### 🎯 Worker Comparison (radar)")
+        try:
+            import plotly.graph_objects as _go3
+            # For each user, compute 5 dimensions
+            _metrics = {}
+            for _u, _evts in [(u, [e for e in _all_events if e["user"] == u and e.get("ts_date") == _today]) for u in _users]:
+                if not _evts:
+                    continue
+                _clicks = len([e for e in _evts if e["action"] == "CLICK"])
+                _pages = len(set(e["page"] for e in _evts if e.get("page")))
+                _events = len(_evts)
+                # Normalize roughly to 0-100
+                _metrics[_u] = [
+                    min(_clicks * 2, 100),
+                    min(_pages * 12, 100),
+                    min(_events, 100),
+                    min(_events * 2, 100),
+                    min(len(set(e["ts_hms"][:2] for e in _evts)) * 10, 100),
+                ]
+
+            if _metrics:
+                _cats = ["Clicks", "Page Variety", "Total Events", "Activity", "Hours Active"]
+                _radar = _go3.Figure()
+                for _u, _vals in _metrics.items():
+                    _radar.add_trace(_go3.Scatterpolar(
+                        r=_vals + [_vals[0]],
+                        theta=_cats + [_cats[0]],
+                        fill="toself", name=_u, opacity=0.6,
+                    ))
+                _radar.update_layout(
+                    polar=dict(bgcolor="rgba(0,0,0,0)"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font={"color": "#e8eaf6"},
+                    height=400,
+                    margin=dict(l=40, r=40, t=20, b=20),
+                    showlegend=True,
+                )
+                st.plotly_chart(_radar, use_container_width=True)
+            else:
+                st.caption("No user data yet for comparison.")
+        except Exception as _e:
+            st.caption(f"Radar unavailable: {_e}")
+
+        st.markdown("---")
+        st.markdown("#### ⚠️ Anomaly Detection")
+        _alerts = []
+
+        # Alert 1: CLICK bursts only (not PAGE_VIEW) — real bot-like behavior
+        _click_by_sec = {}
+        for e in _today_events:
+            if e.get("action") == "CLICK":
+                key = e["ts_hms"]
+                _click_by_sec[key] = _click_by_sec.get(key, 0) + 1
+        for sec, n in _click_by_sec.items():
+            if n >= 15:  # higher threshold for clicks
+                _alerts.append(f"🚨 {n} clicks in 1 second at {sec} — possible bot")
+
+        # Alert 2: Chain broken
+        if not _chain["ok"]:
+            _alerts.append(f"🔴 TAMPER DETECTED — chain broken at event #{_chain['broken_at']}")
+
+        # Alert 3: Nobody active today
+        if _user_count == 0:
+            _alerts.append("😴 No user activity today")
+
+        # Alert 4: Off-hours login (before 7am or after 10pm)
+        for e in _today_events:
+            if e.get("action") == "LOGIN_SUCCESS":
+                try:
+                    hour = int(e["ts_hms"].split(":")[0])
+                    if hour < 7 or hour >= 22:
+                        _alerts.append(f"🌙 Off-hours login by {e['user']} at {e['ts_hms']}")
+                except Exception:
+                    pass
+                break  # only report once
+
+        if _alerts:
+            for a in _alerts[:8]:  # cap at 8 alerts
+                st.markdown(f'<div style="background:rgba(255,77,109,0.15);border-left:4px solid #ff4d6d;padding:0.6rem 1rem;border-radius:6px;margin:0.3rem 0;">{a}</div>', unsafe_allow_html=True)
+        else:
+            st.success("✅ No anomalies detected — system healthy")
+
+        st.markdown("---")
+
+        # ── Live event stream ──
+        st.markdown("#### 📋 Live Event Stream (last 20)")
+        _recent = _all_events[-20:][::-1] if _all_events else []
+        if _recent:
+            _rows = []
+            for e in _recent:
+                _rows.append({
+                    "Time": e["ts_hms"],
+                    "Date": e["ts_date"],
+                    "User": e["user"],
+                    "Action": e["action"],
+                    "Page": e.get("page", ""),
+                })
+            st.dataframe(_pd.DataFrame(_rows), use_container_width=True, hide_index=True, height=300)
+        else:
+            st.info("No events yet.")
+
+        st.markdown("---")
+
+        # ── Actions ──
+        st.markdown("#### 🛠 Owner Actions")
+        _ac1, _ac2, _ac3 = st.columns(3)
+        with _ac1:
+            if st.button("🔐 Verify Chain Integrity", use_container_width=True):
+                _v = verify_chain()
+                if _v["ok"]:
+                    st.success(f"✅ Chain intact — {_v['total']} events")
+                else:
+                    st.error(f"🔴 Chain broken at event #{_v['broken_at']}")
+        with _ac2:
+            if _all_events:
+                _csv = "ts_hms,ts_date,user,action,page,details\n"
+                for e in _all_events:
+                    _csv += f"{e['ts_hms']},{e['ts_date']},{e['user']},{e['action']},{e.get('page','')},\"{e.get('details','')}\"\n"
+                st.download_button("📥 Export CSV", data=_csv, file_name=f"audit_{_today}.csv", mime="text/csv", use_container_width=True)
+            else:
+                st.button("📥 Export CSV (empty)", disabled=True, use_container_width=True)
+        with _ac3:
+            pass  # removed disabled button
+
+        # ── Legacy raw log (collapsed) ──
+        with st.expander("📜 Legacy Raw Log (old format)"):
+            pass
+
+
+    with tab10:
+        track_page("Operations")
+        st.markdown("### 💼 Operations")
+        st.caption("Record payments · Cancel orders · Add stock · Search · Invoices")
+
+        op1, op2, op3, op4, op5 = st.tabs([
+            "💰 Record Payment", "❌ Cancel Order", "📦 Add Stock",
+            "🔍 Search Orders", "📄 Generate Invoice"
+        ])
+
+        with op1:
+            st.markdown("#### 💰 Record Payment")
+            st.caption("Capture how the payment was received — cash, cheque, UPI, NEFT, RTGS.")
+
+            _ret_options = [f"{r['id']} — {r['shop']} (₹{r['outstanding']:,} due)" for r in retailers]
+            _picked = st.selectbox("Select retailer", _ret_options, key="pay_ret")
+            _rid = _picked.split(" — ")[0] if _picked else ""
+            _ret_obj = next((r for r in retailers if r["id"] == _rid), None)
+
+            if _ret_obj:
+                # Outstanding banner
+                st.markdown(f"""
+                <div style="background:rgba(255,77,109,0.10);border-left:4px solid #ff4d6d;
+                            border-radius:8px;padding:0.8rem 1rem;margin:0.5rem 0;">
+                    <b>Current outstanding:</b> ₹{_ret_obj['outstanding']:,}
+                </div>
+                """, unsafe_allow_html=True)
+
+                _amt = st.number_input("Payment amount (₹)", min_value=1.0,
+                                       max_value=float(_ret_obj["outstanding"] or 1),
+                                       value=min(10000.0, float(_ret_obj["outstanding"] or 1)),
+                                       step=500.0, key="pay_amt")
+
+                # Payment mode selection
+                _mode = st.selectbox(
+                    "Payment mode",
+                    ["cash", "cheque", "upi", "neft", "rtgs", "card", "other"],
+                    key="pay_mode",
+                    format_func=lambda x: {
+                        "cash":   "💵 Cash",
+                        "cheque": "📝 Cheque",
+                        "upi":    "📱 UPI / GPay / PhonePe",
+                        "neft":   "🏦 NEFT (Bank transfer)",
+                        "rtgs":   "⚡ RTGS (Large bank transfer)",
+                        "card":   "💳 Card",
+                        "other":  "🔧 Other",
+                    }.get(x, x),
+                )
+
+                # Conditional fields based on mode
+                _ref = ""
+                _bank = ""
+
+                if _mode == "cheque":
+                    _c1, _c2 = st.columns(2)
+                    with _c1:
+                        _ref = st.text_input("Cheque number *", key="pay_cheque_no",
+                                              placeholder="e.g. 345612")
+                    with _c2:
+                        _bank = st.text_input("Bank name", key="pay_cheque_bank",
+                                               placeholder="e.g. SBI, HDFC")
+                elif _mode == "upi":
+                    _ref = st.text_input("UPI transaction ID *", key="pay_upi_ref",
+                                          placeholder="e.g. 4029XXXXXXXX")
+                elif _mode in ("neft", "rtgs"):
+                    _c1, _c2 = st.columns(2)
+                    with _c1:
+                        _ref = st.text_input("UTR number *", key="pay_utr",
+                                              placeholder="e.g. SBIN2026112345")
+                    with _c2:
+                        _bank = st.text_input("Bank", key="pay_bank",
+                                               placeholder="e.g. SBI, HDFC")
+                elif _mode == "card":
+                    _ref = st.text_input("Card transaction ID", key="pay_card_ref",
+                                          placeholder="e.g. 7892XXXX")
+                elif _mode == "other":
+                    _ref = st.text_input("Reference / note", key="pay_other_ref")
+
+                _note = st.text_input("Additional note (optional)", key="pay_note")
+
+                if st.button("💾 Save Payment", key="pay_save", use_container_width=True):
+                    # Validate mandatory reference for cheque/upi/neft/rtgs
+                    needs_ref = _mode in ("cheque", "upi", "neft", "rtgs")
+                    if needs_ref and not _ref.strip():
+                        st.error(f"⚠️ {_mode.upper()} reference number is required")
+                    else:
+                        res = record_payment(_rid, _amt, _note,
+                                              mode=_mode, reference=_ref, bank=_bank)
+                        if res["ok"]:
+                            st.success(res["msg"])
+                            st.info(f"Outstanding: ₹{res['before']:,} → ₹{res['after']:,}")
+                            log_action("OWNER", "PAYMENT_RECORDED",
+                                       f"{_rid} ₹{_amt} via {_mode} ref={_ref}")
+                            st.rerun()
+                        else:
+                            st.error(res["msg"])
+
+                # ─── Payment History ───
+                st.markdown("---")
+                st.markdown("##### 📜 Payment History")
+                _history = _ret_obj.get("payment_history", [])
+                if not _history:
+                    st.caption("No payments recorded yet.")
+                else:
+                    import pandas as _pd_ph
+                    _hdf = _pd_ph.DataFrame([{
+                        "Date": h["date"][:16].replace("T", " "),
+                        "Amount": f"₹{h['amount']:,.0f}",
+                        "Mode": h.get("mode", "cash").upper(),
+                        "Reference": h.get("reference", "—"),
+                        "Bank": h.get("bank", "—"),
+                        "Note": h.get("note", ""),
+                    } for h in reversed(_history[-20:])])
+                    st.dataframe(_hdf, use_container_width=True, hide_index=True)
+
+                    # Summary
+                    _total_paid = sum(h["amount"] for h in _history)
+                    _cash = sum(h["amount"] for h in _history if h.get("mode") == "cash")
+                    _cheque = sum(h["amount"] for h in _history if h.get("mode") == "cheque")
+                    _digital = _total_paid - _cash - _cheque
+
+                    _sum_c1, _sum_c2, _sum_c3, _sum_c4 = st.columns(4)
+                    _sum_c1.metric("Total Paid", f"₹{_total_paid:,.0f}")
+                    _sum_c2.metric("💵 Cash", f"₹{_cash:,.0f}")
+                    _sum_c3.metric("📝 Cheque", f"₹{_cheque:,.0f}")
+                    _sum_c4.metric("📱 Digital", f"₹{_digital:,.0f}")
+
+        with op2:
+            st.markdown("#### ❌ Cancel Order")
+            _open_orders = [o for o in orders if o.get("status") not in ("Cancelled", "Rejected")]
+            if not _open_orders:
+                st.info("No cancellable orders.")
+            else:
+                _opts = [f"{o['order_id']} — {o['shop']} (₹{o['total']:,.0f}, {o['status']})" for o in _open_orders]
+                _picked_o = st.selectbox("Select order", _opts, key="cancel_o")
+                _oid = _picked_o.split(" — ")[0] if _picked_o else ""
+                _reason = st.text_input("Reason", key="cancel_r")
+                if st.button("❌ Cancel This Order", key="cancel_btn", use_container_width=True):
+                    res = cancel_order(_oid, _reason)
+                    if res["ok"]:
+                        st.success(res["msg"])
+                        log_action("OWNER", "ORDER_CANCELLED", f"{_oid}: {_reason}")
+                        st.rerun()
+                    else:
+                        st.error(res["msg"])
+
+        with op3:
+            st.markdown("#### 📦 Add Stock")
+            st.caption("Add a new batch to inventory. You will review before saving.")
+
+            # Session state for staged stock
+            if "pending_stock" not in st.session_state:
+                st.session_state.pending_stock = None
+
+            # ─── Step 2: Review + Confirm ───
+            # Validate pending_stock is properly filled (fix blank card bug)
+            _ps = st.session_state.get("pending_stock")
+            if _ps and (not _ps.get("medicine") or not _ps.get("batch")):
+                st.session_state.pending_stock = None
+                _ps = None
+
+            if _ps:
+                _p = _ps
+                st.markdown("""
+                <div style="background:rgba(0,212,255,0.10);border-left:4px solid #00d4ff;
+                            border-radius:10px;padding:1rem;margin:0.5rem 0;">
+                    <b style="color:#00d4ff;">🔍 REVIEW BEFORE SAVING</b>
+                </div>
+                """, unsafe_allow_html=True)
+
+                _exp_display = _p["expiry"]
+                try:
+                    from datetime import datetime as _dt_sc
+                    _exp_display = _dt_sc.strptime(_p["expiry"], "%Y-%m-%d").strftime("%d-%b-%Y").upper()
+                except Exception:
+                    pass
+
+                st.markdown(f"""
+                <div style="background:rgba(26,31,58,0.7);border-radius:12px;padding:1.2rem;
+                            border:1px solid rgba(0,212,255,0.3);">
+                    <table style="width:100%;font-size:0.95rem;border-collapse:collapse;">
+                        <tr><td style="padding:6px 0;color:#8892b0;">Medicine</td>
+                            <td style="padding:6px 0;font-weight:700;color:#e8eaf6;">{_p['medicine']}</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Batch</td>
+                            <td style="padding:6px 0;font-family:monospace;color:#ffb547;">{_p['batch']}</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Expiry</td>
+                            <td style="padding:6px 0;font-weight:600;color:#e8eaf6;">{_exp_display}</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Quantity</td>
+                            <td style="padding:6px 0;font-weight:700;color:#00d47a;font-size:1.1rem;">{_p['qty']} units</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Cost price</td>
+                            <td style="padding:6px 0;color:#e8eaf6;">₹{_p['cost']:,.2f} / unit</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Total cost</td>
+                            <td style="padding:6px 0;font-weight:700;color:#00d4ff;">₹{_p['qty'] * _p['cost']:,.2f}</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Supplier</td>
+                            <td style="padding:6px 0;color:#e8eaf6;">{_p['supplier']}</td></tr>
+                        <tr><td style="padding:6px 0;color:#8892b0;">Selling price</td>
+                            <td style="padding:6px 0;color:#e8eaf6;">₹{_p['cost'] * 1.25:,.2f} / unit (25% margin)</td></tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.write("")
+                _cc1, _cc2 = st.columns(2)
+                with _cc1:
+                    if st.button("✅ Confirm & Save to Inventory",
+                                 key="stock_confirm",
+                                 use_container_width=True,
+                                 type="primary"):
+                        res = add_stock(_p["medicine"], _p["batch"], _p["expiry"],
+                                        int(_p["qty"]), float(_p["cost"]), _p["supplier"])
+                        if res["ok"]:
+                            st.success(res["msg"])
+                            log_action("OWNER", "STOCK_ADDED",
+                                       f"{res['id']} {_p['medicine']} qty={_p['qty']}")
+                            st.session_state.pending_stock = None
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error(res["msg"])
+
+                with _cc2:
+                    if st.button("❌ Cancel / Edit",
+                                 key="stock_cancel",
+                                 use_container_width=True):
+                        st.session_state.pending_stock = None
+                        st.info("Cancelled. Fill the form again to re-enter.")
+                        st.rerun()
+
+                st.markdown("---")
+
+            # ─── Step 1: Entry Form ───
+            st.markdown("##### ➕ Enter Stock Details")
+            with st.form("add_stock_form", clear_on_submit=False):
+                _med = st.text_input("Medicine name *", key="stock_med",
+                                      placeholder="e.g. Paracetamol 500mg")
+                _batch = st.text_input("Batch number *", key="stock_batch",
+                                        placeholder="e.g. B6754")
+                _exp = st.date_input("Expiry date", key="stock_exp")
+                _qty = st.number_input("Quantity", min_value=1, value=100, step=10, key="stock_qty")
+                _cost = st.number_input("Cost price (₹)", min_value=0.1, value=50.0, step=1.0, key="stock_cost")
+                _sup = st.text_input("Supplier", value="Sun Pharma", key="stock_sup")
+
+                if st.form_submit_button("🔍 Review Before Saving", use_container_width=True):
+                    if not _med.strip():
+                        st.error("⚠️ Medicine name is required")
+                    elif not _batch.strip():
+                        st.error("⚠️ Batch number is required")
+                    elif _exp is None:
+                        st.error("⚠️ Expiry date is required")
+                    elif _exp.year < 2025:
+                        st.error("⚠️ Expiry date is in the past")
+                    else:
+                        # Stage it for review
+                        st.session_state.pending_stock = {
+                            "medicine": _med.strip(),
+                            "batch": _batch.strip().upper(),
+                            "expiry": _exp.strftime("%Y-%m-%d"),
+                            "qty": int(_qty),
+                            "cost": float(_cost),
+                            "supplier": _sup.strip(),
+                        }
+                        st.rerun()
+
+        with op4:
+            st.markdown("#### 🔍 Search Orders")
+            _q = st.text_input("Search query", key="search_q", placeholder="e.g., ORD-2026 or Paracetamol")
+            if _q.strip():
+                _results = search_orders(_q, orders)
+                st.markdown(f"**{len(_results)} result(s)**")
+                if _results:
+                    import pandas as _pd_op
+                    _df = _pd_op.DataFrame([{
+                        "Order": o["order_id"], "Shop": o.get("shop", ""),
+                        "Total": f"₹{o['total']:,.0f}", "Status": o.get("status", ""),
+                        "Placed": o.get("placed_at", ""),
+                    } for o in _results])
+                    st.dataframe(_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No matches.")
+            else:
+                st.caption("Type something above to search.")
+
+        with op5:
+            st.markdown("#### 📄 GST Invoice")
+            st.caption("Generates a proper GST tax invoice. Open in browser → Print → Save as PDF.")
+            _inv_opts = [f"{o['order_id']} — {o['shop']} (₹{o['total']:,.0f})" for o in orders if o.get("status") in ("Approved", "Pending")]
+            if not _inv_opts:
+                st.info("No billable orders yet. Approve an order first.")
+            else:
+                _inv_pick = st.selectbox("Select order", _inv_opts, key="inv_o")
+                _inv_oid = _inv_pick.split(" — ")[0] if _inv_pick else ""
+                _inv_order = next((o for o in orders if o["order_id"] == _inv_oid), None)
+                if _inv_order:
+                    _inv_ret = next((r for r in retailers if r["id"] == _inv_order["retailer_id"]), None)
+                    _inv_html = invoice_pro.build_invoice_html(_inv_order, _inv_ret, orders)
+
+                    st.markdown("**Preview (opens in new tab when downloaded)**")
+                    st.download_button(
+                        "📥 Download GST Invoice (HTML → Print as PDF)",
+                        data=_inv_html.encode("utf-8"),
+                        file_name=f"invoice_{_inv_oid}.html",
+                        mime="text/html",
+                        use_container_width=True,
+                        key="inv_dl_html",
+                    )
+
+                    st.markdown("**Also available as plain text (backup)**")
+                    _inv_text = generate_invoice(_inv_order, _inv_ret)
+                    st.text_area("Plain text preview", _inv_text, height=200, key="inv_preview")
+                    st.download_button("📥 Download Plain Text", data=_inv_text,
+                                       file_name=f"invoice_{_inv_oid}.txt",
+                                       mime="text/plain", use_container_width=True, key="inv_dl")
+
+        st.markdown("---")
+
+
+    # ===== TAB 11: ACCOUNTING =====
+    with tab11:
+        track_page("Accounting")
+        from accounting_ui_full import render_accounting_tab
+        render_accounting_tab(retailers, orders, df, save_retailers, save_orders, log_action)
+
+    # ===== TAB 12: DISCOUNTS =====
+    with tab12:
+        try:
+            discounts_ui.render_owner_discounts(orders, retailers)
+        except Exception as e:
+            st.error(f"Discounts error: {e}")
+            import traceback
+            st.code(traceback.format_exc(), language="python")
+
+
+    # ===== TAB 13: MARKETING =====
+    with tab13:
+        try:
+            marketing_ui.render_owner_marketing(retailers, orders)
+        except Exception as e:
+            st.error(f"Marketing error: {e}")
+            import traceback
+            st.code(traceback.format_exc(), language="python")
+

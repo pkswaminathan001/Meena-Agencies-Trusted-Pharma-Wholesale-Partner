@@ -1,0 +1,52 @@
+[
+  {
+    "return_id": "RET-PUR-20260927012101-BA32",
+    "type": "purchase",
+    "party_name": "Sun Pharma",
+    "party_id": "SUP-001",
+    "items": [
+      {
+        "medicine": "Paracetamol 500mg",
+        "batch": "B1234",
+        "expiry": "Dec-2027",
+        "qty": 10,
+        "cost_price": 15.0
+      },
+      {
+        "medicine": "Cough Syrup 100ml",
+        "batch": "B5678",
+        "expiry": "Jun-2027",
+        "qty": 5,
+        "cost_price": 80.0
+      }
+    ],
+    "reason": "Damaged in transit",
+    "notes": "Received 10 broken strips, 5 leaking bottles",
+    "linked_order": "PO-2026-001",
+    "total_value": 550.0,
+    "status": "Accepted",
+    "created_at": "27-SEP-2026 01:21",
+    "timeline": [
+      {
+        "ts": "27-SEP-2026 01:21",
+        "status": "Initiated",
+        "by": "OWNER"
+      },
+      {
+        "ts": "27-SEP-2026 01:21",
+        "status": "Debit Note Sent",
+        "note": "Emailed to supplier",
+        "by": "OWNER"
+      },
+      {
+        "ts": "27-SEP-2026 01:21",
+        "status": "Accepted",
+        "note": "Supplier will replace",
+        "by": "OWNER"
+      }
+    ],
+    "replacement_received": false,
+    "credit_note_number": "",
+    "debit_note_number": "DN-2609/001"
+  }
+]
