@@ -1,42 +1,19 @@
 # ═══════════════════════════════════════════════════════════
 # Meena Agencies — Production requirements
-# Tested on Python 3.11 + 3.12
+# Unpinned — pip picks the correct wheel for the Python version
 # ═══════════════════════════════════════════════════════════
 
-# ── Core web framework ──
-streamlit==1.28.0
-
-# ── Data ──
-pandas==2.1.4
-numpy==1.26.4
-
-# ── Charts ──
-plotly==5.18.0
-
-# ── Images ──
-Pillow==10.2.0
-
-# ── HTTP ──
-requests==2.31.0
-
-# ── RSS feed ──
-feedparser==6.0.11
-
-# ── AI ──
-groq==0.4.2
-
-# ── PDF generation ──
-reportlab==4.0.8
-fpdf2==2.7.8
-
-# ── Environment ──
-python-dotenv==1.0.0
-
-# ── Config ──
-PyYAML==6.0.1
-
-# ── Excel (for reports) ──
-openpyxl==3.1.2
-
-# ── Encryption ──
-cryptography==41.0.7
+streamlit
+pandas
+numpy
+plotly
+Pillow
+requests
+feedparser
+groq
+reportlab
+fpdf2
+python-dotenv
+PyYAML
+openpyxl
+cryptography
