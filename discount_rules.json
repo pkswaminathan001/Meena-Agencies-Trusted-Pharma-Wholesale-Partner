@@ -1,0 +1,36 @@
+{
+  "tiers": {
+    "Apex Partner": {
+      "discount_pct": 15.0,
+      "min_orders": 100,
+      "color": "#00d4ff"
+    },
+    "Prime Partner": {
+      "discount_pct": 12.0,
+      "min_orders": 50,
+      "color": "#7b61ff"
+    },
+    "Preferred Partner": {
+      "discount_pct": 8.0,
+      "min_orders": 20,
+      "color": "#00d47a"
+    },
+    "Standard Partner": {
+      "discount_pct": 5.0,
+      "min_orders": 5,
+      "color": "#ffb547"
+    },
+    "New Partner": {
+      "discount_pct": 0.0,
+      "min_orders": 0,
+      "color": "#8892b0"
+    }
+  },
+  "product_limits": {
+    "vaccine": 8.0,
+    "insulin": 10.0,
+    "controlled": 0.0,
+    "default": 15.0
+  },
+  "customer_tiers": {}
+}

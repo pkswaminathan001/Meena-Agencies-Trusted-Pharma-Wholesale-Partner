@@ -1,0 +1,75 @@
+# ── Secrets (NEVER push these) ──
+.env
+.env.*
+*.key
+*.pem
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# ── User data / runtime state ──
+*.log
+*_log.json
+*_cache.json
+pharma_intel_cache.json
+pharma_intel_seen.json
+rate_limit.json
+pending_replies.json
+owner_state.json
+flash_offers.json
+service_log.json
+broadcast_log.json
+tracker.log
+streamlit.log
+bot.log
+security.log
+security_audit.log
+flash_scheduler.log
+
+# ── Database files ──
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Backups and archives ──
+*.backup
+*.backup_*
+*.before_*
+*.bak
+*.broken
+*.v1_backup
+*.v2_backup
+*.v3_broken
+_archive_*
+audit_*archive*.jsonl
+audit_pro.jsonl
+audit_pro.jsonl.before_archive
+
+# ── Streamlit ──
+.streamlit/secrets.toml
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ── IDE ──
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Media (large files) ──
+*.mp4
+*.mov
+*.zip
+
+# ── Keep these ──
+!requirements.txt
+!README.md

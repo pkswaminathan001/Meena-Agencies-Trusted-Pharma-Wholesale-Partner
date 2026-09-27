@@ -1,0 +1,45 @@
+{
+  "name": "Meena Agencies",
+  "address_line1": "2661, South Main Street, near Indian Bank",
+  "address_line2": "Rajakrishnapuram,Thanjavur,Tamilnadu,613009",
+  "phone": "6382130536",
+  "email": "meena.agencies@gmail.com",
+  "gstin": "33AAIFM8119N1ZW",
+  "pan": "AAIFM8119N",
+  "state": "Tamil Nadu",
+  "state_code": "33",
+  "bank": {
+    "account_holder": "Meena Agencies",
+    "account_number": "ENTER_ACCOUNT_NUMBER",
+    "bank_name": "CITY_UNION_BANK",
+    "branch": "Thanjavur Main",
+    "ifsc": "ENTER_IFSC_CODE",
+    "upi": "ENTER_UPI_ID"
+  },
+  "terms": [
+    "Goods once sold will not be taken back.",
+    "Interest @18% p.a. will be charged on overdue amounts.",
+    "Subject to Thanjavur jurisdiction."
+  ],
+  "default_gst_rate": 5.0,
+  "invoice_prefix": "MA",
+  "default_payment_days": 15,
+  "tagline": "Trusted Pharma Wholesale Partner",
+  "established": "2015",
+  "legal_name": "Meena Agencies",
+  "drug_license_20b": "EDIT_20B_NUMBER",
+  "drug_license_21b": "EDIT_21B_NUMBER",
+  "cin": "",
+  "gst_registration_date": "",
+  "authorized_signatory": "Authorised Signatory",
+  "jurisdiction": "Thanjavur",
+  "legal_declarations": [
+    "This is a computer-generated document. Valid without physical signature.",
+    "Goods once sold will not be taken back or exchanged.",
+    "Interest @18% p.a. will be charged on overdue amounts.",
+    "All disputes subject to exclusive jurisdiction of Thanjavur courts.",
+    "E. & O.E. \u2014 Errors and Omissions Excepted.",
+    "Certified under Section 65B of Indian Evidence Act, 1872.",
+    "Drugs sold are not returnable per Drugs & Cosmetics Act, 1940."
+  ]
+}

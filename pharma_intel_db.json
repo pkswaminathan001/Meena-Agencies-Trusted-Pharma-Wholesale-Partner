@@ -1,0 +1,32 @@
+[
+  {
+    "type": "policy",
+    "tag": "\ud83d\udcca Market Policy",
+    "title": "GST Structure Under Review",
+    "content": "The GST Council has proposed a simplified two-slab structure (5% and 18%) for essential goods. This could streamline compliance and impact pricing strategies for many formulations."
+  },
+  {
+    "type": "ai",
+    "tag": "\ud83e\udd16 AI & Tech",
+    "title": "AI for Smarter Credit",
+    "content": "Distributors are using AI-driven credit assessments to predict retailer payment cycles. This technology can offer better terms to reliable pharmacies and improve the financial health of the entire supply chain."
+  },
+  {
+    "type": "supply_chain",
+    "tag": "\ud83c\uddee\ud83c\uddf3 Supply Chain",
+    "title": "Central Licensing for Sterile Drugs",
+    "content": "To ensure consistent quality, the government is moving to a centralized licensing system for high-risk sterile drugs like injections. This follows quality concerns found during recent state-level inspections."
+  },
+  {
+    "type": "ai",
+    "tag": "\ud83e\udd16 AI & Tech",
+    "title": "Predictive Analytics for Stock",
+    "content": "Leading distributors are using AI-powered forecasting to predict demand for low-volume, high-value medicines weeks in advance. This ensures critical drugs are stocked before a patient needs them."
+  },
+  {
+    "type": "policy",
+    "tag": "\ud83d\udcca Market Policy",
+    "title": "NPPA Price Revisions",
+    "content": "The National Pharmaceutical Pricing Authority (NPPA) periodically revises ceiling prices for essential medicines. Regularly check for updates to ensure your MRP and margins are compliant."
+  }
+]
