@@ -1,5 +1,4 @@
-cd "/home/swaminathan/Desktop/swami/AGI Pharma Application/pharma-agi" && cat > README.md << 'EOF'
-<div align="center">
+
 
 # 🏥 Meena Agencies
 ### Trusted Pharma Wholesale Partner
