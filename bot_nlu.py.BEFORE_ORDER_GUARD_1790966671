@@ -1,0 +1,337 @@
+"""
+bot_nlu.py — Natural Language Understanding for Meena Telegram bot.
+Uses Groq LLM to understand free-text messages in English + Tamil (mixed).
+Routes to bot_query for data, generates human replies.
+"""
+import os
+import json
+import requests
+from pathlib import Path
+from datetime import datetime, timedelta
+
+
+def _env(key, default=""):
+    p = Path(".env")
+    if p.exists():
+        for line in p.read_text().splitlines():
+            if line.startswith(f"{key}="):
+                return line.split("=", 1)[1].strip()
+    return default
+
+
+GROQ_KEY = _env("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL = "openai/gpt-oss-20b"  # Groq's latest, better reasoning
+
+
+# ═══════════════════════════════════════════════════════════
+# INTENT CLASSIFICATION (fast rules + LLM fallback)
+# ═══════════════════════════════════════════════════════════
+INTENTS = {
+    # Owner intents
+    "owner_greeting":    ["hi", "hello", "hey", "vanakkam", "good morning", "good evening", "good afternoon"],
+    "owner_thanks":      ["thanks", "thank you", "nandri"],
+    "owner_revenue":     ["revenue", "earn", "make", "made", "income", "profit", "sales", "money"],
+    "owner_orders":      ["orders", "sales today", "how many orders", "total orders"],
+    "owner_pending":     ["pending", "waiting", "approval", "approve"],
+    "owner_payments":    ["overdue", "late payment", "unpaid", "outstanding", "owe", "due"],
+    "owner_stock":       ["stock", "inventory", "available", "left", "remaining"],
+    "owner_retailer":    ["retailer", "customer", "shop", "about "],
+    "owner_staff":       ["staff", "employee", "worker", "ramesh", "suresh"],
+    "owner_fastmovers":  ["fast", "top seller", "best selling", "moving"],
+    "owner_quiet":       ["quiet", "not ordered", "inactive", "silent"],
+    "owner_summary":     ["summary", "report", "overview", "status", "how are we"],
+    "owner_help":        ["help", "what can you do", "commands"],
+
+    # Customer intents
+    "cust_order_request": ["need", "want", "order", "buy", "get me", "send me", "deliver"],
+    "cust_price":        ["price", "cost", "rate", "how much", "mrp"],
+    "cust_stock":        ["do you have", "available", "in stock", "have you got"],
+    "cust_order_status": ["my order", "where is", "status", "delivery", "when will"],
+    "cust_reorder":      ["reorder", "same as last", "again", "usual"],
+    "cust_greeting":     ["hi", "hello", "vanakkam", "good morning", "hey"],
+    "cust_thanks":       ["thanks", "thank you", "nandri"],
+    "cust_help":         ["help", "how do i", "guide"],
+
+    # Order-flow intents (for active sessions)
+    "order_confirm":     ["confirm", "yes", "ok", "place order", "done", "that's all", "thats all"],
+    "order_cancel":      ["cancel", "no", "stop", "abort", "forget it"],
+
+    "unknown":           [],
+}
+
+# Active-order intents (checked BEFORE role intents when session is active)
+ORDER_FLOW_INTENTS = {"order_confirm", "order_cancel"}
+
+
+def _rule_classify(text: str) -> str:
+    """Fast rule-based classification. Returns best matching intent or None."""
+    if not text:
+        return None
+    t = text.lower().strip()
+
+    # Tamil transliterations
+    if any(k in t for k in ["vanakkam", "vanakam", " வணக்கம்"]):
+        return "cust_greeting"
+    if any(k in t for k in ["nandri", " நன்றி"]):
+        return "cust_thanks"
+
+    # Score each intent
+    scores = {}
+    for intent, keywords in INTENTS.items():
+        if intent == "unknown":
+            continue
+        hits = sum(1 for k in keywords if k in t)
+        if hits > 0:
+            scores[intent] = hits
+
+    if scores:
+        return max(scores, key=scores.get)
+    return None
+
+
+def _llm_classify(text: str, role: str) -> str:
+    """Ask Groq to classify. Fallback if rules fail."""
+    if not GROQ_KEY:
+        return "unknown"
+
+    # Only relevant intents for this role
+    if role == "owner":
+        valid_intents = ["owner_greeting", "owner_thanks",
+                        "owner_revenue", "owner_orders", "owner_pending",
+                        "owner_payments", "owner_stock", "owner_retailer",
+                        "owner_staff", "owner_fastmovers", "owner_quiet",
+                        "owner_summary", "owner_help"]
+    else:  # customer
+        valid_intents = ["cust_order_request", "cust_price", "cust_stock",
+                        "cust_order_status", "cust_reorder", "cust_greeting",
+                        "cust_thanks", "cust_help"]
+
+    prompt = f"""You are an intent classifier for a pharmacy wholesale business.
+
+The user is a: {role}
+
+Classify the message into ONE of these intents:
+{chr(10).join('- ' + i for i in valid_intents)}
+
+If nothing fits, reply "unknown".
+
+Message: "{text}"
+
+Reply with ONLY the intent name, nothing else."""
+
+    try:
+        r = requests.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_KEY}",
+                    "Content-Type": "application/json"},
+            json={
+                "model": MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+                "max_tokens": 20,
+            },
+            timeout=10,
+        ).json()
+        intent = r["choices"][0]["message"]["content"].strip().lower()
+        # Clean up
+        for i in valid_intents:
+            if i in intent:
+                return i
+        return "unknown"
+    except Exception:
+        return "unknown"
+
+
+
+
+def is_order_flow_text(text: str) -> str:
+    """
+    Check if a short text is part of an active order flow.
+    Returns: 'confirm' | 'cancel' | None
+    """
+    if not text:
+        return None
+    t = text.lower().strip()
+
+    # Pure numbers → qty (handled separately by session logic)
+    if t.isdigit():
+        return None
+
+    # Very short (1-3 words) → may be confirm/cancel/qty
+    words = t.split()
+    if len(words) <= 4:
+        for kw in ["confirm", "yes", "ok", "yep", "sure", "done", "place", "that's all", "thats all"]:
+            if kw in t:
+                return "confirm"
+        for kw in ["cancel", "no", "stop", "abort", "forget"]:
+            if kw in t:
+                return "cancel"
+
+    return None
+
+
+def classify(text: str, role: str = "owner") -> str:
+    """Main classifier. Rules first, LLM fallback."""
+    rule = _rule_classify(text)
+    if rule:
+        # If rule found customer intent but user is owner (or vice versa), refine with LLM
+        if role == "owner" and rule.startswith("cust_"):
+            return _llm_classify(text, role) or "unknown"
+        if role == "retailer" and rule.startswith("owner_"):
+            return _llm_classify(text, role) or "unknown"
+        return rule
+
+    # No rule match — ask LLM
+    return _llm_classify(text, role) or "unknown"
+
+
+# ═══════════════════════════════════════════════════════════
+# NATURAL LANGUAGE REPLIES
+# ═══════════════════════════════════════════════════════════
+SYSTEM_PROMPT = """CRITICAL RULES — NEVER BREAK:
+• NEVER mention batch numbers, batch count, or "which batch" to a customer.
+• NEVER show expiry dates to a customer.
+• NEVER offer to reorder a "specific batch".
+• Stock info to customer: only medicine name, total units available, and ONE price.
+• If asked "which batch?" reply: "Our system ships the earliest-expiring stock first automatically."
+
+CUSTOMER STOCK REPLY FORMAT — follow exactly:
+
+Stock for '<query>':
+
+  <Medicine name> | <N> units | Rs.<price> (MRP Rs.<mrp>)
+
+Example:
+Stock for 'amoxicillin':
+
+  Amoxicillin 250mg | 13,091 units | Rs.293 (MRP Rs.305)
+
+Use ONLY ASCII characters in stock replies:
+- Use "Rs." NOT the rupee symbol ₹
+- Use "|" NOT bullet • or middle dot ·
+- Use "-" NOT em-dash —
+- NO emojis in stock replies
+
+DO NOT add:
+• Price ranges (₹141–₹394) ❌
+• Batch count ("across 26 batches") ❌
+• "We can ship the earliest-expiring batch" ❌
+• "Let me know the quantity" ❌
+• Any mention of batch, expiry, or specific batch IDs ❌
+
+Just the ONE line. Then STOP.
+
+You are the Meena Agencies business assistant — a friendly, smart co-pilot 
+for a pharmaceutical wholesale business in Thanjavur, Tamil Nadu.
+
+WHO YOU ARE TALKING TO RIGHT NOW:
+- Name: {role_name}
+- Role: {role}
+
+If role is "owner":
+  → This is the OWNER. Share ALL data freely including revenue, profit, 
+    margins, outstanding payments, retailer details, staff activity.
+  → Owner has FULL access. Never refuse a data question.
+  → Use their name and be warm, direct, and business-focused.
+
+If role is "retailer":
+  → This is a CUSTOMER (retail pharmacy owner).
+  → Share ONLY their own order history, their own outstanding, their own credit.
+  → NEVER share other retailers' data or business-wide revenue.
+  → Be respectful and helpful.
+
+LANGUAGE:
+Reply in the language the user wrote (English, Tamil, or mixed Tanglish)
+
+Today: {today}
+
+BUSINESS DATA (use ONLY these numbers, never make up numbers):
+{data_context}
+
+RULES:
+1. Owners get full data access — never refuse them
+2. Never share one retailer's data with another retailer
+3. Keep replies SHORT — 2-4 sentences maximum
+4. Show numbers clearly: ₹42,180 not 42180
+5. Use emojis naturally (📦 ✅ ⚠️ 🚚 💰)
+6. If you don't have data on something, say so honestly
+7. Suggest a next action when relevant
+8. Match the user's energy — casual for hi, business for questions
+9. If the user writes Tanglish, reply in Tanglish
+10. Address them by their name, never say "user" or "customer"
+
+Reply naturally. No markdown code blocks."""
+
+
+def generate_reply(
+    user_message: str,
+    role: str,
+    role_name: str,
+    intent: str,
+    data_context: str,
+    history: list = None,
+) -> str:
+    """Generate human-like reply using Groq + business data."""
+    if not GROQ_KEY:
+        return "I'm offline right now. Please try again in a moment."
+
+    today = datetime.now().strftime("%d %b %Y, %H:%M")
+
+    system = SYSTEM_PROMPT.format(
+        role_name=role_name,
+        role=role,
+        today=today,
+        data_context=data_context or "(no data available)",
+    )
+
+    messages = [{"role": "system", "content": system}]
+
+    # Add last 4 exchanges for context
+    if history:
+        for h in history[-4:]:
+            messages.append({"role": "user", "content": h.get("user", "")})
+            messages.append({"role": "assistant", "content": h.get("bot", "")})
+
+    messages.append({"role": "user", "content": user_message})
+
+    try:
+        r = requests.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_KEY}",
+                    "Content-Type": "application/json"},
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 400,
+            },
+            timeout=20,
+        ).json()
+
+        reply = r["choices"][0]["message"]["content"].strip()
+        return reply
+    except Exception as e:
+        return f"⚠️ Sorry, I couldn't process that. Try again.\n(Small issue: {str(e)[:60]})"
+
+
+if __name__ == "__main__":
+    print("=== bot_nlu.py self-test ===")
+    print(f"Groq key present: {bool(GROQ_KEY)}")
+    print()
+
+    # Test classification
+    tests = [
+        ("how much did we make today?", "owner"),
+        ("show me pending orders", "owner"),
+        ("any late payments?", "owner"),
+        ("tell me about balaji medicals", "owner"),
+        ("how is dolo 650 stock?", "owner"),
+        ("vanakkam", "retailer"),
+        ("I need 20 strips of dolo", "retailer"),
+        ("what's the price of amoxicillin?", "retailer"),
+        ("thank you", "retailer"),
+    ]
+    for msg, role in tests:
+        intent = classify(msg, role)
+        print(f"[{role:>8}] {msg:<40} → {intent}")

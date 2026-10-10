@@ -1,0 +1,13 @@
+{
+  "953358258": {
+    "chat_id": 953358258,
+    "retailer_id": null,
+    "state": "idle",
+    "items": [],
+    "current_variants": [],
+    "current_medicine": null,
+    "order_id": null,
+    "created_at": "2026-10-10T08:12:07.804300",
+    "updated_at": "2026-10-10T08:12:07.804301"
+  }
+}

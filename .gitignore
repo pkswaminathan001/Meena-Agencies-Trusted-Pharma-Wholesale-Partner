@@ -73,3 +73,5 @@ Thumbs.db
 # ── Keep these ──
 !requirements.txt
 !README.md
+.streamlit/secrets.toml
+.streamlit/secrets.toml

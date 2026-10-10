@@ -1,0 +1,12 @@
+{
+  "ORD-20261003001546-284": {
+    "otp": "655360",
+    "retailer_id": "RET001",
+    "chat_id": 953358258,
+    "created_at": "2026-10-03T00:15:46.114530",
+    "expires_at": "2026-10-03T00:25:46.114532",
+    "attempts": 0,
+    "verified": false,
+    "locked_until": null
+  }
+}

@@ -172,5 +172,24 @@
     "placed_at": "27-SEP-2026 19:09",
     "location": "Sri Balaji Medicals, Chennai",
     "otp_verified_at": "27-SEP-2026 19:09"
+  },
+  {
+    "order_id": "ORD-20261003003029-914",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "items": [
+      {
+        "medicine": "Atorvastatin 10mg",
+        "qty": 4,
+        "batch": "",
+        "price": 0.0
+      }
+    ],
+    "total": 0.0,
+    "status": "Pending",
+    "placed_at": "03-OCT-2026 00:30",
+    "location": "Sri Balaji Medicals, Chennai",
+    "source": "app",
+    "otp_verified_at": "03-OCT-2026 00:30"
   }
 ]

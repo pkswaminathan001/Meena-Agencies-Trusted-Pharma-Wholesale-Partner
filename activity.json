@@ -364,5 +364,71 @@
     "worker": "RET001",
     "action": "ORDER_PLACED",
     "details": "order=ORD-20260927190911-916 total=\u20b916209"
+  },
+  {
+    "ts": "2026-09-27T20:21:06.996514",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T20:21:10.672175",
+    "worker": "OWNER",
+    "action": "AI_YEARLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T20:21:11.869692",
+    "worker": "OWNER",
+    "action": "AI_DAILY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T20:21:26.360910",
+    "worker": "OWNER",
+    "action": "AI_MONTHLY_REPORT",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T20:21:39.680204",
+    "worker": "OWNER",
+    "action": "AI_PSYCH_PROFILE",
+    "details": ""
+  },
+  {
+    "ts": "2026-09-27T20:26:48.622280",
+    "worker": "OWNER",
+    "action": "AI_STRATEGY",
+    "details": ""
+  },
+  {
+    "ts": "2026-10-02T13:51:19.892635",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-10-02T20:48:33.286535",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
+  },
+  {
+    "ts": "2026-10-03T00:30:48.631261",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20261003003029-914 total=\u20b90"
+  },
+  {
+    "ts": "2026-10-03T00:30:53.149562",
+    "worker": "RET001",
+    "action": "ORDER_PLACED",
+    "details": "order=ORD-20261003003029-914 total=\u20b90"
+  },
+  {
+    "ts": "2026-10-10T09:48:29.865322",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
   }
 ]

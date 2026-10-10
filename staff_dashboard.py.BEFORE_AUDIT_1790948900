@@ -1,0 +1,221 @@
+"""
+staff_dashboard.py — Staff working screen. No financial data. Silent logging.
+"""
+import streamlit as st
+import json
+from pathlib import Path
+from datetime import datetime
+
+import staff_monitor
+import staff_messages
+
+
+def _load_json(p, default=None):
+    try:
+        return json.loads(Path(p).read_text())
+    except Exception:
+        return default if default is not None else []
+
+
+def _staff_info():
+    return (
+        st.session_state.get("staff_id")
+        or (st.session_state.get("session") or {}).get("user_id", "STAFF001")
+    ), (
+        st.session_state.get("staff_name")
+        or "Counter Staff"
+    )
+
+
+def render():
+    """Render staff dashboard."""
+    staff_id, staff_name = _staff_info()
+
+    # ── Header ──
+    st.markdown(f"""
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:10px 16px;border-radius:12px;margin-bottom:14px;
+                background:linear-gradient(135deg,rgba(0,212,170,0.15),rgba(123,97,255,0.1));
+                border:1px solid rgba(0,212,170,0.3);">
+        <div>
+            <div style="font-size:1.15rem;font-weight:800;color:#eaf6ff;">
+                👨‍💼 {staff_name}
+            </div>
+            <div style="font-size:0.75rem;color:#8892b0;letter-spacing:1.4px;">
+                STAFF ID: {staff_id} · {datetime.now().strftime('%d %b %Y, %H:%M')}
+            </div>
+        </div>
+        <div style="color:#00d4aa;font-weight:700;font-size:0.85rem;">
+            ● On Duty
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Quick Actions ──
+    st.markdown("### ⚡ Quick Actions")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        if st.button("🛒\n\n**New Order**\nTake order", use_container_width=True, key="sd_new_order"):
+            staff_monitor.log_action(staff_id, staff_name, "OPEN_NEW_ORDER")
+            st.session_state["staff_view"] = "new_order"
+            st.rerun()
+    with c2:
+        if st.button("📦\n\n**Pack Orders**\nSee packing queue", use_container_width=True, key="sd_pack"):
+            staff_monitor.log_action(staff_id, staff_name, "OPEN_PACK_QUEUE")
+            st.session_state["staff_view"] = "packing"
+            st.rerun()
+    with c3:
+        if st.button("🔍\n\n**Stock Lookup**\nCheck availability", use_container_width=True, key="sd_stock"):
+            staff_monitor.log_action(staff_id, staff_name, "OPEN_STOCK_LOOKUP")
+            st.session_state["staff_view"] = "stock"
+            st.rerun()
+    with c4:
+        if st.button("💬\n\n**Message Owner**\nSend issue", use_container_width=True, key="sd_msg"):
+            staff_monitor.log_action(staff_id, staff_name, "OPEN_MESSAGE_OWNER")
+            st.session_state["staff_view"] = "message"
+            st.rerun()
+
+    # ── Today's Work Summary ──
+    st.markdown("### 📋 Today's Work")
+    orders = _load_json("orders.json", [])
+
+    today = datetime.now().strftime("%d-%b-%Y").upper()
+    today_orders = [
+        o for o in orders
+        if str(o.get("placed_at", "")).upper().startswith(today)
+    ]
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("📥 Today's Orders", len(today_orders))
+    k2.metric("📦 Pending Pack",
+              len([o for o in today_orders if o.get("status") == "Pending"]))
+    k3.metric("✅ Ready Dispatch",
+              len([o for o in today_orders if o.get("status") == "Packed"]))
+    k4.metric("🚚 Dispatched",
+              len([o for o in today_orders if o.get("status") == "Dispatched"]))
+
+    # ── Active View ──
+    view = st.session_state.get("staff_view", "home")
+
+    if view == "new_order":
+        st.markdown("---")
+        st.markdown("### 🛒 New Order")
+        st.info("Take order details from the retailer, then ask owner to place it in the system.")
+
+        retailers = _load_json("retailers.json", [])
+        with st.form("staff_order_form"):
+            retailer_names = [f"{r['id']} — {r['shop']}" for r in retailers]
+            pick = st.selectbox("Retailer", retailer_names)
+            items_raw = st.text_area("Items (one per line: Medicine × Qty)", height=120,
+                                      placeholder="Amoxicillin 250mg × 10\nDolo 650 × 20")
+            note = st.text_input("Note (optional)")
+            if st.form_submit_button("📤 Send to Owner for Confirmation", use_container_width=True):
+                staff_monitor.log_action(
+                    staff_id, staff_name, "NEW_ORDER_REQUEST",
+                    details=f"{pick} · {items_raw[:100]}"
+                )
+                staff_messages.send_message(
+                    staff_id, staff_name,
+                    subject=f"New order request — {pick.split(' — ')[0]}",
+                    body=f"Retailer: {pick}\n\nItems:\n{items_raw}\n\nNote: {note}",
+                    priority="urgent"
+                )
+                st.success("✅ Sent to owner. They'll confirm shortly.")
+                st.session_state["staff_view"] = "home"
+                st.rerun()
+
+        if st.button("← Back", key="sd_back1"):
+            st.session_state["staff_view"] = "home"
+            st.rerun()
+
+    elif view == "packing":
+        st.markdown("---")
+        st.markdown("### 📦 Packing Queue")
+        pack_orders = [o for o in orders if o.get("status") == "Pending"]
+        if not pack_orders:
+            st.success("✅ No pending orders to pack")
+        else:
+            for o in pack_orders[:20]:
+                with st.container(border=True):
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        st.markdown(f"**{o.get('order_id','?')}** · {o.get('shop','?')}")
+                        items = o.get("items", [])
+                        for it in items[:5]:
+                            st.caption(f"• {it.get('medicine','?')} × {it.get('qty',1)}")
+                    with c2:
+                        if st.button("✅ Packed", key=f"pack_{o.get('order_id')}", use_container_width=True):
+                            staff_monitor.log_action(staff_id, staff_name, "ORDER_PACKED",
+                                                    details=o.get("order_id"))
+                            st.success(f"Marked {o.get('order_id')} as packed")
+        if st.button("← Back", key="sd_back2"):
+            st.session_state["staff_view"] = "home"
+            st.rerun()
+
+    elif view == "stock":
+        st.markdown("---")
+        st.markdown("### 🔍 Stock Lookup")
+        import pandas as pd
+        try:
+            inv = pd.read_csv("inventory.csv")
+            query = st.text_input("Search medicine name", key="sd_stock_q")
+            if query:
+                matches = inv[inv["medicine_name"].astype(str).str.contains(query, case=False, na=False)]
+                if len(matches) == 0:
+                    st.warning("No matches")
+                else:
+                    # Only show non-confidential columns
+                    safe_cols = [c for c in matches.columns
+                                 if c.lower() not in ("cost_price","profit","margin","mrp")]
+                    st.dataframe(matches[safe_cols].head(30), use_container_width=True)
+                    staff_monitor.log_action(staff_id, staff_name, "STOCK_LOOKUP",
+                                            details=f"q={query} matches={len(matches)}")
+        except Exception as e:
+            st.error(f"Could not load inventory: {e}")
+        if st.button("← Back", key="sd_back3"):
+            st.session_state["staff_view"] = "home"
+            st.rerun()
+
+    elif view == "message":
+        st.markdown("---")
+        st.markdown("### 💬 Message Owner")
+        with st.form("staff_msg_form"):
+            subj = st.text_input("Subject")
+            body = st.text_area("Message", height=140)
+            prio = st.radio("Priority", ["normal", "urgent"], horizontal=True)
+            if st.form_submit_button("📤 Send to Owner", use_container_width=True):
+                if subj and body:
+                    staff_messages.send_message(staff_id, staff_name, subj, body, prio)
+                    staff_monitor.log_action(staff_id, staff_name, "MESSAGE_OWNER",
+                                            details=f"{subj} [{prio}]")
+                    st.success("✅ Sent to owner")
+                else:
+                    st.error("Subject and message required")
+
+        # Show owner replies
+        st.markdown("#### Your sent messages")
+        mine = staff_messages.get_sent_by_staff(staff_id)
+        if not mine:
+            st.caption("No messages yet")
+        else:
+            for m in reversed(mine[-5:]):
+                with st.container(border=True):
+                    st.markdown(f"**{m['subject']}** · {m['sent_at']}")
+                    st.caption(m["body"][:200])
+                    if m.get("replied"):
+                        st.markdown(f"🧑‍💼 **Owner reply** ({m['replied_at']}):")
+                        st.info(m["reply"])
+                    else:
+                        st.caption("⏳ Awaiting owner reply")
+
+        if st.button("← Back", key="sd_back4"):
+            st.session_state["staff_view"] = "home"
+            st.rerun()
+
+    # ── Sign Out ──
+    st.markdown("---")
+    if st.button("🚪 Sign Out", key="sd_signout"):
+        staff_monitor.log_action(staff_id, staff_name, "SIGNOUT")
+        for k in ["role","session","staff_id","staff_name","staff_view"]:
+            st.session_state.pop(k, None)
+        st.rerun()

@@ -3,7 +3,26 @@ catalog.py — Aggregates 10,000+ inventory rows into categories + unique medici
 Solves: duplicate batches, performance, browsing UX.
 """
 import pandas as pd
+import json
+from pathlib import Path
 from collections import defaultdict
+
+# Load flat prices
+_FLAT_PRICES = {}
+try:
+    _pf = Path("product_prices.json")
+    if _pf.exists():
+        _FLAT_PRICES = json.loads(_pf.read_text())
+except Exception:
+    pass
+
+
+def get_flat_price(name: str):
+    """Return (sell, mrp) from product_prices.json or (None, None)."""
+    entry = _FLAT_PRICES.get(str(name).strip())
+    if entry:
+        return (float(entry.get("sell", 0)), float(entry.get("mrp", 0)))
+    return (None, None)
 
 
 CATEGORIES = {
@@ -94,13 +113,20 @@ def build_catalog(df: pd.DataFrame) -> dict:
 
         # Aggregate
         total_qty = int(group["quantity"].sum())
-        avg_price = float(group["selling_price"].mean())
+        flat_sell, flat_mrp = get_flat_price(name)
+        if flat_sell is not None:
+            avg_price = flat_sell
+            mrp = flat_mrp
+        else:
+            avg_price = float(group["selling_price"].mean())
+            mrp = avg_price * 1.04
         batches = []
         for _, row in group.iterrows():
+            _batch_price = flat_sell if flat_sell is not None else float(row.get("selling_price", 0))
             batches.append({
                 "batch": str(row.get("batch_number", "")),
                 "qty": int(row.get("quantity", 0)),
-                "price": float(row.get("selling_price", 0)),
+                "price": _batch_price,
                 "expiry": row.get("expiry_date"),
                 "supplier": str(row.get("supplier", "")),
                 "item_id": str(row.get("item_id", "")),
@@ -112,6 +138,8 @@ def build_catalog(df: pd.DataFrame) -> dict:
             "category": categorize(name),
             "total_qty": total_qty,
             "avg_price": round(avg_price, 2),
+            "flat_sell": round(avg_price, 2),
+            "flat_mrp": round(mrp, 2),
             "next_expiry": next_expiry,
             "batches": batches,
             "batch_count": len(batches),

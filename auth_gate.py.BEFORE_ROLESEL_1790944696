@@ -1,0 +1,229 @@
+"""
+auth_gate.py — Premium animated access gate for Meena Agencies.
+Cinematic peacock-themed login. Fixed rendering.
+"""
+import streamlit as st
+import hmac
+
+
+AUTH_CSS = """
+<style>
+@keyframes meshFlow {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  50%  { transform: translate(-3%, 2%) rotate(180deg); }
+  100% { transform: translate(0, 0) rotate(360deg); }
+}
+@keyframes cardRise {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.94); filter: blur(8px); }
+  60%  { opacity: 1; transform: translateY(-6px) scale(1.01); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(0,212,170,0.25), 0 30px 60px rgba(0,0,0,0.6); }
+  50%      { box-shadow: 0 0 60px rgba(0,212,170,0.45), 0 30px 70px rgba(0,0,0,0.65); }
+}
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.stApp { background: #050818 !important; }
+header[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+[data-testid="stToolbar"] { display: none !important; }
+footer { display: none !important; }
+#MainMenu { display: none !important; }
+.block-container { padding: 3vh 1rem !important; max-width: 100% !important; }
+
+[data-testid="stAppViewContainer"]::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  background:
+    radial-gradient(closest-side, rgba(0,212,170,0.28), transparent 70%) 15% 20% / 60% 60% no-repeat,
+    radial-gradient(closest-side, rgba(123,97,255,0.32), transparent 70%) 85% 25% / 70% 70% no-repeat,
+    radial-gradient(closest-side, rgba(255,180,71,0.18), transparent 70%) 50% 90% / 60% 60% no-repeat,
+    radial-gradient(closest-side, rgba(0,150,255,0.22), transparent 70%) 80% 80% / 55% 55% no-repeat,
+    linear-gradient(160deg, #050818 0%, #0a1f2f 45%, #0a1830 100%);
+  animation: meshFlow 40s linear infinite;
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.main, .main .block-container, section.main {
+  position: relative;
+  z-index: 2;
+}
+
+.ma-hero-wrap {
+  max-width: 460px;
+  margin: 6vh auto 24px;
+  perspective: 1400px;
+}
+.ma-hero {
+  position: relative;
+  padding: 40px 42px 34px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(20,30,60,0.85) 0%, rgba(10,20,45,0.9) 100%);
+  border: 1px solid rgba(0,212,170,0.22);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  animation: cardRise 1s cubic-bezier(.2,.85,.3,1.05) both,
+             glowPulse 4s ease-in-out 1s infinite;
+  text-align: center;
+  overflow: hidden;
+}
+.ma-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00d4ff, #7b61ff, #ffb547, transparent);
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+.ma-logo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  padding: 6px;
+  animation: logoFloat 4s ease-in-out infinite;
+  box-shadow:
+    0 0 30px rgba(0,212,170,0.45),
+    0 0 60px rgba(123,97,255,0.25),
+    0 10px 30px rgba(0,0,0,0.45);
+  border: 2px solid rgba(0,212,170,0.4);
+}
+.ma-brand {
+  font-family: Georgia, serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #00d4aa 0%, #7b61ff 45%, #ffb547 75%, #00d4aa 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 6s linear infinite;
+}
+.ma-sub {
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #8892b0;
+  margin: 0 0 6px;
+}
+.ma-underline {
+  display: block;
+  width: 60px;
+  height: 3px;
+  margin: 14px auto 0;
+  background: linear-gradient(90deg, #00d4aa, #7b61ff);
+  border-radius: 3px;
+}
+[data-testid="stTextInput"] input {
+  background: rgba(8,18,40,0.75) !important;
+  border: 1.5px solid rgba(0,212,170,0.25) !important;
+  border-radius: 12px !important;
+  color: #eaf6ff !important;
+  padding: 14px 18px !important;
+  font-size: 1rem !important;
+}
+[data-testid="stTextInput"] input:focus {
+  border-color: rgba(0,212,170,0.9) !important;
+  box-shadow: 0 0 0 4px rgba(0,212,170,0.15) !important;
+}
+[data-testid="stTextInput"] label {
+  color: #8892b0 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+}
+@media (max-width: 640px) {
+  .ma-hero-wrap { margin: 4vh 12px 20px; }
+  .ma-hero { padding: 30px 22px 26px; }
+  .ma-brand { font-size: 1.5rem; }
+  .ma-logo { width: 90px; height: 90px; }
+}
+</style>
+"""
+
+
+def _render_hero(logo_b64: str):
+    """Render hero card. Uses single-line HTML to avoid markdown code-block."""
+    # IMPORTANT: no leading indentation -> Streamlit renders as HTML, not code block
+    html = (
+        '<div class="ma-hero-wrap">'
+        '<div class="ma-hero">'
+        f'<img class="ma-logo" src="data:image/png;base64,{logo_b64}" alt="Meena Agencies" />'
+        '<div class="ma-brand">Meena Agencies</div>'
+        '<div class="ma-sub">Authorised Access Only</div>'
+        '<span class="ma-underline"></span>'
+        '</div>'
+        '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def check_password():
+    """Returns True if the user has entered the correct access password."""
+    # Load logo once per render
+    try:
+        import base64
+        from pathlib import Path
+        logo_path = Path("logo.png")
+        if logo_path.exists():
+            logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
+        else:
+            logo_b64 = ""
+    except Exception:
+        logo_b64 = ""
+
+    st.markdown(AUTH_CSS, unsafe_allow_html=True)
+
+    def password_entered():
+        try:
+            expected = st.secrets["ACCESS_PASSWORD"]
+        except Exception:
+            st.session_state["_auth_state"] = "ok"
+            st.session_state["_ma_auth_unlocked"] = True
+            return
+        entered = st.session_state.get("password", "")
+        if entered and hmac.compare_digest(entered, expected):
+            st.session_state["_auth_state"] = "ok"
+            st.session_state["password_correct"] = True
+            st.session_state["_ma_auth_unlocked"] = True
+        else:
+            st.session_state["_auth_state"] = "wrong"
+            st.session_state["password_correct"] = False
+            st.session_state["_ma_auth_unlocked"] = False
+
+    # Check multiple possible keys for robustness
+    if (st.session_state.get("_ma_auth_unlocked") is True
+        or st.session_state.get("password_correct") is True):
+        return True
+
+    _render_hero(logo_b64)
+
+    _sp_l, _mid, _sp_r = st.columns([1, 1.6, 1])
+    with _mid:
+        st.text_input(
+            "Access Password",
+            type="password",
+            key="password",
+            on_change=password_entered,
+            placeholder="Enter your passphrase",
+        )
+        if st.session_state.get("_auth_state") == "wrong":
+            st.error("Wrong password — try again")
+
+    return False

@@ -221,7 +221,7 @@ def active_promos_for_retailer(retailer_id):
     for p in promos:
         if not p.get("active"):
             continue
-        if p["valid_from"] > today or p["valid_until"] < today:
+        if p.get("valid_from", "—") > today or p.get("valid_until", "—") < today:
             continue
         # Check audience
         if p["audience"] == "specific" and retailer_id not in p["target_retailers"]:
@@ -242,7 +242,7 @@ def campaign_summary():
         "total_promos": len(promos),
         "active": len(active),
         "total_sent": total_sent,
-        "types": {t: len([p for p in promos if p["type"] == t]) for t in PROMO_TYPES},
+        "types": {t: len([p for p in promos if p.get("type") == t]) for t in PROMO_TYPES},
     }
 
 

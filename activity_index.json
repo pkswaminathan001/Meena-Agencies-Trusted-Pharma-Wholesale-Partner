@@ -21,21 +21,57 @@
       }
     },
     "27-SEP-2026": {
-      "events": 476,
+      "events": 606,
       "clicks": 0,
       "pages": {
-        "login": 50,
-        "Approvals": 40,
-        "Health": 39,
-        "Fraud": 39,
-        "AutoPOs": 39,
-        "Forecast": 39,
-        "WhatIf": 39,
-        "Intelligence": 39,
-        "Settings": 38,
-        "Audit": 38,
-        "Operations": 38,
-        "Accounting": 38
+        "login": 58,
+        "Approvals": 51,
+        "Health": 50,
+        "Fraud": 50,
+        "AutoPOs": 50,
+        "Forecast": 50,
+        "WhatIf": 50,
+        "Intelligence": 51,
+        "Settings": 50,
+        "Audit": 50,
+        "Operations": 48,
+        "Accounting": 48
+      }
+    },
+    "02-OCT-2026": {
+      "events": 272,
+      "clicks": 0,
+      "pages": {
+        "login": 20,
+        "Approvals": 23,
+        "Health": 23,
+        "Fraud": 23,
+        "AutoPOs": 23,
+        "Forecast": 23,
+        "WhatIf": 23,
+        "Intelligence": 23,
+        "Settings": 23,
+        "Audit": 23,
+        "Operations": 23,
+        "Accounting": 22
+      }
+    },
+    "10-OCT-2026": {
+      "events": 23,
+      "clicks": 0,
+      "pages": {
+        "login": 12,
+        "Approvals": 1,
+        "Health": 1,
+        "Fraud": 1,
+        "AutoPOs": 1,
+        "Forecast": 1,
+        "WhatIf": 1,
+        "Intelligence": 1,
+        "Settings": 1,
+        "Audit": 1,
+        "Operations": 1,
+        "Accounting": 1
       }
     }
   },
@@ -61,12 +97,34 @@
       }
     },
     "27-SEP-2026": {
-      "events": 76,
+      "events": 78,
       "clicks": 0,
       "pages": {
-        "login": 68,
+        "login": 70,
         "signout": 4,
         "RetailerOrders": 4
+      }
+    },
+    "02-OCT-2026": {
+      "events": 23,
+      "clicks": 0,
+      "pages": {
+        "login": 22,
+        "signout": 1
+      }
+    },
+    "03-OCT-2026": {
+      "events": 25,
+      "clicks": 0,
+      "pages": {
+        "login": 25
+      }
+    },
+    "10-OCT-2026": {
+      "events": 24,
+      "clicks": 0,
+      "pages": {
+        "login": 24
       }
     }
   },
@@ -101,6 +159,38 @@
       "clicks": 0,
       "pages": {
         "login": 2,
+        "signout": 1
+      }
+    }
+  },
+  "STAFF001": {
+    "02-OCT-2026": {
+      "events": 20,
+      "clicks": 0,
+      "pages": {
+        "login": 20
+      }
+    },
+    "10-OCT-2026": {
+      "events": 4,
+      "clicks": 0,
+      "pages": {
+        "login": 4
+      }
+    }
+  },
+  "SYSTEM": {
+    "02-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
+        "signout": 1
+      }
+    },
+    "10-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
         "signout": 1
       }
     }

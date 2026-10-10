@@ -1,0 +1,633 @@
+"""
+customer_order_ui.py — Amazon-style order experience for customers.
+Self-contained module: category grid, product cards, cart, sticky bar, popup.
+"""
+import streamlit as st
+import json
+from pathlib import Path
+from datetime import datetime
+import random
+import pandas as pd
+
+
+# ═══════════════════════════════════════════════════════════
+# FLAT PRICES + MEDICINE GROUPING
+# ═══════════════════════════════════════════════════════════
+import json as _json
+from pathlib import Path as _Path
+
+_FLAT_PRICES = {}
+try:
+    _pf = _Path("product_prices.json")
+    if _pf.exists():
+        _FLAT_PRICES = _json.loads(_pf.read_text())
+except Exception:
+    pass
+
+
+def _flat_price(medicine_name: str, fallback: float = 0.0) -> float:
+    """Return flat sell price from product_prices.json or fallback."""
+    entry = _FLAT_PRICES.get(str(medicine_name).strip())
+    if entry:
+        return float(entry.get("sell", fallback))
+    return fallback
+
+
+
+def _load_json(p, default=None):
+    try:
+        return json.loads(Path(p).read_text())
+    except Exception:
+        return default if default is not None else []
+
+
+def _save_json(p, data):
+    try:
+        Path(p).write_text(json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+def _load_inventory():
+    """Load inventory from SQLite (fallback to CSV)."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect("inventory.db")
+        df = pd.read_sql("SELECT * FROM inventory", conn)
+        conn.close()
+        return df
+    except Exception:
+        try:
+            return pd.read_csv("inventory.csv")
+        except Exception:
+            return pd.DataFrame()
+
+
+def _med_icon(med: str) -> str:
+    if not med:
+        return "💊"
+    n = str(med).lower()
+    if any(k in n for k in ["inject", "insulin", "vial", "syringe", "glargine"]): return "💉"
+    if any(k in n for k in ["syrup", "susp", "liquid", "drops"]): return "🧴"
+    if any(k in n for k in ["powder", "sachet", "granules", "ors"]): return "🥄"
+    if any(k in n for k in ["inhaler", "respule", "rotacap"]): return "💨"
+    if any(k in n for k in ["cream", "ointment", "gel", "lotion"]): return "🧴"
+    if any(k in n for k in ["eye", "ear", "nasal"]): return "👁️"
+    if any(k in n for k in ["vitamin", "calcium", "zinc", "iron", "folic"]): return "🌱"
+    if any(k in n for k in ["cardiac", "amlodipine", "telmisartan", "losartan", "statin"]): return "❤️"
+    if any(k in n for k in ["diabet", "metformin", "glimepiride", "insulin"]): return "🩸"
+    if any(k in n for k in ["amoxi", "azithro", "cef", "cipro", "doxy", "penicill"]): return "🦠"
+    if any(k in n for k in ["dolo", "para", "ibupro", "diclof", "pain", "aspirin"]): return "🩹"
+    if any(k in n for k in ["cetiri", "lorat", "fexo", "montelu", "allergy"]): return "🤧"
+    if any(k in n for k in ["pantop", "omepra", "gastro", "acidity", "antacid"]): return "🫃"
+    if any(k in n for k in ["cough", "cold", "flu", "fever"]): return "🤒"
+    return "💊"
+
+
+def _infer_category(med: str) -> str:
+    if not med: return "Other"
+    n = str(med).lower()
+    if any(k in n for k in ["amoxi", "azithro", "cef", "cipro", "doxy", "penicill", "antibiotic"]): return "Antibiotic"
+    if any(k in n for k in ["dolo", "para", "ibupro", "diclof", "aspirin", "pain", "nimesulide"]): return "Pain Relief"
+    if any(k in n for k in ["cardiac", "amlodipine", "telmisartan", "losartan", "statin", "atorva"]): return "Cardiac"
+    if any(k in n for k in ["diabet", "metformin", "glimepiride", "insulin", "glargine"]): return "Diabetes"
+    if any(k in n for k in ["pantop", "omepra", "gastro", "acidity", "antacid", "rabepra"]): return "Gastro"
+    if any(k in n for k in ["cetiri", "lorat", "fexo", "montelu", "allergy"]): return "Allergy"
+    if any(k in n for k in ["inject", "vial", "ampoule", "syringe"]): return "Injection"
+    if any(k in n for k in ["syrup", "susp", "suspension", "liquid"]): return "Syrup"
+    if any(k in n for k in ["inhaler", "respule", "rotacap", "asthma"]): return "Inhaler"
+    if any(k in n for k in ["powder", "sachet", "ors", "granules"]): return "Powder"
+    if any(k in n for k in ["cream", "ointment", "gel", "derma", "soap"]): return "Derma"
+    if any(k in n for k in ["vitamin", "calcium", "zinc", "iron", "folic"]): return "Vitamins"
+    if any(k in n for k in ["cough", "cold", "flu", "fever", "benadryl"]): return "Cold & Cough"
+    return "Other"
+
+
+def _category_icon(cat: str) -> str:
+    return {
+        "Antibiotic": "🦠", "Pain Relief": "💊", "Cardiac": "❤️",
+        "Diabetes": "🩸", "Gastro": "🫃", "Allergy": "🤧",
+        "Injection": "💉", "Syrup": "🧴", "Inhaler": "💨",
+        "Powder": "🥄", "Derma": "🧼", "Vitamins": "🌱",
+        "Cold & Cough": "🤒", "Other": "💊",
+    }.get(cat, "💊")
+
+
+# ═══════════════════════════════════════════════════════════
+# CSS — Amazon-style clean customer flow
+# ═══════════════════════════════════════════════════════════
+AMAZON_CSS = """
+<style>
+/* ── Sticky cart bar at top ── */
+.ma-sticky-cart {
+    position: sticky;
+    top: 0;
+    z-index: 9998;
+    background: linear-gradient(135deg, rgba(0,212,170,0.95), rgba(123,97,255,0.95));
+    color: #ffffff;
+    padding: 12px 22px;
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
+.ma-sticky-cart .ma-scc-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.92rem;
+}
+.ma-sticky-cart .ma-scc-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.ma-sticky-cart .ma-scc-total {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+/* ── Category cards (bigger, more inviting) ── */
+.ma-cat-card {
+    background: linear-gradient(160deg, rgba(30,45,80,0.55), rgba(15,25,50,0.7));
+    border: 1.5px solid rgba(123,97,255,0.25);
+    border-radius: 16px;
+    padding: 22px 14px 16px;
+    text-align: center;
+    margin-bottom: 8px;
+    min-height: 170px;
+    transition: all .25s cubic-bezier(.2,.85,.3,1.05);
+    cursor: pointer;
+}
+.ma-cat-card:hover {
+    border-color: rgba(0,212,170,0.7);
+    transform: translateY(-4px);
+    box-shadow: 0 14px 34px rgba(0,212,170,0.3);
+}
+.ma-cat-icon { font-size: 3rem; line-height: 1; margin-bottom: 8px; }
+.ma-cat-name { font-weight: 700; color: #eaf6ff; font-size: 1.02rem; }
+.ma-cat-meta { color: #8892b0; font-size: 0.75rem; margin-top: 5px; }
+.ma-cat-units { font-size: 0.78rem; font-weight: 600; margin-top: 3px; }
+
+/* ── Medicine cards (Amazon-style product tile) ── */
+.ma-med-card {
+    background: linear-gradient(160deg, rgba(30,45,80,0.5), rgba(15,25,50,0.65));
+    border: 1px solid rgba(0,212,170,0.18);
+    border-radius: 14px;
+    padding: 18px 14px;
+    text-align: center;
+    margin-bottom: 8px;
+    min-height: 210px;
+    transition: all .22s ease;
+}
+.ma-med-card:hover {
+    border-color: rgba(0,212,170,0.5);
+    box-shadow: 0 10px 26px rgba(0,212,170,0.2);
+}
+.ma-med-icon { font-size: 2.6rem; line-height: 1; margin-bottom: 6px; }
+.ma-med-name { font-weight: 700; color: #eaf6ff; font-size: 0.92rem;
+               min-height: 42px; line-height: 1.25; }
+.ma-med-price { font-weight: 800; color: #00d4aa; font-size: 1.15rem; margin-top: 8px; }
+.ma-med-stock { font-size: 0.72rem; margin-top: 4px; font-weight: 600; }
+
+/* ── Cart item row ── */
+.ma-cart-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; margin-bottom: 8px;
+    background: linear-gradient(135deg, rgba(30,45,80,0.5), rgba(15,25,50,0.65));
+    border: 1px solid rgba(0,212,170,0.18);
+    border-radius: 12px;
+}
+.ma-cart-icon { font-size: 2rem; width: 46px; text-align: center; flex-shrink: 0; }
+.ma-cart-info { flex: 1; min-width: 0; }
+.ma-cart-name { font-weight: 700; color: #eaf6ff; font-size: 0.95rem; }
+.ma-cart-batch { font-size: 0.72rem; color: #8892b0; margin-top: 2px; }
+.ma-cart-qty { font-weight: 800; color: #00d4aa; font-size: 1.15rem; min-width: 55px; text-align: center; }
+.ma-cart-price { font-weight: 800; color: #eaf6ff; font-size: 1rem;
+                 min-width: 90px; text-align: right; }
+
+/* ── Summary card (right side in cart) ── */
+.ma-summary {
+    background: linear-gradient(160deg, rgba(30,45,80,0.6), rgba(15,25,50,0.75));
+    border: 1px solid rgba(0,212,170,0.3);
+    border-radius: 14px;
+    padding: 20px 22px;
+}
+.ma-summary-title { font-size: 1.05rem; font-weight: 800; color: #eaf6ff; margin-bottom: 14px; }
+.ma-summary-row { display: flex; justify-content: space-between; padding: 6px 0;
+                  color: #b8c0d8; font-size: 0.9rem; }
+.ma-summary-row.discount { color: #ffc107; }
+.ma-summary-row.total { border-top: 2px solid rgba(0,212,170,0.4);
+                        padding-top: 12px; margin-top: 8px;
+                        color: #00d4aa; font-weight: 800; font-size: 1.2rem; }
+
+/* ── Buttons — bigger, more prominent ── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(120deg, #ff9900, #ffb547) !important;
+    color: #1a1a1a !important;
+    font-weight: 800 !important;
+    border: none !important;
+    border-radius: 12px !important;
+    min-height: 48px !important;
+    font-size: 1rem !important;
+    box-shadow: 0 8px 20px rgba(255,153,0,0.35) !important;
+    transition: all .2s ease !important;
+}
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 14px 28px rgba(255,153,0,0.5) !important;
+}
+
+/* Toast/notification area */
+.ma-added-toast {
+    background: linear-gradient(135deg, rgba(0,212,170,0.9), rgba(123,97,255,0.9));
+    color: #ffffff;
+    padding: 14px 22px;
+    border-radius: 12px;
+    margin: 12px 0;
+    font-weight: 600;
+    box-shadow: 0 8px 22px rgba(0,212,170,0.4);
+    animation: toastSlide .35s ease-out;
+}
+@keyframes toastSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+"""
+
+
+def _inject_css():
+    st.markdown(AMAZON_CSS, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════
+# STICKY CART BAR (top of page, always visible when cart has items)
+# ═══════════════════════════════════════════════════════════
+def render_sticky_cart_bar(retailer):
+    """Show sticky cart bar at top. Click → opens cart popup."""
+    cart = st.session_state.get("cart", []) or []
+    if not cart:
+        return
+
+    total_qty = sum(int(it.get("qty", 1) or 1) for it in cart)
+    total_amt = sum((it.get("qty", 1) or 1) * float(it.get("price", 0) or 0) for it in cart)
+
+    st.markdown(f"""
+    <div class="ma-sticky-cart">
+        <div class="ma-scc-left">
+            🛒 <b>{len(cart)}</b> item{'s' if len(cart) != 1 else ''} · {total_qty} units
+        </div>
+        <div class="ma-scc-right">
+            <span class="ma-scc-total">₹{total_amt:,.2f}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Action buttons below the bar (real Streamlit buttons)
+    c1, c2 = st.columns([3, 1])
+    with c2:
+        if st.button("🛒 View Cart", use_container_width=True, type="primary",
+                     key="view_cart_top"):
+            st.session_state["show_cart_page"] = True
+            st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# CATEGORY GRID (Level 1)
+# ═══════════════════════════════════════════════════════════
+def render_category_grid():
+    inv = _load_inventory()
+    if inv.empty:
+        st.error("Inventory not loaded. Please contact Meena Agencies.")
+        return
+
+    # Aggregate by category — count UNIQUE medicines, not batches
+    cats = {}
+    for _, row in inv.iterrows():
+        med = str(row.get("medicine_name", "?"))
+        qty = int(float(row.get("quantity", 0) or 0))
+        cat = _infer_category(med)
+        if cat not in cats:
+            cats[cat] = {"meds": set(), "units": 0}
+        cats[cat]["meds"].add(med)          # ← SET, not counter
+        cats[cat]["units"] += qty
+
+    # Convert sets to counts
+    for cat in cats:
+        cats[cat]["meds"] = len(cats[cat]["meds"])
+
+    st.markdown("### 📁 Browse by Category")
+    _unique_count = inv["medicine_name"].astype(str).nunique()
+    st.caption(f"📊 {_unique_count} unique medicines · {len(inv)} batches · {len(cats)} categories")
+
+    # Sort by units desc, keep Other last
+    sorted_cats = sorted(cats.items(),
+                        key=lambda x: (x[0] == "Other", -x[1]["units"]))
+
+    # 4 per row grid
+    for i in range(0, len(sorted_cats), 4):
+        cols = st.columns(4)
+        for j, (cname, cdata) in enumerate(sorted_cats[i:i+4]):
+            with cols[j]:
+                icon = _category_icon(cname)
+                units = cdata["units"]
+                meds = cdata["meds"]
+                if units == 0:
+                    ucolor = "#ff5252"
+                elif units < 500:
+                    ucolor = "#ffc107"
+                else:
+                    ucolor = "#00d47a"
+
+                st.markdown(f"""
+                <div class="ma-cat-card">
+                    <div class="ma-cat-icon">{icon}</div>
+                    <div class="ma-cat-name">{cname}</div>
+                    <div class="ma-cat-meta">{meds} medicine{'s' if meds != 1 else ''}</div>
+                    <div class="ma-cat-units" style="color:{ucolor};">
+                        {units:,} units
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if st.button("Open →", key=f"cat_{cname}", use_container_width=True):
+                    st.session_state["cust_cat_selected"] = cname
+                    st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# CATEGORY DETAIL (Level 2 — Amazon product tiles)
+# ═══════════════════════════════════════════════════════════
+def render_category_detail(category: str):
+    inv = _load_inventory()
+    if inv.empty:
+        st.error("Inventory not loaded.")
+        return
+
+    # Filter inventory by category
+    filtered = inv[inv["medicine_name"].astype(str).apply(_infer_category) == category]
+
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        if st.button("← Categories", key="back_to_cats", use_container_width=True):
+            st.session_state["cust_cat_selected"] = None
+            st.rerun()
+    with c2:
+        st.markdown(f"### {_category_icon(category)} {category}")
+    # Search inside category (before grouping)
+    search = st.text_input("🔍 Search in this category",
+                          placeholder="Type a name…",
+                          key="cat_search",
+                          label_visibility="collapsed")
+    if search and len(search) >= 2:
+        filtered = filtered[filtered["medicine_name"].astype(str)
+                           .str.contains(search, case=False, na=False)]
+
+    if len(filtered) == 0:
+        st.info("No medicines found.")
+        return
+
+    # ── GROUP BY MEDICINE ──
+    import pandas as _pd
+    filtered = filtered.copy()
+    filtered["_qty"] = filtered["quantity"].apply(lambda x: int(float(x or 0)))
+    grouped = {}
+    for name, grp in filtered.groupby("medicine_name"):
+        name = str(name)
+        # Sort by expiry ascending to find FIFO batch
+        grp = grp.sort_values("expiry_date")
+        in_stock = grp[grp["_qty"] > 0]
+        first_batch = in_stock.iloc[0] if len(in_stock) > 0 else grp.iloc[0]
+        total_qty = int(grp["_qty"].sum())
+        # Flat price
+        fallback = float(first_batch.get("selling_price", 0) or 0)
+        price = _flat_price(name, fallback)
+        grouped[name] = {
+            "name": name,
+            "total_qty": total_qty,
+            "batch": str(first_batch.get("batch", "") or first_batch.get("batch_number", "")),
+            "price": price,
+            "batch_count": len(grp),
+            "medicine_for_cart": name,
+        }
+
+    st.caption(f"{len(grouped)} unique medicine{'s' if len(grouped) != 1 else ''}")
+
+    # ── Med cards — 4 per row (one per MEDICINE, not per batch) ──
+    _items = list(grouped.values())
+    for i in range(0, len(_items), 4):
+        cols = st.columns(4)
+        for j, _m in enumerate(_items[i:i+4]):
+            med = _m["name"]
+            qty = _m["total_qty"]
+            price = _m["price"]
+            batch = _m["batch"]
+            icon = _med_icon(med)
+
+            if qty == 0:
+                stock = '<span style="color:#ff5252;">❌ Out of stock</span>'
+            elif qty < 20:
+                stock = f'<span style="color:#ffc107;">⚠️ Only {qty} left</span>'
+            else:
+                stock = f'<span style="color:#00d47a;">✅ {qty:,} in stock</span>'
+
+            with cols[j]:
+                _supplier = _m.get("supplier", "") or _m.get("brand", "")
+                _supplier_html = f'<div style="color:#7b61ff;font-size:0.68rem;font-weight:600;margin-top:2px;">🏭 {_supplier}</div>' if _supplier else ''
+                st.markdown(f"""
+                <div class="ma-med-card">
+                    <div class="ma-med-icon">{icon}</div>
+                    <div class="ma-med-name">{med}</div>
+                    {_supplier_html}
+                    <div class="ma-med-price">₹{price:,.0f}</div>
+                    <div class="ma-med-batch" style="color:#8892b0;font-size:0.68rem;margin-top:4px;">{_m['batch_count']} batch{'es' if _m['batch_count'] != 1 else ''}</div>
+                    <div class="ma-med-stock">{stock}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                qcol, bcol = st.columns([1, 2])
+                with qcol:
+                    qty_in = st.number_input("Qty", min_value=1, value=1, step=1,
+                                            key=f"cqty_{i}_{j}_{med[:10]}",
+                                            label_visibility="collapsed")
+                with bcol:
+                    if st.button("🛒 Add", key=f"cadd_{i}_{j}_{med[:10]}",
+                                 use_container_width=True,
+                                 disabled=(qty == 0)):
+                        _add_to_cart(med, int(qty_in), batch, price)
+                        st.rerun()
+
+
+def _add_to_cart(medicine, qty, batch, price):
+    cart = st.session_state.get("cart", []) or []
+    cart.append({
+        "medicine": medicine,
+        "qty": qty,
+        "batch": batch,
+        "price": price,
+    })
+    st.session_state["cart"] = cart
+    st.session_state["_added_toast"] = f"{medicine} × {qty}"
+
+
+# ═══════════════════════════════════════════════════════════
+# CART PAGE (Level 3 — Amazon cart)
+# ═══════════════════════════════════════════════════════════
+def render_cart_page(retailer):
+    cart = st.session_state.get("cart", []) or []
+    if not cart:
+        st.info("Your cart is empty.")
+        if st.button("← Back to Browse", key="empty_back"):
+            st.session_state["show_cart_page"] = False
+            st.rerun()
+        return
+
+    c1, c2 = st.columns([1, 5])
+    with c1:
+        if st.button("← Continue", key="cart_back", use_container_width=True):
+            st.session_state["show_cart_page"] = False
+            st.rerun()
+    with c2:
+        st.markdown(f"### 🛒 Shopping Cart · {len(cart)} item(s)")
+    st.write("")
+
+    left, right = st.columns([3, 1], gap="medium")
+
+    # ═══ LEFT: Items ═══
+    with left:
+        for i, it in enumerate(cart):
+            icon = _med_icon(it.get("medicine", ""))
+            med = it.get("medicine", "?")
+            batch = it.get("batch", "—")
+            price = float(it.get("price", 0) or 0)
+            qty = int(it.get("qty", 1) or 1)
+            line = qty * price
+
+            st.markdown(f"""
+            <div class="ma-cart-row">
+                <div class="ma-cart-icon">{icon}</div>
+                <div class="ma-cart-info">
+                    <div class="ma-cart-name">{med}</div>
+                    <div class="ma-cart-batch">Batch {batch} · ₹{price:,.2f} each</div>
+                </div>
+                <div class="ma-cart-qty">× {qty}</div>
+                <div class="ma-cart-price">₹{line:,.2f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Qty controls
+            qc1, qc2, qc3 = st.columns([1, 1, 4])
+            with qc1:
+                if st.button("−", key=f"cminus_{i}", use_container_width=True):
+                    if qty > 1:
+                        cart[i]["qty"] = qty - 1
+                        st.session_state["cart"] = cart
+                        st.rerun()
+            with qc2:
+                if st.button("+", key=f"cplus_{i}", use_container_width=True):
+                    cart[i]["qty"] = qty + 1
+                    st.session_state["cart"] = cart
+                    st.rerun()
+            with qc3:
+                if st.button("🗑️ Remove", key=f"cremove_{i}", use_container_width=True):
+                    cart.pop(i)
+                    st.session_state["cart"] = cart
+                    st.rerun()
+
+    # ═══ RIGHT: Summary ═══
+    with right:
+        subtotal = sum(int(it.get("qty", 1)) * float(it.get("price", 0) or 0) for it in cart)
+        total_qty = sum(int(it.get("qty", 1)) for it in cart)
+
+        st.markdown(f"""
+        <div class="ma-summary">
+            <div class="ma-summary-title">Order Summary</div>
+            <div class="ma-summary-row">
+                <span>Subtotal ({total_qty} units)</span>
+                <span>₹{subtotal:,.2f}</span>
+            </div>
+            <div class="ma-summary-row discount">
+                <span>Tier discount</span>
+                <span>Applied at checkout</span>
+            </div>
+            <div class="ma-summary-row total">
+                <span>TOTAL</span>
+                <span>₹{subtotal:,.2f}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.write("")
+        location = st.text_input("📍 Delivery",
+                                 value=retailer.get("address", ""),
+                                 key="cart_delivery_loc")
+
+        if st.button("📤 Place Order (Get OTP)", key="cart_place_order",
+                     use_container_width=True, type="primary"):
+            _create_pending_order(cart, retailer, location, subtotal)
+            st.rerun()
+
+
+def _create_pending_order(cart, retailer, location, total):
+    """Create order + send OTP flow (existing flow)."""
+    import notify_pro
+    from security import check_rate, gen_otp
+    from datetime import datetime
+
+    allowed, remaining = check_rate(retailer["id"])
+    if not allowed:
+        st.error("🚫 Too many OTP requests. Wait 1 hour.")
+        return
+
+    otp = gen_otp()
+    order_id = f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100,999)}"
+    order = {
+        "order_id": order_id,
+        "retailer_id": retailer["id"],
+        "shop": retailer["shop"],
+        "items": cart,
+        "total": float(total),
+        "status": "Awaiting OTP",
+        "placed_at": datetime.now().strftime("%d-%b-%Y %H:%M").upper(),
+        "location": location.strip(),
+        "source": "app",
+    }
+    st.session_state.pending_order = {"otp": otp, "order": order}
+
+    otp_msg = notify_pro.format_otp(order, otp)
+    notify_pro.notify_retailer(retailer, otp_msg, prefer_sms=False)
+
+    st.session_state["show_cart_page"] = False
+    st.success(f"📤 OTP sent for order {order_id}")
+
+
+# ═══════════════════════════════════════════════════════════
+# MAIN ENTRY — renders based on current view
+# ═══════════════════════════════════════════════════════════
+def render(retailer):
+    """Master renderer. Called from app.py retailer view."""
+    _inject_css()
+
+    # Handle "Added to cart" toast
+    toast = st.session_state.pop("_added_toast", None)
+    if toast:
+        st.markdown(f'<div class="ma-added-toast">✅ Added to cart · {toast}</div>',
+                    unsafe_allow_html=True)
+
+    # Sticky cart bar at top
+    render_sticky_cart_bar(retailer)
+
+    # Route to right sub-view
+    if st.session_state.get("show_cart_page"):
+        render_cart_page(retailer)
+        return
+
+    cat_selected = st.session_state.get("cust_cat_selected")
+    if cat_selected:
+        render_category_detail(cat_selected)
+    else:
+        render_category_grid()

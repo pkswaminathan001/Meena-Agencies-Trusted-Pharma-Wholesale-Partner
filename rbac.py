@@ -69,12 +69,50 @@ def hash_secret(secret):
 
 
 def load_users():
-    """Load users.json. Create default owner if missing."""
-    if Path(USERS_FILE).exists():
-        try:
-            return json.loads(Path(USERS_FILE).read_text())
-        except Exception:
-            return _default_users()
+    """Load users.json. ALWAYS returns dict with keys: owner, staff, retailer."""
+    if not Path(USERS_FILE).exists():
+        return _default_users()
+    try:
+        raw = json.loads(Path(USERS_FILE).read_text())
+    except Exception:
+        return _default_users()
+
+    # ── Normalize: users.json may be a flat LIST of user dicts ──
+    if isinstance(raw, list):
+        out = {"owner": {}, "staff": [], "retailer": []}
+        for u in raw:
+            role = (u.get("role") or "").lower()
+            if role == "owner" and not out["owner"]:
+                out["owner"] = u
+            elif role == "staff":
+                out["staff"].append(u)
+            elif role in ("retailer", "customer"):
+                out["retailer"].append(u)
+        return out
+
+    # If it's a list (legacy format), convert to dict
+    if isinstance(raw, list):
+        out = {"owner": {}, "staff": [], "retailer": []}
+        for u in raw:
+            if not isinstance(u, dict):
+                continue
+            role = u.get("role", "")
+            if role == "owner":
+                out["owner"] = u
+            elif role == "staff":
+                out["staff"].append(u)
+            elif role in ("retailer", "customer"):
+                out["retailer"].append(u)
+        return out
+
+    # If it's already a dict, fill in missing keys
+    if isinstance(raw, dict):
+        raw.setdefault("owner", {})
+        raw.setdefault("staff", [])
+        raw.setdefault("retailer", [])
+        return raw
+
+    # Fallback
     return _default_users()
 
 
@@ -120,17 +158,27 @@ def verify_login(role, user_id, pin, retailers=None):
 
     if role == "owner":
         o = users.get("owner", {})
-        if user_id != "OWNER" and user_id.lower() != "owner":
+        # Owner ID is tolerant — accept OWNER/owner/blank. PIN is what matters.
+        _uid = (user_id or "").strip().lower()
+        if _uid not in ("owner", ""):
+            print(f"[rbac] owner login attempt with unexpected id: {user_id!r}")
             return False, None, "Owner ID must be 'OWNER'"
         if not o.get("active", True):
             return False, None, "Owner account disabled"
-        if hash_secret(pin) != o.get("pin_hash", ""):
+        _given = hash_secret(pin)
+        _stored = o.get("pin_hash", "")
+        if _given != _stored:
+            print(f"[rbac] owner wrong-password. given={_given[:12]}... stored={_stored[:12]}...")
             return False, None, "Wrong password"
         return True, o, None
 
     if role == "staff":
+        # ── BULLETPROOF GUARD: ensure users is a dict ──
+        if not isinstance(users, dict):
+            users = {'staff': [], 'owner': [], 'retailer': []}
+
         for s in users.get("staff", []):
-            if s["id"] == user_id:
+            if str(s.get("id","")).strip().upper() == str(user_id).strip().upper():
                 if not s.get("active", True):
                     return False, None, "Staff account disabled"
                 if hash_secret(pin) != s.get("pin_hash", ""):
@@ -142,7 +190,7 @@ def verify_login(role, user_id, pin, retailers=None):
         if not retailers:
             return False, None, "System error — no retailers loaded"
         for r in retailers:
-            if r["id"] == user_id.upper():
+            if str(r.get("id","")).strip().upper() == str(user_id).strip().upper():
                 if r.get("status") == "Blocked":
                     return False, None, "Account BLOCKED. Contact owner."
                 if hash_secret(pin) != r.get("pin_hash", ""):

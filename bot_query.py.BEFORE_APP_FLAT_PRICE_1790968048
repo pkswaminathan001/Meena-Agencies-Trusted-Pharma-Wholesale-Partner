@@ -1,0 +1,606 @@
+"""
+bot_query.py — Data engine for the conversational bot.
+Reads real business data (orders, retailers, inventory) and returns
+structured context strings for bot_nlu.py to reason about.
+"""
+import json
+from pathlib import Path
+from datetime import datetime, timedelta
+
+
+def _load_json(p, default=None):
+    try:
+        return json.loads(Path(p).read_text())
+    except Exception:
+        return default if default is not None else []
+
+
+def _load_inventory():
+    """Load inventory from SQLite (primary) or CSV (fallback)."""
+    import pandas as pd
+    # Try SQLite first — that's where the real data lives
+    try:
+        import sqlite3
+        conn = sqlite3.connect("inventory.db")
+        df = pd.read_sql("SELECT * FROM inventory", conn)
+        conn.close()
+        if len(df) > 0:
+            # Normalize column names
+            rename = {}
+            if "batch_number" in df.columns and "batch" not in df.columns:
+                rename["batch_number"] = "batch"
+            if "selling_price" not in df.columns and "cost_price" in df.columns:
+                df["selling_price"] = (df["cost_price"] * 1.25).round(2)
+            if "mrp" not in df.columns and "cost_price" in df.columns:
+                df["mrp"] = (df["cost_price"] * 1.30).round(2)
+            if rename:
+                df = df.rename(columns=rename)
+            return df
+    except Exception:
+        pass
+
+    # Fallback: CSV
+    try:
+        import pandas as pd
+        df = pd.read_csv("inventory.csv")
+        if len(df) > 0:
+            return df
+    except Exception:
+        pass
+
+    return None
+
+
+
+# ═══════════════════════════════════════════════════════════
+# SELLABLE INVENTORY — excludes expired + expiring-soon
+# ═══════════════════════════════════════════════════════════
+def _load_sellable_inventory(buffer_days: int = 30):
+    """
+    Return inventory filtered to batches that are NOT expired
+    and have at least `buffer_days` before expiry.
+    """
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    df = _load_inventory()
+    if df is None or len(df) == 0:
+        return df
+
+    # Parse expiry safely
+    exp = pd.to_datetime(df["expiry_date"], errors="coerce")
+    cutoff = datetime.now() + timedelta(days=buffer_days)
+    mask = exp.notna() & (exp >= cutoff)
+
+    return df[mask].copy()
+
+
+def _fmt_money(v):
+    try:
+        return f"₹{float(v):,.0f}"
+    except Exception:
+        return "₹0"
+
+
+# ═══════════════════════════════════════════════════════════
+# OWNER DATA QUERIES
+# ═══════════════════════════════════════════════════════════
+
+def owner_revenue_context():
+    """Today's revenue, orders, comparison with yesterday."""
+    orders = _load_json("orders.json", [])
+    today = datetime.now().strftime("%d-%b-%Y").upper()
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%d-%b-%Y").upper()
+
+    def in_date(o, d):
+        return str(o.get("placed_at", "")).upper().startswith(d)
+
+    def is_counted(o):
+        return o.get("status") in ("Approved", "Packed", "Dispatched", "Delivered")
+
+    today_orders = [o for o in orders if in_date(o, today)]
+    yest_orders  = [o for o in orders if in_date(o, yesterday)]
+
+    today_rev = sum(float(o.get("total", 0) or 0) for o in today_orders if is_counted(o))
+    yest_rev  = sum(float(o.get("total", 0) or 0) for o in yest_orders if is_counted(o))
+
+    # Top retailer today
+    by_shop = {}
+    for o in today_orders:
+        if is_counted(o):
+            s = o.get("shop", "?")
+            by_shop[s] = by_shop.get(s, 0) + float(o.get("total", 0) or 0)
+    top = sorted(by_shop.items(), key=lambda x: -x[1])[:1]
+    top_line = f"Top retailer: {top[0][0]} ({_fmt_money(top[0][1])})" if top else ""
+
+    # % change
+    change = ""
+    if yest_rev > 0:
+        pct = ((today_rev - yest_rev) / yest_rev) * 100
+        change = f"({pct:+.0f}% vs yesterday)"
+
+    pending = [o for o in today_orders if o.get("status") == "Pending"]
+    delivered = [o for o in today_orders if o.get("status") == "Delivered"]
+
+    return f"""TODAY'S REVENUE
+Revenue: {_fmt_money(today_rev)} {change}
+Orders today: {len(today_orders)}
+Pending approval: {len(pending)}
+Delivered: {len(delivered)}
+{top_line}"""
+
+
+def owner_pending_context():
+    """Orders pending owner approval."""
+    orders = _load_json("orders.json", [])
+    pending = [o for o in orders if o.get("status") == "Pending"]
+    if not pending:
+        return "PENDING ORDERS: None. All caught up."
+    lines = [f"PENDING ORDERS ({len(pending)}):"]
+    for o in pending[:10]:
+        lines.append(f"• {o.get('order_id','?')} · {o.get('shop','?')} · {_fmt_money(o.get('total',0))}")
+    total_val = sum(float(o.get("total", 0) or 0) for o in pending)
+    lines.append(f"Total value pending: {_fmt_money(total_val)}")
+    return "\n".join(lines)
+
+
+def owner_payments_context():
+    """Overdue retailers + outstanding."""
+    retailers = _load_json("retailers.json", [])
+    today = datetime.now()
+    lines = ["OUTSTANDING & OVERDUE:"]
+    total_due = 0
+    for r in retailers:
+        outstanding = float(r.get("outstanding", 0) or 0)
+        if outstanding <= 0:
+            continue
+        total_due += outstanding
+        # Assume 30-day credit; anything > 30 days is overdue (simplified)
+        credit_days = r.get("payment_days", 30)
+        # We don't have last payment date — use outstanding balance as indicator
+        flag = "🔴" if outstanding > 50000 else ("🟡" if outstanding > 20000 else "🟢")
+        lines.append(
+            f"{flag} {r.get('shop','?')} — {_fmt_money(outstanding)} outstanding "
+            f"(credit {r.get('credit_limit',0):,}, days {credit_days})"
+        )
+    lines.append(f"Total outstanding: {_fmt_money(total_due)}")
+    return "\n".join(lines) if len(lines) > 1 else "No outstanding payments."
+
+
+def owner_stock_context(query: str = ""):
+    """Stock info, sorted by expiry (FIFO — oldest first). No batch numbers."""
+    inv = _load_inventory()
+    if inv is None or len(inv) == 0:
+        return "Stock data not available."
+
+    try:
+        if query:
+            match = inv[inv["medicine_name"].astype(str)
+                       .str.contains(query, case=False, na=False)]
+            if len(match) == 0:
+                return f"No stock found for '{query}'."
+
+            # Sort by expiry date — oldest first (FIFO)
+            if "expiry_date" in match.columns:
+                match = match.sort_values("expiry_date", ascending=True)
+
+            total = int(match["quantity"].sum())
+            lines = [f"STOCK FOR '{query}':",
+                    f"Total: {total:,} units across {len(match)} batches",
+                    "Order of dispatch (oldest expiry first):"]
+
+            # Show top 8 batches — no batch numbers, show expiry instead
+            shown = 0
+            for _, row in match.head(8).iterrows():
+                qty = int(row.get("quantity", 0) or 0)
+                exp = str(row.get("expiry_date", ""))[:10]  # YYYY-MM-DD
+                price = float(row.get("selling_price", 0) or 0)
+                mrp = float(row.get("mrp", price * 1.3) or 0)
+
+                # Calculate days to expiry
+                try:
+                    from datetime import datetime
+                    exp_dt = datetime.strptime(exp, "%Y-%m-%d")
+                    days = (exp_dt - datetime.now()).days
+                    if days < 0:
+                        exp_label = f"⚠️ EXPIRED {abs(days)} days ago"
+                    elif days < 30:
+                        exp_label = f"🔴 Expires in {days} days"
+                    elif days < 90:
+                        exp_label = f"🟡 {days} days to expiry"
+                    else:
+                        exp_label = f"🟢 Expires {exp}"
+                except Exception:
+                    exp_label = exp
+
+                lines.append(
+                    f"• {qty:,} units — MRP ₹{mrp:,.0f} · {exp_label}"
+                )
+                shown += 1
+
+            if len(match) > shown:
+                lines.append(f"… and {len(match) - shown} more batches")
+
+            return "\n".join(lines)
+        else:
+            # General stock summary
+            total = int(inv["quantity"].sum()) if "quantity" in inv.columns else 0
+            unique = inv["medicine_name"].nunique() if "medicine_name" in inv.columns else 0
+
+            lines = [f"STOCK SUMMARY: {unique} medicines · {total:,} total units"]
+
+            # Low stock
+            if "quantity" in inv.columns:
+                low = inv[inv["quantity"] < 50].sort_values("quantity")
+                if len(low) > 0:
+                    lines.append("")
+                    lines.append(f"⚠️ LOW STOCK ({len(low)} batches below 50):")
+                    for _, row in low.head(8).iterrows():
+                        med = row.get("medicine_name", "?")
+                        qty = int(row.get("quantity", 0))
+                        lines.append(f"• {med} — only {qty} units left")
+
+            # Expiring soon
+            if "expiry_date" in inv.columns:
+                try:
+                    import pandas as pd
+                    from datetime import datetime, timedelta
+                    today = pd.Timestamp.now()
+                    cutoff = today + timedelta(days=90)
+                    inv["_exp"] = pd.to_datetime(inv["expiry_date"], errors="coerce")
+                    expiring = inv[(inv["_exp"] >= today) & (inv["_exp"] <= cutoff)]
+                    expiring = expiring.sort_values("_exp")
+                    if len(expiring) > 0:
+                        lines.append("")
+                        lines.append(f"🚨 EXPIRING IN 90 DAYS ({len(expiring)} batches):")
+                        for _, row in expiring.head(8).iterrows():
+                            med = row.get("medicine_name", "?")
+                            qty = int(row.get("quantity", 0))
+                            exp = str(row.get("_exp"))[:10]
+                            lines.append(f"• {med} — {qty} units, expires {exp}")
+                except Exception:
+                    pass
+
+            return "\n".join(lines)
+
+    except Exception as e:
+        return f"Stock data error: {e}"
+
+
+
+def owner_retailer_context(name: str):
+    """Info about a specific retailer."""
+    retailers = _load_json("retailers.json", [])
+    orders = _load_json("orders.json", [])
+    name_lower = name.lower()
+
+    match = None
+    for r in retailers:
+        if (name_lower in r.get("shop", "").lower()
+            or name_lower in r.get("id", "").lower()
+            or name_lower in r.get("owner", "").lower()):
+            match = r
+            break
+
+    if not match:
+        return f"No retailer matching '{name}'."
+
+    r_orders = [o for o in orders if o.get("retailer_id") == match["id"]]
+    last_order = max(r_orders, key=lambda o: o.get("placed_at", ""), default=None)
+    lifetime = sum(float(o.get("total", 0) or 0) for o in r_orders
+                   if o.get("status") in ("Approved", "Packed", "Dispatched", "Delivered"))
+
+    lines = [
+        f"RETAILER: {match.get('shop','?')} ({match.get('id','?')})",
+        f"Owner: {match.get('owner','—')} · Phone: {match.get('phone','—')}",
+        f"Outstanding: {_fmt_money(match.get('outstanding',0))} / Credit limit {_fmt_money(match.get('credit_limit',0))}",
+        f"Total orders: {len(r_orders)} · Lifetime value: {_fmt_money(lifetime)}",
+    ]
+    if last_order:
+        lines.append(f"Last order: {last_order.get('placed_at','—')} ({_fmt_money(last_order.get('total',0))})")
+    return "\n".join(lines)
+
+
+def owner_fastmovers_context():
+    """Top selling medicines last 30 days."""
+    orders = _load_json("orders.json", [])
+    cutoff = datetime.now() - timedelta(days=30)
+    sales = {}
+    for o in orders:
+        try:
+            placed = datetime.strptime(o.get("placed_at", ""), "%d-%b-%Y %H:%M")
+        except Exception:
+            continue
+        if placed < cutoff:
+            continue
+        if o.get("status") not in ("Approved", "Packed", "Dispatched", "Delivered"):
+            continue
+        for it in o.get("items", []):
+            med = it.get("medicine", "?")
+            qty = int(it.get("qty", 1) or 1)
+            price = float(it.get("price", 0) or 0)
+            if med not in sales:
+                sales[med] = {"qty": 0, "val": 0}
+            sales[med]["qty"] += qty
+            sales[med]["val"] += qty * price
+
+    if not sales:
+        return "No sales data in last 30 days."
+
+    top = sorted(sales.items(), key=lambda x: -x[1]["qty"])[:5]
+    lines = ["TOP 5 FAST MOVERS (last 30 days):"]
+    for i, (med, d) in enumerate(top, 1):
+        lines.append(f"{i}. {med} — {d['qty']} units ({_fmt_money(d['val'])})")
+    return "\n".join(lines)
+
+
+def owner_quiet_context():
+    """Retailers who haven't ordered recently."""
+    retailers = _load_json("retailers.json", [])
+    orders = _load_json("orders.json", [])
+    today = datetime.now()
+    quiet = []
+    for r in retailers:
+        r_orders = [o for o in orders if o.get("retailer_id") == r["id"]]
+        if not r_orders:
+            quiet.append((r["shop"], "never"))
+            continue
+        last = max(o.get("placed_at", "") for o in r_orders)
+        try:
+            last_dt = datetime.strptime(last, "%d-%b-%Y %H:%M")
+            days = (today - last_dt).days
+            if days >= 7:
+                quiet.append((r["shop"], f"{days} days ago"))
+        except Exception:
+            continue
+
+    if not quiet:
+        return "All retailers have ordered recently."
+    lines = [f"SILENT RETAILERS ({len(quiet)}):"]
+    for shop, when in sorted(quiet, key=lambda x: str(x[1]), reverse=True):
+        lines.append(f"• {shop} — last order {when}")
+    return "\n".join(lines)
+
+
+def owner_summary_context():
+    """Combined summary for 'how are we doing'."""
+    parts = [
+        owner_revenue_context(),
+        "",
+        owner_pending_context(),
+        "",
+        owner_quiet_context(),
+    ]
+    return "\n".join(parts)
+
+
+# ═══════════════════════════════════════════════════════════
+# CUSTOMER (RETAILER) DATA QUERIES
+# ═══════════════════════════════════════════════════════════
+
+def customer_context(retailer: dict) -> str:
+    """Context for a specific retailer — only THEIR data. NO batch info ever."""
+    if not retailer:
+        return "Customer not identified."
+
+    orders = _load_json("orders.json", [])
+    r_orders = [o for o in orders if o.get("retailer_id") == retailer["id"]]
+    recent = sorted(r_orders, key=lambda o: o.get("placed_at", ""), reverse=True)[:5]
+
+    lines = [
+        f"CUSTOMER: {retailer.get('shop','?')}",
+        f"Owner: {retailer.get('owner','—')}",
+        f"Credit limit: {_fmt_money(retailer.get('credit_limit',0))}",
+        f"Outstanding: {_fmt_money(retailer.get('outstanding',0))}",
+        f"Available credit: {_fmt_money(retailer.get('credit_limit',0) - retailer.get('outstanding',0))}",
+        "",
+        f"RECENT ORDERS ({len(recent)}):",
+    ]
+    for o in recent:
+        lines.append(
+            f"• {o.get('order_id','?')} · {_fmt_money(o.get('total',0))} · "
+            f"{o.get('status','?')} · {o.get('placed_at','?')}"
+        )
+
+    pending = [o for o in r_orders if o.get("status") in ("Pending", "Awaiting OTP")]
+    if pending:
+        lines.append("")
+        lines.append(f"PENDING ({len(pending)}):")
+        for o in pending:
+            lines.append(f"• {o.get('order_id','?')} · {_fmt_money(o.get('total',0))}")
+
+    return "\n".join(lines)
+
+
+
+def customer_stock_query(query: str) -> str:
+    """
+    Show ALL variants matching the query.
+    Each variant = unique medicine_name. Numbered list for easy selection.
+    Pure ASCII. No batches, no expiry.
+    """
+    inv = _load_inventory()
+    if inv is None or len(inv) == 0:
+        return "Stock data temporarily unavailable."
+    try:
+        match = inv[inv["medicine_name"].astype(str)
+                   .str.contains(query, case=False, na=False)]
+        if len(match) == 0:
+            return f"No medicine found matching '{query}'."
+
+        # Group by FULL medicine_name (this keeps variants separate)
+        grouped = {}
+        for _, row in match.iterrows():
+            name = str(row.get("medicine_name", "?")).strip()
+            qty = int(row.get("quantity", 0) or 0)
+            if qty <= 0:
+                continue
+            price = float(row.get("selling_price", 0) or row.get("price", 0) or 0)
+            mrp = float(row.get("mrp", price * 1.3) or 0)
+
+            if name not in grouped:
+                grouped[name] = {"qty": 0, "prices": [], "mrps": []}
+            grouped[name]["qty"] += qty
+            if price > 0:
+                grouped[name]["prices"].append(price)
+            if mrp > 0:
+                grouped[name]["mrps"].append(mrp)
+
+        if not grouped:
+            return f"No in-stock items for '{query}'."
+
+        import statistics
+
+        # Sort variants by name (alphabetical)
+        sorted_variants = sorted(grouped.items(), key=lambda x: x[0])
+
+        lines = [f"Found {len(sorted_variants)} variant(s) for '{query}':", ""]
+
+        for i, (name, info) in enumerate(sorted_variants, 1):
+            prices = sorted(info["prices"])
+            rep_price = statistics.median(prices) if prices else 0
+            lines.append(
+                f"  {i}. {name} | {info['qty']:,} units | Rs.{rep_price:,.0f}"
+            )
+
+        lines.append("")
+        if len(sorted_variants) == 1:
+            lines.append(f"Reply 'order' to place an order for this item.")
+        else:
+            lines.append(f"Reply with the number (1-{len(sorted_variants)}) to select.")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Search error: {e}"
+
+
+
+def customer_price_query(query: str) -> str:
+    """Price lookup."""
+    return customer_stock_query(query)
+
+
+# ═══════════════════════════════════════════════════════════
+# MAIN DISPATCHER
+# ═══════════════════════════════════════════════════════════
+
+def get_context(intent: str, user_message: str, role: str, retailer: dict = None) -> str:
+    """Return context string for the LLM based on intent."""
+    if role == "owner":
+        if intent == "owner_revenue": return owner_revenue_context()
+        if intent == "owner_orders": return owner_revenue_context()
+        if intent == "owner_pending": return owner_pending_context()
+        if intent == "owner_payments": return owner_payments_context()
+        if intent == "owner_stock":
+            # Extract medicine name from message if any
+            query = _extract_medicine(user_message)
+            return owner_stock_context(query)
+        if intent == "owner_retailer":
+            name = _extract_retailer(user_message)
+            return owner_retailer_context(name)
+        if intent == "owner_fastmovers": return owner_fastmovers_context()
+        if intent == "owner_quiet": return owner_quiet_context()
+        if intent == "owner_summary": return owner_summary_context()
+        return owner_summary_context()
+
+    elif role == "retailer":
+        base = customer_context(retailer) if retailer else ""
+        if intent in ("cust_stock", "cust_price"):
+            query = _extract_medicine(user_message)
+            return base + "\n\n" + customer_stock_query(query)
+        if intent == "cust_order_status":
+            return base
+        if intent == "cust_reorder":
+            return base
+        return base
+
+    return ""
+
+
+def _extract_medicine(text: str) -> str:
+    """Pull likely medicine name from message."""
+    # Common medicine keywords to look for
+    common = ["dolo", "paracetamol", "amoxicillin", "azithromycin", "cetirizine",
+              "insulin", "glargine", "ors", "cough syrup", "ibuprofen",
+              "pantoprazole", "omeprazole", "metformin", "telmisartan"]
+    t = text.lower()
+    for med in common:
+        if med in t:
+            return med
+    # Otherwise, take last 1-2 words
+    words = [w.strip("?,.") for w in t.split() if len(w) > 3]
+    return " ".join(words[-2:]) if words else ""
+
+
+def _extract_retailer(text: str) -> str:
+    """Pull likely retailer name from message."""
+    retailers = _load_json("retailers.json", [])
+    t = text.lower()
+    for r in retailers:
+        if r.get("shop", "").lower() in t:
+            return r["shop"]
+        if r.get("id", "").lower() in t:
+            return r["id"]
+        if r.get("owner", "").lower() in t:
+            return r["owner"]
+    # Take longest word that looks like a name
+    words = [w.strip("?,.") for w in t.split() if len(w) > 4]
+    return words[-1] if words else ""
+
+
+if __name__ == "__main__":
+    print("=== bot_query.py self-test ===\n")
+
+    print("── Owner: Revenue ──")
+    print(owner_revenue_context())
+    print()
+
+    print("── Owner: Pending ──")
+    print(owner_pending_context())
+    print()
+
+    print("── Owner: Payments ──")
+    print(owner_payments_context())
+    print()
+
+    print("── Owner: Stock (dolo) ──")
+    print(owner_stock_context("dolo"))
+    print()
+
+    print("── Owner: Fast movers ──")
+    print(owner_fastmovers_context())
+    print()
+
+    print("── Owner: Quiet retailers ──")
+    print(owner_quiet_context())
+
+# ═══════════════════════════════════════════════════════════
+# FLAT PRODUCT PRICES — one sell + one MRP per product
+# ═══════════════════════════════════════════════════════════
+_PRICE_CACHE = None
+
+def get_flat_price(medicine_name: str):
+    """
+    Return (sell_price, mrp) for a medicine from product_prices.json.
+    Falls back to median(cost*1.25) if not in the file.
+    Returns (None, None) if truly unknown.
+    """
+    global _PRICE_CACHE
+    try:
+        if _PRICE_CACHE is None:
+            import json
+            pf = Path("product_prices.json")
+            _PRICE_CACHE = json.loads(pf.read_text()) if pf.exists() else {}
+        entry = _PRICE_CACHE.get(str(medicine_name).strip())
+        if entry:
+            return (float(entry.get("sell", 0)), float(entry.get("mrp", 0)))
+    except Exception:
+        pass
+    return (None, None)
+
+
+def reload_prices():
+    """Force reload of product_prices.json."""
+    global _PRICE_CACHE
+    _PRICE_CACHE = None
+

@@ -24,14 +24,14 @@ def render_3d_promo_universe(promos):
     for i, p in enumerate(promos):
         # X: extra discount %, Y: days remaining, Z: sent count
         try:
-            days_left = (datetime.strptime(p["valid_until"], "%Y-%m-%d") - datetime.now()).days
+            days_left = (datetime.strptime(p.get("valid_until", "—"), "%Y-%m-%d") - datetime.now()).days
         except Exception:
             days_left = 0
         x.append(float(p.get("extra_discount_pct", 0)))
         y.append(max(0, days_left))
         z.append(len(p.get("sent_to", [])))
         labels.append(p["title"][:18])
-        colors.append(type_colors.get(p["type"], "#8892b0"))
+        colors.append(type_colors.get(p.get("type", "custom"), "#8892b0"))
         sizes.append(max(10, len(p.get("sent_to", [])) * 4 + 12))
 
     fig = go.Figure(data=[go.Scatter3d(
@@ -239,11 +239,11 @@ def render_owner_marketing(retailers, orders):
         else:
             for p in promos:
                 status = "🟢 Active" if p.get("active") else "⚪ Inactive"
-                expired = p["valid_until"] < today
+                expired = p.get("valid_until", "—") < today
                 if expired:
                     status = "🔴 Expired"
 
-                t = mk.PROMO_TYPES.get(p["type"], mk.PROMO_TYPES["custom"])
+                t = mk.PROMO_TYPES.get(p.get("type", "custom"), mk.PROMO_TYPES["custom"])
                 st.markdown(f"""
                 <div style="background:linear-gradient(135deg,rgba(26,31,58,0.9),rgba(15,20,40,0.9));
                             border-left:4px solid #00d4ff;border-radius:12px;
@@ -254,7 +254,7 @@ def render_owner_marketing(retailers, orders):
                                 {t['emoji']} {p['title']}
                             </div>
                             <div style="color:#8892b0;font-size:0.75rem;margin-top:4px;">
-                                {p['id']} · {status} · Valid {p['valid_from']} → {p['valid_until']}
+                                {p['id']} · {status} · Valid {p.get("valid_from", "—")} → {p.get("valid_until", "—")}
                             </div>
                         </div>
                         <div style="text-align:right;">
@@ -321,7 +321,7 @@ def render_customer_promotions(retailer):
         st.info("No active offers right now. Check back soon!")
         return
     for p in promos:
-        t = mk.PROMO_TYPES.get(p["type"], mk.PROMO_TYPES["custom"])
+        t = mk.PROMO_TYPES.get(p.get("type", "custom"), mk.PROMO_TYPES["custom"])
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,rgba(0,212,255,0.12),rgba(123,97,255,0.08));
                     border-left:4px solid #00d4ff;border-radius:12px;
@@ -334,7 +334,7 @@ def render_customer_promotions(retailer):
                 {p['public_text']}
             </div>
             <div style="color:#8892b0;font-size:0.75rem;margin-top:8px;">
-                📅 Valid until {p['valid_until']} · 👤 Login to see your exclusive price
+                📅 Valid until {p.get("valid_until", "—")} · 👤 Login to see your exclusive price
             </div>
         </div>
         """, unsafe_allow_html=True)

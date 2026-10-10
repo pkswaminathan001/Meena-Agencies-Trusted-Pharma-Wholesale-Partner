@@ -1,0 +1,16 @@
+
+[client]
+initial_sidebar_state = "expanded"
+showErrorDetails = true
+toolbarMode = "minimal"
+
+[ui]
+hideTopBar = true
+hideSidebarNav = true
+
+[theme]
+base = "dark"
+
+
+[server]
+showErrorDetails = true

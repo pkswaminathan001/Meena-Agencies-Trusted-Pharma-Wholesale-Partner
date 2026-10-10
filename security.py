@@ -99,3 +99,13 @@ def record_rate(retailer_id):
     entries.append(now)
     data[retailer_id] = entries
     _save_rate(data)
+
+
+# ═══════════════════════════════════════════════════════════
+# gen_otp — used by customer_order_ui.py and elsewhere
+# ═══════════════════════════════════════════════════════════
+def gen_otp():
+    """Generate a 6-digit OTP string."""
+    import random
+    import string
+    return ''.join(random.choices(string.digits, k=6))

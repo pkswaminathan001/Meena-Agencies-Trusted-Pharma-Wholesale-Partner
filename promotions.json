@@ -26,6 +26,8 @@
     "valid_until": "17-Oct-2026",
     "kind": "weekly",
     "created_at": "27-SEP-2026 17:31",
-    "status": "DRAFT"
+    "status": "DRAFT",
+    "type": "custom",
+    "valid_from": "02-Oct-2026"
   }
 ]

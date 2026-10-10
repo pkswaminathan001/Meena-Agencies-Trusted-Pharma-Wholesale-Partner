@@ -1,0 +1,12 @@
+[
+  {
+    "id": "STAFF001",
+    "name": "Counter Staff",
+    "role": "staff",
+    "position": "Sales Counter",
+    "phone": "",
+    "pin_hash": "7a59666cce6cdf86d563626f67060343d496e8e1e2278691d5c376aa33aeb395",
+    "created_at": "02-OCT-2026 18:41",
+    "id_lower": "staff001"
+  }
+]

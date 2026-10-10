@@ -1,0 +1,297 @@
+"""
+auth_gate.py — Premium animated access gate for Meena Agencies.
+Cinematic peacock-themed login with glassmorphism + motion.
+"""
+import streamlit as st
+import hmac
+
+
+AUTH_CSS = """
+<style>
+/* ═══════════════════════════════════════════════════════════
+   FULL-SCREEN ANIMATED BACKDROP
+   ═══════════════════════════════════════════════════════════ */
+@keyframes meshFlow {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  50%  { transform: translate(-4%, 3%) rotate(180deg); }
+  100% { transform: translate(0, 0) rotate(360deg); }
+}
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-20px, -30px) scale(1.1); }
+}
+@keyframes cardRise {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.94); filter: blur(8px); }
+  60%  { opacity: 1; transform: translateY(-6px) scale(1.01); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(0,212,170,0.25), 0 0 80px rgba(123,97,255,0.15), 0 30px 60px rgba(0,0,0,0.6); }
+  50%      { box-shadow: 0 0 60px rgba(0,212,170,0.45), 0 0 100px rgba(123,97,255,0.3), 0 30px 70px rgba(0,0,0,0.65); }
+}
+@keyframes lockFloat {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-10px) rotate(3deg); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes underlineGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes subtleRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Kill default Streamlit chrome on auth screen ── */
+.stApp { background: #050818 !important; }
+header[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+[data-testid="stToolbar"] { display: none !important; }
+footer { display: none !important; }
+#MainMenu { display: none !important; }
+.block-container { padding: 0 !important; max-width: 100% !important; }
+
+/* ── Animated mesh background ── */
+[data-testid="stAppViewContainer"]::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  background:
+    radial-gradient(closest-side, rgba(0,212,170,0.28), transparent 70%) 15% 20% / 60% 60% no-repeat,
+    radial-gradient(closest-side, rgba(123,97,255,0.32), transparent 70%) 85% 25% / 70% 70% no-repeat,
+    radial-gradient(closest-side, rgba(255,180,71,0.18), transparent 70%) 50% 90% / 60% 60% no-repeat,
+    radial-gradient(closest-side, rgba(0,150,255,0.22), transparent 70%) 80% 80% / 55% 55% no-repeat,
+    linear-gradient(160deg, #050818 0%, #0a1f2f 45%, #0a1830 100%);
+  animation: meshFlow 40s linear infinite;
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+/* ── Floating orbs ── */
+[data-testid="stAppViewContainer"]::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 25% 35%, rgba(0,212,255,0.5) 0%, transparent 3px) 0 0 / 200px 200px,
+    radial-gradient(circle at 75% 65%, rgba(123,97,255,0.5) 0%, transparent 2px) 100px 100px / 300px 300px,
+    radial-gradient(circle at 50% 15%, rgba(255,180,71,0.5) 0%, transparent 3px) 50px 150px / 250px 250px;
+  animation: floatOrb 18s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ── Everything sits above background ── */
+.main, .main .block-container, section.main {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Hero card container ── */
+.ma-hero-wrap {
+  max-width: 460px;
+  margin: 8vh auto 0;
+  perspective: 1400px;
+}
+
+/* ── The card ── */
+.ma-hero {
+  position: relative;
+  padding: 48px 42px 42px;
+  border-radius: 26px;
+  background: linear-gradient(160deg, rgba(20,30,60,0.85) 0%, rgba(10,20,45,0.9) 100%);
+  border: 1px solid rgba(0,212,170,0.22);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  animation: cardRise 1s cubic-bezier(.2,.85,.3,1.05) both,
+             glowPulse 4s ease-in-out 1s infinite;
+  overflow: hidden;
+}
+
+/* Top edge gradient line */
+.ma-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00d4ff, #7b61ff, #ffb547, transparent);
+  background-size: 200% 100%;
+  animation: shimmer 4s linear infinite;
+}
+
+/* Corner accent */
+.ma-hero::after {
+  content: '';
+  position: absolute;
+  top: -80px; right: -80px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(0,212,170,0.35) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ── Lock icon ── */
+.ma-lock {
+  display: block;
+  text-align: center;
+  font-size: 3.4rem;
+  margin-bottom: 12px;
+  animation: lockFloat 4s ease-in-out infinite;
+  filter: drop-shadow(0 6px 20px rgba(0,212,170,0.5));
+}
+
+/* ── Brand ── */
+.ma-brand {
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #00d4aa 0%, #7b61ff 45%, #ffb547 75%, #00d4aa 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 6s linear infinite;
+}
+
+/* ── Subtitle ── */
+.ma-sub {
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #8892b0;
+  margin: 0 0 36px;
+  animation: subtleRise 0.9s ease-out 0.3s both;
+}
+
+/* ── Underline accent ── */
+.ma-underline {
+  display: block;
+  width: 60px;
+  height: 3px;
+  margin: 0 auto 28px;
+  background: linear-gradient(90deg, #00d4aa, #7b61ff);
+  border-radius: 3px;
+  transform-origin: center;
+  animation: underlineGrow 1.2s cubic-bezier(.2,.85,.3,1.05) 0.5s both;
+}
+
+/* ── Streamlit's text_input gets styled ── */
+.ma-hero + div [data-testid="stTextInput"] input,
+.ma-hero-wrap ~ div [data-testid="stTextInput"] input {
+  background: rgba(8,18,40,0.75) !important;
+  border: 1.5px solid rgba(0,212,170,0.25) !important;
+  border-radius: 12px !important;
+  color: #eaf6ff !important;
+  padding: 14px 18px !important;
+  font-size: 1rem !important;
+  letter-spacing: 1px;
+  transition: all .3s ease;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35) inset;
+}
+[data-testid="stTextInput"] input:focus {
+  border-color: rgba(0,212,170,0.9) !important;
+  box-shadow: 0 0 0 4px rgba(0,212,170,0.15),
+              0 4px 20px rgba(0,212,170,0.25) !important;
+  background: rgba(8,25,50,0.9) !important;
+}
+[data-testid="stTextInput"] label {
+  color: #8892b0 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+}
+
+/* ── Error message ── */
+.stAlert {
+  border-radius: 12px !important;
+  border-left-width: 4px !important;
+  animation: subtleRise 0.4s ease-out;
+}
+
+/* ── Subtle footer hint ── */
+.ma-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #4a5570;
+  letter-spacing: 1.5px;
+  margin-top: 40px;
+  animation: subtleRise 1s ease-out 1s both;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .ma-hero-wrap { margin: 4vh 16px 0; max-width: 100%; }
+  .ma-hero { padding: 36px 26px; }
+  .ma-brand { font-size: 1.65rem; }
+  .ma-lock { font-size: 2.6rem; }
+}
+</style>
+"""
+
+
+def _render_hero():
+    """Render the animated card header."""
+    st.markdown("""
+    <div class="ma-hero-wrap">
+      <div class="ma-hero">
+        <span class="ma-lock">🔒</span>
+        <h1 class="ma-brand">Meena Agencies</h1>
+        <p class="ma-sub">Authorised Access Only</p>
+        <span class="ma-underline"></span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def check_password():
+    """Returns True if the user has entered the correct access password."""
+    st.markdown(AUTH_CSS, unsafe_allow_html=True)
+
+    def password_entered():
+        try:
+            expected = st.secrets["ACCESS_PASSWORD"]
+        except Exception:
+            st.session_state["_auth_state"] = "ok"
+            return
+        entered = st.session_state.get("password", "")
+        if entered and hmac.compare_digest(entered, expected):
+            st.session_state["_auth_state"] = "ok"
+            st.session_state["password_correct"] = True
+        else:
+            st.session_state["_auth_state"] = "wrong"
+            st.session_state["password_correct"] = False
+
+    if st.session_state.get("password_correct") is True:
+        return True
+
+    # Layout: hero card + input field
+    _render_hero()
+
+    # Center the input under the card
+    _sp_left, _mid, _sp_right = st.columns([1, 2, 1])
+    with _mid:
+        st.text_input(
+            "Access Password",
+            type="password",
+            key="password",
+            on_change=password_entered,
+            placeholder="Enter your passphrase",
+        )
+        if st.session_state.get("_auth_state") == "wrong":
+            st.error("❌ Wrong password — try again")
+        st.markdown(
+            '<div class="ma-hint">© MEENA AGENCIES · SECURE PORTAL</div>',
+            unsafe_allow_html=True,
+        )
+
+    return False

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meena Rep</title>
+<style>
+body{font-family:Arial;background:#0a0e27;color:#fff;padding:20px;margin:0;max-width:500px;margin:auto}
+h1{color:#00d4ff;font-size:20px;text-align:center}
+.card{background:#0f1a3a;border:1px solid #00d4ff44;border-radius:12px;padding:16px;margin:12px 0}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;font-size:15px;box-sizing:border-box}
+input{background:#0a0e27;border:1px solid #00d4ff44;color:#fff}
+button{background:linear-gradient(135deg,#00d4ff,#7b61ff);color:#fff;border:none;font-weight:700}
+#status{text-align:center;font-size:12px;color:#8892b0}
+.lock{position:fixed;inset:0;background:#0a0e27ee;display:none;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;z-index:99}
+.lock.on{display:flex}
+</style>
+</head>
+<body>
+<div id="lock" class="lock">
+  <div style="font-size:60px">📍</div>
+  <h2 style="color:#ff4d6d">Location Required</h2>
+  <p style="color:#8892b0">Enable GPS to use this app.</p>
+  <button onclick="startGPS()">Try Again</button>
+</div>
+
+<h1>🚚 Meena Agencies</h1>
+<div id="status">Ready</div>
+
+<div class="card" id="app">
+  <h3>📍 Record Visit</h3>
+  <input id="shop" placeholder="Shop name">
+  <input id="amount" type="number" placeholder="Order amount ₹">
+  <button onclick="recordVisit()">✅ Save Visit</button>
+</div>
+
+<div class="card">
+  <b>Today:</b> <span id="vcount">0</span> visits ·
+  <b>₹</span><span id="total">0</span></b>
+</div>
+
+<script>
+const SERVER = 'http://' + location.hostname + ':8502';
+let gps = null, repId = 'REP001';
+
+function startGPS() {
+  if (!navigator.geolocation) return alert('No GPS');
+  navigator.geolocation.watchPosition(
+    p => {
+      gps = {lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy};
+      document.getElementById('lock').classList.remove('on');
+      document.getElementById('status').textContent = '🟢 GPS locked';
+    },
+    e => {
+      document.getElementById('lock').classList.add('on');
+      document.getElementById('status').textContent = '🔴 ' + e.message;
+    },
+    {enableHighAccuracy: true}
+  );
+}
+
+async function recordVisit() {
+  const shop = document.getElementById('shop').value;
+  const amt = parseFloat(document.getElementById('amount').value) || 0;
+  if (!shop) return alert('Enter shop name');
+  if (!gps) return alert('Waiting for GPS...');
+  try {
+    const r = await fetch(SERVER + '/api/rep/visit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        rep_id: repId, shop_name: shop, amount: amt,
+        lat: gps.lat, lng: gps.lng, accuracy_m: gps.acc,
+        created_at: new Date().toISOString()
+      })
+    });
+    if (r.ok) {
+      alert('✅ Saved');
+      document.getElementById('shop').value = '';
+      document.getElementById('amount').value = '';
+      updateCount();
+    } else alert('Server error');
+  } catch(e) {
+    alert('Offline — will retry');
+  }
+}
+
+async function updateCount() {
+  try {
+    const r = await fetch(SERVER + '/api/rep/today/' + repId);
+    const d = await r.json();
+    document.getElementById('vcount').textContent = d.visits;
+    document.getElementById('total').textContent = d.total_amount;
+  } catch(e) {}
+}
+
+startGPS();
+updateCount();
+setInterval(updateCount, 30000);
+</script>
+</body>
+</html>

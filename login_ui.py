@@ -123,6 +123,8 @@ def render_login_page():
     Returns True if login succeeded (session is set).
     """
     _inject_css()
+    st.image("logo.png", width=120)
+
 
     company = _load_company()
     mode = rbac.get_security_mode(company)

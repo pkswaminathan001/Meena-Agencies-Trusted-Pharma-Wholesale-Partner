@@ -5,6 +5,12 @@ Every retailer message → classified → owner gets card with [Approve] [Reply]
 import os, json, time, logging, requests
 from pathlib import Path
 from middleware import resolve_identity, audit, filter_orders_for
+import bot_nlu
+import bot_order
+import bot_otp
+import bot_query
+import bot_memory
+from bot_ask import handle_ask as _bot_ask_handle
 import intent_router
 import promotions
 
@@ -14,7 +20,25 @@ SERVICE_LOG    = Path("service_log.json")
 PENDING_FILE   = Path("pending_replies.json")
 POLL_INTERVAL  = 2
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
+# ── File logging so systemd captures everything ──
+_log_file = Path("/tmp/meena_bot_debug.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    handlers=[
+        logging.FileHandler(_log_file, mode="a"),
+        logging.StreamHandler(),
+    ],
+)
+
+# ── File-based print so we can see bot state ──
+def _log(msg):
+    try:
+        with open("/tmp/meena_bot_debug.log", "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} | {msg}\n")
+    except Exception:
+        pass
+
 
 
 def env(key, default=""):
@@ -36,9 +60,43 @@ def send(chat_id, text, buttons=None):
     if buttons:
         payload["reply_markup"] = {"inline_keyboard": buttons}
     try:
-        requests.post(f"{API}/sendMessage", json=payload, timeout=15)
+        r = requests.post(f"{API}/sendMessage", json=payload, timeout=15)
+        if r.status_code != 200:
+            logging.error(f"SEND_FAIL status={r.status_code} body={r.text[:300]} chat={chat_id}")
+        else:
+            logging.info(f"SEND_OK chat={chat_id} text={text[:40]!r}")
     except Exception as e:
         logging.error(f"send failed: {e}")
+
+
+def send_force_reply(chat_id, text):
+    """Send message that forces user to reply to THIS message (opens text bar)."""
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {"force_reply": True, "selective": True},
+    }
+    try:
+        r = requests.post(f"{API}/sendMessage", json=payload, timeout=15)
+        if r.status_code != 200:
+            logging.error(f"FORCE_REPLY_FAIL {r.status_code} {r.text[:200]}")
+        else:
+            logging.info(f"FORCE_REPLY_SENT chat={chat_id}")
+    except Exception as e:
+        logging.error(f"force_reply err: {e}")
+
+
+def answer_callback_alert(cb_id, text):
+    """Show a popup/alert on top of the Telegram app (max 200 chars)."""
+    try:
+        requests.post(
+            f"{API}/answerCallbackQuery",
+            json={"callback_query_id": cb_id, "text": text, "show_alert": True},
+            timeout=10,
+        )
+    except Exception as e:
+        logging.error(f"alert err: {e}")
 
 
 def answer_callback(cb_id, text="OK"):
@@ -116,6 +174,28 @@ def handle_whoami(chat_id):
         send(chat_id, f"❓ Not registered. chat_id: <code>{chat_id}</code>")
 
 
+def handle_ask(chat_id, question=""):
+    """Handle /ask <question> — natural language query on business data."""
+    question = (question or "").strip()
+    if not question:
+        send(chat_id,
+            "📝 <b>How to use /ask</b>\n\n"
+            "Type a question after the command. Examples:\n\n"
+            "• <code>/ask how many orders do we have</code>\n"
+            "• <code>/ask top 3 retailers by outstanding</code>\n"
+            "• <code>/ask which orders are pending</code>\n"
+            "• <code>/ask which retailer owes the most</code>\n"
+            "• <code>/ask stock expiring in 30 days</code>"
+        )
+        return
+    # No "thinking" reply — send answer directly (feels 2x faster)
+    try:
+        reply = _bot_ask_handle(question)
+    except Exception as e:
+        reply = f"❌ Error: {e}"
+    send(chat_id, reply)
+
+
 def handle_help(chat_id):
     ident = resolve_identity(chat_id)
     if ident["role"] == "owner":
@@ -136,7 +216,7 @@ def handle_help(chat_id):
             "💬 Send any message — we reply personally."
         ))
     else:
-        send(chat_id, "Please register first. Contact 7338824033.")
+        send(chat_id, "Please register first. Contact 6382130536.")
 
 
 def handle_myorders(chat_id):
@@ -236,6 +316,67 @@ def handle_callback(update):
     data    = cb.get("data", "")
     logging.info(f"CALLBACK from={from_id} data={data}")
 
+    # ── Quantity quick-pick callbacks ──
+    if data.startswith("qty:"):
+        ident = resolve_identity(from_id)
+        _ret = ident.get("retailer")
+        if not _ret and int(from_id) == int(OWNER):
+            try:
+                import json as _j
+                _rl = _j.loads(Path("retailers.json").read_text())
+                _ret = next(
+                    (r for r in _rl if str(r.get("telegram_chat_id", "")) == str(OWNER)),
+                    _rl[0] if _rl else None,
+                )
+            except Exception:
+                _ret = None
+        if not _ret:
+            answer_callback(cb_id, "Please register first")
+            return
+        _val = data[4:]
+        if _val == "cancel":
+            bot_order.clear_session(from_id)
+            answer_callback(cb_id, "Cancelled")
+            send(from_id, "❌ Order cancelled.")
+            return
+        if _val == "custom":
+            answer_callback(cb_id, "Type a number")
+            send(from_id, "Type the quantity as a number (e.g. <b>75</b>)")
+            return
+        try:
+            _q = int(_val)
+        except Exception:
+            answer_callback(cb_id, "Bad qty")
+            return
+        answer_callback(cb_id, f"{_q} units")
+        handle_order_flow(from_id, str(_q), _ret)
+        return
+
+    # ── Order-flow callbacks (customers picking variants) ──
+    if data.startswith("pick:"):
+        ident = resolve_identity(from_id)
+        if ident["role"] == "retailer" and ident.get("retailer"):
+            answer_callback(cb_id, "Got it")
+            handle_order_callback(from_id, data, ident["retailer"])
+        elif int(from_id) == int(OWNER):
+            # Owner testing — find matching retailer record and use it
+            import json as _json
+            retailers = _json.loads(Path("retailers.json").read_text())
+            test_ret = next(
+                (r for r in retailers
+                 if str(r.get("telegram_chat_id", "")) == str(OWNER)),
+                retailers[0] if retailers else None,
+            )
+            if test_ret:
+                answer_callback(cb_id, "Owner test mode")
+                handle_order_callback(from_id, data, test_ret)
+            else:
+                answer_callback(cb_id, "No retailer record for testing")
+        else:
+            answer_callback(cb_id, "Please register first")
+        return
+
+    # ── Owner-only callbacks (existing flow) ──
     if from_id != OWNER:
         logging.warning(f"CALLBACK_DENIED from={from_id} data={data}")
         answer_callback(cb_id, "Not allowed.")
@@ -354,6 +495,46 @@ def handle_owner_reply(chat_id, text):
 # ═══════════════════════════════════════════════════════════
 # OWNER VIEWS
 # ═══════════════════════════════════════════════════════════
+def handle_expiring(chat_id, days=30):
+    """Show batches expiring within N days."""
+    from datetime import datetime, timedelta
+    try:
+        inv = bot_query._load_inventory()
+        if inv is None or len(inv) == 0:
+            send(chat_id, "No inventory data.")
+            return
+        exp = __import__("pandas").to_datetime(inv["expiry_date"], errors="coerce")
+        cutoff = datetime.now() + timedelta(days=days)
+        mask = exp.notna() & (exp <= cutoff) & (exp >= (datetime.now() - timedelta(days=365)))
+        soon = inv[mask].copy()
+        soon["_exp"] = exp[mask]
+        soon = soon.sort_values("_exp")
+
+        if len(soon) == 0:
+            send(chat_id, f"✅ No batches expiring within {days} days.")
+            return
+
+        lines = [f"⚠️ <b>{len(soon)} batches expiring within {days} days</b>\n"]
+        total_qty = 0
+        for _, r in soon.head(25).iterrows():
+            exp_str = str(r["_exp"])[:10]
+            qty = int(r.get("quantity", 0) or 0)
+            total_qty += qty
+            supplier = r.get("supplier", "?")
+            lines.append(
+                f"  {r['medicine_name'][:20]:<20} | "
+                f"<code>{r.get('batch_number','?')[:8]}</code> | "
+                f"{exp_str} | "
+                f"{qty} units | {supplier}"
+            )
+        lines.append(f"\n<b>Total units at risk: {total_qty}</b>")
+        lines.append("\nReturn to supplier or mark as expired.")
+        send(chat_id, "\n".join(lines))
+    except Exception as e:
+        logging.error(f"/expiring failed: {e}")
+        send(chat_id, "Could not load expiring list.")
+
+
 def handle_pending(chat_id):
     pending = _load(PENDING_FILE)
     open_tickets = [t for t in pending if t["status"] == "PENDING"]
@@ -449,6 +630,465 @@ def handle_promote_callback(chat_id, action, value):
 # ═══════════════════════════════════════════════════════════
 # DISPATCH
 # ═══════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════
+# AI CHATBOT — natural language replies
+# ═══════════════════════════════════════════════════════════
+def handle_ai_chat(chat_id: int, text: str, ident: dict) -> bool:
+    """
+    Route free-text through the AI chatbot.
+    STRICT ROLE GATE: owner gets full data, retailer gets only their own data.
+    """
+    try:
+        role = ident.get("role")
+
+        # Strict identity check — only verified roles pass
+        if role == "owner":
+            if int(chat_id) != int(OWNER):
+                logging.warning(f"FAKE_OWNER_ATTEMPT chat_id={chat_id}")
+                send(chat_id, "⛔ Unauthorized. This bot is for Meena Agencies only.")
+                return True
+
+        elif role == "retailer":
+            # Retailer must have valid retailer_id
+            if not ident.get("retailer") or not ident["retailer"].get("id"):
+                send(chat_id, "⛔ Please register first.")
+                return True
+
+        else:
+            # Unknown role — reject politely
+            send(chat_id, "⛔ Not registered. Contact 6382130536.")
+            return True
+
+        retailer = ident.get("retailer")
+        role_name = "Swaminathan"
+        if role == "retailer" and retailer:
+            role_name = retailer.get("owner", "there")
+        elif role == "owner":
+            role_name = "Swaminathan"
+
+        # Classify intent
+        intent = bot_nlu.classify(text, role)
+
+        # ── VARIANT PICKER INTERCEPT: multi-variant stock → buttons, skip LLM ──
+        logging.info(f"INTERCEPT_CHECK chat_id={chat_id} intent={intent} text={text[:50]}")
+        if intent in ("cust_stock", "cust_price", "cust_order_request", "unknown"):
+            picker_text, picker_buttons = build_stock_buttons(text)
+            logging.info(f"INTERCEPT_RESULT text={'OK' if picker_text else 'None'}")
+            if picker_text:
+                send(chat_id, picker_text, picker_buttons)
+                bot_memory.add(chat_id, text, picker_text)
+                return True
+        # ── end intercept ──
+
+        # Get context from real business data
+        context = bot_query.get_context(intent, text, role, retailer)
+
+        # Get conversation history
+        history = bot_memory.get(chat_id)
+
+        # Generate reply via Groq LLM
+        reply = bot_nlu.generate_reply(
+            user_message=text,
+            role=role,
+            role_name=role_name,
+            intent=intent,
+            data_context=context,
+            history=history,
+        )
+
+        # Send reply
+        send(chat_id, reply)
+
+        # Save to memory
+        bot_memory.add(chat_id, text, reply)
+
+        # Log for audit
+        try:
+            import staff_monitor
+            staff_monitor.log_action(
+                role, role_name,
+                "AI_CHAT",
+                details=f"intent={intent}",
+            )
+        except Exception:
+            pass
+
+        return True
+    except Exception as e:
+        logging.error(f"handle_ai_chat error: {e}")
+        return False
+
+
+
+
+# ═══════════════════════════════════════════════════════════
+# INLINE BUTTONS — for product variant picking
+# ═══════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# INLINE BUTTONS — for product variant picking
+# ═══════════════════════════════════════════════════════════
+def build_stock_buttons(query):
+    """
+    Returns (text, buttons) for a stock query.
+    buttons=None means single variant (plain text).
+    buttons=[...] means multiple variants — uses 'pick:' callback.
+    """
+    import statistics
+    try:
+        inv = bot_query._load_sellable_inventory(buffer_days=30)
+    except Exception as e:
+        logging.error(f"build_stock_buttons load fail: {e}")
+        return (None, None)
+
+    if inv is None or len(inv) == 0:
+        return (None, None)
+
+    try:
+        match = inv[inv["medicine_name"].astype(str)
+                    .str.contains(query, case=False, na=False)]
+    except Exception as e:
+        logging.error(f"build_stock_buttons match fail: {e}")
+        return (None, None)
+
+    if len(match) == 0:
+        return (None, None)
+
+    grouped = {}
+    for _, row in match.iterrows():
+        name = str(row.get("medicine_name", "?")).strip()
+        qty = int(row.get("quantity", 0) or 0)
+        if qty <= 0:
+            continue
+        try:
+            cost = float(row.get("cost_price", 0) or 0)
+        except Exception:
+            cost = 0.0
+        price = float(row.get("selling_price", 0) or row.get("price", 0) or (cost * 1.25) or 0)
+        if name not in grouped:
+            grouped[name] = {"qty": 0, "prices": []}
+        grouped[name]["qty"] += qty
+        if price > 0:
+            grouped[name]["prices"].append(price)
+
+    if not grouped:
+        return (None, None)
+
+    sorted_variants = sorted(grouped.items(), key=lambda x: x[0])
+
+    if len(sorted_variants) == 1:
+        name, info = sorted_variants[0]
+        flat_sell, flat_mrp = bot_query.get_flat_price(name)
+        if flat_sell is not None:
+            price = flat_sell
+            mrp = flat_mrp
+        else:
+            price = statistics.median(info["prices"]) if info["prices"] else 0
+            mrp = price * 1.04
+        text = (f"Stock for '{query}':\n\n"
+                f"  {name} | {info['qty']:,} units | Rs.{price:.0f} (MRP Rs.{mrp:.0f})")
+        return (text, None)
+
+    # ── Pretty message body (HTML-rich) ──
+    lines = [f"<b>💊 {query.title()} — {len(sorted_variants)} variants</b>",
+             "<i>Tap one to order</i>", ""]
+    for name, info in sorted_variants:
+        flat_sell, _ = bot_query.get_flat_price(name)
+        if flat_sell is None:
+            flat_sell = statistics.median(info["prices"]) if info["prices"] else 0
+        lines.append(f"• {name}  ·  <b>Rs.{flat_sell:.0f}</b>  ·  {info['qty']:,} units")
+    text = "\n".join(lines)
+
+    # ── Pretty buttons: emoji by form factor ──
+    def _icon(n):
+        n = n.lower()
+        if "syrup" in n or "susp" in n or "drops" in n: return "🧴"
+        if "injection" in n or "inj" in n:              return "💉"
+        if "cream" in n or "gel" in n or "ointment" in n: return "🧪"
+        if "tablet" in n or "tab" in n or "mg" in n:    return "💊"
+        return "📦"
+
+    rows = []
+    for name, info in sorted_variants:
+        flat_sell, _ = bot_query.get_flat_price(name)
+        if flat_sell is None:
+            flat_sell = statistics.median(info["prices"]) if info["prices"] else 0
+        icon = _icon(name)
+        short = name.replace("Amoxicillin", "").strip() or name
+        label = f"{icon} {short} · Rs.{flat_sell:.0f} · {info['qty']:,} in stock"
+        cb = f"pick:{name[:58]}"
+        rows.append([{"text": label, "callback_data": cb}])
+    return (text, rows)
+
+
+def send_with_buttons(chat_id, text, buttons):
+    """Send message with inline keyboard. buttons = [[{text, data}, ...], ...]"""
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {"inline_keyboard": buttons},
+    }
+    try:
+        requests.post(f"{API}/sendMessage", json=payload, timeout=15)
+    except Exception as e:
+        logging.error(f"send_with_buttons failed: {e}")
+
+
+def answer_callback(cb_id, text="OK"):
+    """Acknowledge button tap so Telegram stops spinning."""
+    try:
+        requests.post(
+            f"{API}/answerCallbackQuery",
+            json={"callback_query_id": cb_id, "text": text},
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════
+# ORDER FLOW — conversational ordering
+# ═══════════════════════════════════════════════════════════
+def handle_order_flow(chat_id, text, retailer):
+    """
+    Handles an active order session.
+    Returns True if handled, False if no active session.
+    """
+    session = bot_order.get_session(chat_id)
+    state = session.get("state", "idle")
+
+# ── CONFIRM: create order, generate OTP, SEND it in Telegram ──
+    if text.strip().lower() in ("confirm", "place order", "placeorder", "done"):
+        cart_items = session.get("items", [])
+        if not cart_items:
+            send(chat_id, "🛒 Your cart is empty. Add items first.")
+            return True
+
+        # 1. Create order dict (status="Awaiting OTP")
+        order = bot_order.create_order(chat_id, retailer)
+        if not order:
+            send(chat_id, "Could not create order (empty cart).")
+            return True
+
+        # 2. Generate OTP via shared engine
+        try:
+            code = bot_otp.generate(order["order_id"], retailer.get("id", ""), chat_id)
+
+            # Register as pending for Streamlit app popup
+            try:
+                bot_otp.register_pending_order(retailer.get("id", ""), order)
+                logging.info(f"PENDING_REGISTERED retailer={retailer.get('id')} order={order['order_id']}")
+            except Exception as e:
+                logging.error(f"register_pending_order failed: {e}")
+        except Exception as e:
+            logging.error(f"OTP generate failed: {e}")
+            send(chat_id, "Could not generate OTP. Try again.")
+            return True
+
+        # 3. Show order summary FIRST
+        summary = bot_order.cart_summary(chat_id)
+        send(chat_id,
+             f"📋 <b>Order Summary</b>\n\n{summary}\n\n"
+             f"Order ID: <code>{order['order_id']}</code>")
+
+        # 4. Set session state BEFORE showing OTP input
+        bot_order.update_session(chat_id, state="awaiting_otp",
+                                 order_id=order["order_id"],
+                                 pending_order=order)
+
+        # 5. Send OTP via ForceReply — user MUST reply to this message
+        send_force_reply(
+            chat_id,
+            f"🔐 <b>Enter OTP to confirm your order</b>\n\n"
+            f"Your OTP: <code>{code}</code>\n"
+            f"Valid 10 min.\n\n"
+            f"↩️ <i>Reply to THIS message with the 6 digits.</i>"
+        )
+        return True
+
+    # ── Confirm order → create OTP ──
+    if text.strip().lower() in ("confirm", "yes", "place order", "placeorder", "ok", "done"):
+        cart_items = session.get("items", [])
+        if not cart_items:
+            send(chat_id, "🛒 Your cart is empty. Add items first.")
+            return True
+
+        order = bot_order.create_order(chat_id, retailer)
+        if not order:
+            send(chat_id, "Could not create order (empty cart).")
+            return True
+
+        # Generate & send OTP
+        try:
+            code = bot_otp.generate(order["order_id"])
+        except AttributeError:
+            import random as _r
+            code = f"{_r.randint(100000, 999999)}"
+            # Fallback: store OTP manually if module lacks generate()
+            try:
+                import json as _j
+                _f = Path("bot_otps.json")
+                _d = _j.loads(_f.read_text()) if _f.exists() else {}
+                _d[order["order_id"]] = {"code": code, "verified": False, "created": __import__("datetime").datetime.now().isoformat()}
+                _f.write_text(_j.dumps(_d, indent=2))
+            except Exception as e:
+                logging.error(f"OTP fallback store failed: {e}")
+
+        bot_order.update_session(chat_id, state="awaiting_otp",
+                                 order_id=order["order_id"],
+                                 pending_order=order)
+
+        summary = bot_order.cart_summary(chat_id)
+        send(chat_id,
+             f"📋 <b>Order Summary</b>\n\n{summary}\n\n"
+             f"Order ID: <code>{order['order_id']}</code>\n\n"
+             f"🔐 Enter the OTP sent to you to confirm.")
+        return True
+
+    if state == "idle":
+        return False
+
+    # ── Awaiting qty ──
+    if state == "pick_qty":
+        # Parse number from text
+        import re
+        m = re.search(r"\d+", text)
+        if not m:
+            send(chat_id, "Please enter a quantity (e.g. <b>20</b>)")
+            return True
+
+        qty = int(m.group(0))
+        if qty <= 0 or qty > 10000:
+            send(chat_id, "Please enter a quantity between 1 and 10000.")
+            return True
+
+        med = session.get("current_medicine")
+        if not med:
+            send(chat_id, "Something went wrong. Start over with 'need [medicine]'.")
+            bot_order.clear_session(chat_id)
+            return True
+
+        item = bot_order.add_to_cart(chat_id, med, qty)
+        bot_order.update_session(chat_id, state="idle", current_medicine=None)
+
+        cart = bot_order.cart_summary(chat_id)
+        send(chat_id, f"✅ Added <b>{med}</b> × {qty}\n\n{cart}\n\nAnything else? Or type <b>confirm</b> to place the order.")
+        return True
+
+    # ── Awaiting OTP ──
+    if state == "awaiting_otp":
+        order_id = session.get("order_id")
+        if not order_id:
+            bot_order.clear_session(chat_id)
+            return False
+
+        ok, msg = bot_otp.verify(order_id, text)
+
+        if ok:
+            # Save the order
+            order = session.get("pending_order")
+            if order:
+                order["status"] = "Pending"
+                order["otp_verified_at"] = datetime.now().strftime("%d-%b-%Y %H:%M").upper()
+                order.setdefault("source", "telegram_chat")
+                order.setdefault("retailer_id", retailer.get("id", ""))
+                order.setdefault("shop", retailer.get("shop", ""))
+                bot_order.save_order(order)
+                # Clear cart so next order starts fresh
+                bot_order.update_session(chat_id, items=[])
+
+                # Notify owner
+                try:
+                    owner_msg = (
+                        f"🚨 <b>NEW ORDER via Chatbot</b>\n\n"
+                        f"Retailer: <b>{retailer.get('shop','?')}</b> ({retailer.get('id','?')})\n"
+                        f"Customer: {retailer.get('owner','?')}\n"
+                        f"Order ID: <code>{order['order_id']}</code>\n\n"
+                        f"Items:\n"
+                    )
+                    for it in order["items"]:
+                        owner_msg += f"• {it['medicine']} × {it['qty']} = ₹{it['qty']*it['price']:,.0f}\n"
+                    owner_msg += f"\n💰 Total: ₹{order['total']:,.0f}\n"
+                    owner_msg += f"✅ OTP Verified\n"
+                    owner_msg += f"Source: 💬 Chatbot"
+
+                    requests.post(
+                        f"{API}/sendMessage",
+                        json={"chat_id": OWNER, "text": owner_msg, "parse_mode": "HTML"},
+                        timeout=15,
+                    )
+                except Exception as e:
+                    logging.error(f"owner notify failed: {e}")
+
+                send(chat_id, f"✅ <b>OTP Verified!</b>\n\nOrder <code>{order['order_id']}</code> placed successfully.\n\nOwner has been notified. You'll get confirmation shortly. 🙏")
+            else:
+                send(chat_id, "✅ OTP verified but order data missing.")
+
+            bot_order.clear_session(chat_id)
+        else:
+            send(chat_id, msg)
+        return True
+
+    # ── Other states (shouldn't normally hit) ──
+    return False
+
+
+def handle_order_callback(chat_id, data, retailer):
+    """Handle inline button taps for order flow."""
+    if not data.startswith("pick:"):
+        return False
+
+    med_name = data[5:]  # strip "pick:"
+    bot_order.update_session(chat_id, current_medicine=med_name, state="pick_qty")
+
+    # Compute median price for display
+    import statistics as _st
+    price_disp = None
+    try:
+        _inv = bot_query._load_inventory()
+        _m = _inv[_inv["medicine_name"].astype(str).str.strip() == med_name.strip()]
+        if len(_m) > 0:
+            _ps = []
+            for _, _r in _m.iterrows():
+                _q = int(_r.get("quantity", 0) or 0)
+                if _q <= 0:
+                    continue
+                try:
+                    _c = float(_r.get("cost_price", 0) or 0)
+                except Exception:
+                    _c = 0.0
+                _p = float(_r.get("selling_price", 0) or _r.get("price", 0) or (_c * 1.25) or 0)
+                if _p > 0:
+                    _ps.append(_p)
+            if _ps:
+                price_disp = _st.median(_ps)
+    except Exception as _e:
+        logging.error(f"price lookup fail: {_e}")
+
+    hdr = f"Selected: <b>{med_name}</b>"
+    if price_disp is not None:
+        hdr += f"\nPrice: ₹{price_disp:.0f}"
+
+    # Quantity buttons
+    def _cb(q):
+        return {"text": str(q), "callback_data": f"qty:{q}"}
+
+    qty_buttons = [
+        [_cb(10), _cb(25), _cb(50)],
+        [_cb(100), _cb(500), {"text": "✏️ Custom", "callback_data": "qty:custom"}],
+        [{"text": "❌ Cancel", "callback_data": "qty:cancel"}],
+    ]
+    send_with_buttons(
+        chat_id,
+        hdr + "\n\nHow many units?",
+        qty_buttons,
+    )
+    return True
+
+
+
 def handle_message(update):
     msg  = update.get("message") or update.get("edited_message") or {}
     chat = msg.get("chat") or {}
@@ -462,16 +1102,89 @@ def handle_message(update):
 
     # Owner commands first
     if ident["role"] == "owner":
-        # Reply-mode intercept
-        if not text.startswith("/") and handle_owner_reply(chat_id, text):
+        # Slash commands → existing handlers
+        if text.startswith("/"):
+            if   text.startswith("/start"):    handle_start(chat_id, text[6:].strip())
+            elif text.startswith("/whoami"):   handle_whoami(chat_id)
+
+            elif text.startswith("/ask"):    handle_ask(chat_id, text[4:].strip())
+            elif text.lower().startswith("ask ") and not text.startswith("/"):  handle_ask(chat_id, text[4:].strip())
+
+            elif text.startswith("/help"):     handle_help(chat_id)
+            elif text.startswith("/pending"):  handle_pending(chat_id)
+            elif text.startswith("/service"):  handle_service(chat_id)
+            elif text.startswith("/promote"):  handle_promote(chat_id)
+            elif text.startswith("/expiring"): handle_expiring(chat_id)
+            else:
+                send(chat_id, "Command not recognized. Try /help")
             return
-        if   text.startswith("/start"):    handle_start(chat_id, text[6:].strip())
+
+        # FIRST: check active order session (owner might be in qty/OTP state)
+        _owner_retailer = None
+        try:
+            import json as _json
+            _rets = _json.loads(Path("retailers.json").read_text())
+            _owner_retailer = next(
+                (r for r in _rets
+                 if str(r.get("telegram_chat_id", "")) == str(OWNER)),
+                _rets[0] if _rets else None,
+            )
+        except Exception as _e:
+            logging.error(f"owner retailer lookup failed: {_e}")
+
+        if _owner_retailer and handle_order_flow(chat_id, text, _owner_retailer):
+            return
+
+        # Then AI chatbot (skips order flow since we already handled it)
+        if handle_ai_chat(chat_id, text, ident):
+            return
+
+        # Then reply-mode (in case owner wants to reply to a ticket)
+        if handle_owner_reply(chat_id, text):
+            return
+
+        # Last fallback
+        send(chat_id, "Owner message received.")
+
+        # ── LEGACY (kept for reference, no longer used) ──
+        if False:
+            pass
+        if False:
+            pass
+        if False:
+            pass
+        if False:
+            pass
+        if False:
+            pass
+        if False:
+            handle_start(chat_id, text[6:].strip())
         elif text.startswith("/whoami"):   handle_whoami(chat_id)
+
+        elif text.startswith("/ask"):    handle_ask(chat_id, text[4:].strip())
+
         elif text.startswith("/help"):     handle_help(chat_id)
         elif text.startswith("/pending"):  handle_pending(chat_id)
         elif text.startswith("/service"):  handle_service(chat_id)
         elif text.startswith("/promote"):  handle_promote(chat_id)
         else:
+            # Try AI chatbot first for free-text owner messages
+            # Intercept greetings so they don't hit the LLM and hallucinate
+            _t = text.strip().lower()
+            if _t in ("hi", "hello", "hey", "vanakkam", "namaste"):
+                send(chat_id,
+                    "👋 <b>Hi! I'm Meena's assistant.</b>\n\n"
+                    "Ask me anything about your business using:\n\n"
+                    "<code>/ask how many orders do we have</code>\n"
+                    "<code>/ask top 3 retailers by outstanding</code>\n"
+                    "<code>/ask which orders are pending</code>\n"
+                    "<code>/ask which retailer owes the most</code>\n\n"
+                    "Type /ask with any question."
+                )
+                return
+
+            if not text.startswith("/") and handle_ai_chat(chat_id, text, ident):
+                return
             # Check if owner is in promote-step mode
             state_p = Path("promote_state.json")
             state = _load(state_p)
@@ -507,12 +1220,46 @@ def handle_message(update):
     if ident["role"] == "retailer":
         if   text.startswith("/start"):     handle_start(chat_id, text[6:].strip())
         elif text.startswith("/whoami"):    handle_whoami(chat_id)
+
+        elif text.startswith("/ask"):    handle_ask(chat_id, text[4:].strip())
+
         elif text.startswith("/help"):      handle_help(chat_id)
         elif text.startswith("/myorders"):  handle_myorders(chat_id)
         elif text.startswith("/myprofile"): handle_myprofile(chat_id)
         else:
-            # Any free text → triage + owner card
-            relay_to_owner(chat_id, ident["retailer"], text)
+            # 1. Check active order session FIRST
+            if handle_order_flow(chat_id, text, ident["retailer"]):
+                return
+
+            # 2. Customer asking for a medicine → show variants
+            intent = bot_nlu.classify(text, "retailer")
+            if intent == "cust_order_request" or "need" in text.lower():
+                # Extract medicine name from message
+                words = text.lower().replace("need", "").replace("want", "").replace("order", "").strip().split()
+                medicine_query = " ".join(w for w in words if len(w) > 2)[:50]
+                if medicine_query:
+                    variants = bot_order.search_variants(medicine_query, limit=5)
+                    if variants:
+                        # Build inline buttons
+                        buttons = []
+                        for v in variants:
+                            label = f"{v['medicine_name']} · ₹{v['price']:.0f}"
+                            buttons.append([{
+                                "text": label,
+                                "callback_data": f"pick:{v['medicine_name'][:50]}",
+                            }])
+                        send_with_buttons(
+                            chat_id,
+                            f"Found {len(variants)} variant(s) for '<b>{medicine_query}</b>':\n\nTap to select:",
+                            buttons,
+                        )
+                        return
+                    else:
+                        send(chat_id, f"No medicines found matching '<b>{medicine_query}</b>'.\nTry another name or contact us at 7338824033.")
+
+            # 3. Fall back to AI chatbot
+            if not handle_ai_chat(chat_id, text, ident):
+                relay_to_owner(chat_id, ident["retailer"], text)
         return
 
     # Unknown
@@ -520,6 +1267,8 @@ def handle_message(update):
 
 
 def main():
+    _log("=== main() started ===")
+    _log(f"Token: {TOKEN[:20]}...")
     global LAST_UPDATE
     print(f"🤖 Bot v3 polling · owner={OWNER}")
     print("   Ctrl+C to stop.\n")
@@ -547,4 +1296,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # Pre-warm ask cache so first /ask is instant
+    try:
+        from ask_engine import prewarm_cache
+        print("⏳ Pre-warming ask cache...")
+        n = prewarm_cache()
+        print(f"✅ Pre-warmed {n} common questions")
+    except Exception as e:
+        print(f"⚠️  Prewarm skipped: {e}")
     main()
