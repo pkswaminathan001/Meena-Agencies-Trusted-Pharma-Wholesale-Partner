@@ -57,21 +57,21 @@
       }
     },
     "10-OCT-2026": {
-      "events": 23,
+      "events": 58,
       "clicks": 0,
       "pages": {
-        "login": 12,
-        "Approvals": 1,
-        "Health": 1,
-        "Fraud": 1,
-        "AutoPOs": 1,
-        "Forecast": 1,
-        "WhatIf": 1,
-        "Intelligence": 1,
-        "Settings": 1,
-        "Audit": 1,
-        "Operations": 1,
-        "Accounting": 1
+        "login": 14,
+        "Approvals": 4,
+        "Health": 4,
+        "Fraud": 4,
+        "AutoPOs": 4,
+        "Forecast": 4,
+        "WhatIf": 4,
+        "Intelligence": 4,
+        "Settings": 4,
+        "Audit": 4,
+        "Operations": 4,
+        "Accounting": 4
       }
     }
   },

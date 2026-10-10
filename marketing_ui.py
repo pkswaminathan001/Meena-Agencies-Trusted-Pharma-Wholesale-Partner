@@ -258,7 +258,7 @@ def render_owner_marketing(retailers, orders):
                             </div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="color:#ff4d6d;font-weight:800;">+{p['extra_discount_pct']:.1f}%</div>
+                            <div style="color:#ff4d6d;font-weight:800;">+{p.get('extra_discount_pct', 0):.1f}%</div>
                             <div style="color:#8892b0;font-size:0.7rem;">hidden discount</div>
                         </div>
                     </div>
