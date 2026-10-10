@@ -279,6 +279,21 @@ def _attempt_login(role, user_id, pin):
     elif role == "owner":
         st.session_state.owner_user = user
 
+    # Fire in-app notification for the owner bell
+    try:
+        import notifications
+        notifications.add(
+            actor_id=user.get("id", user_id),
+            actor_name=user.get("name", user.get("shop", "User")),
+            actor_role=role,
+            type=role + "_login",
+            message=(user.get("name", user.get("shop", "User"))) + " logged in",
+            severity="info",
+        )
+        print("[notif] added login notification for " + str(user.get("id", user_id)))
+    except Exception as e:
+        print("[notif] FAILED to add: " + str(e))
+
     # Log successful login
     try:
         from security import log_action

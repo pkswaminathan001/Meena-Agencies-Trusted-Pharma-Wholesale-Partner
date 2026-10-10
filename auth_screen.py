@@ -392,6 +392,20 @@ def render_login():
                     st.session_state["_login_role"] = None
                     st.session_state["_login_user_id"] = None
                     st.session_state["_login_user_name"] = None
+                    # ── Fire notification for owner bell ──
+                    try:
+                        import notifications
+                        notifications.add(
+                            actor_id=user.get("id", "unknown"),
+                            actor_name=user.get("name", "User"),
+                            actor_role=role,
+                            type=role + "_login",
+                            message=(user.get("name", user.get("id", "User"))) + " logged in",
+                            severity="info",
+                        )
+                        print("[notif] login notification added: " + str(user.get("id")))
+                    except Exception as e:
+                        print("[notif] FAILED: " + str(e))
                     return {"role": role, "id": user["id"], "name": user["name"]}
                 else:
                     st.error("❌ Wrong password")

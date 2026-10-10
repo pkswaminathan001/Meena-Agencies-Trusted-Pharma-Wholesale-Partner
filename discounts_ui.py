@@ -523,7 +523,7 @@ def render_owner_discounts(orders, retailers):
                     st.markdown(
                         f'<div style="background:rgba(26,31,58,0.6);border-radius:8px;padding:8px 14px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
                         f'<div style="flex:1;"><div style="color:#e8eaf6;font-weight:600;">{icon} {row["medicine_name"][:40]}</div>'
-                        f'<div style="font-size:0.7rem;color:#8892b0;">Stock: {int(row["quantity"]):,} units · Cost ₹{row["cost_price"]:.2f}</div></div>'
+                        f'<div style="font-size:0.7rem;color:#8892b0;">Stock: {int(row.get("quantity", 0)):,} units</div></div>'
                         f'<div style="text-align:right;"><div style="color:{_c};font-weight:700;font-size:0.85rem;">{eligible}</div>'
                         f'<div style="font-size:0.65rem;color:#8892b0;">{cat.title()}</div></div>'
                         f'</div>',
@@ -534,7 +534,8 @@ def render_owner_discounts(orders, retailers):
                     st.caption(f"... and {len(agg) - 20} more products")
 
                 # Download CSV
-                csv = agg[["medicine_name", "category", "quantity", "cost_price", "cap"]].to_csv(index=False)
+                _cols = [c for c in ["medicine_name", "category", "quantity", "cost_price", "cap"] if c in agg.columns]
+                csv = agg[_cols].to_csv(index=False)
                 st.download_button("📥 Download Full List (CSV)", csv,
                                    file_name="product_discount_caps.csv",
                                    mime="text/csv", use_container_width=True)

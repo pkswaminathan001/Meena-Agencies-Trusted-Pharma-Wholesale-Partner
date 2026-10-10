@@ -21,6 +21,10 @@ import navigation
 import marketing
 import marketing_ui
 import rbac
+import notifications
+import animations_v2
+import rich_header
+import notification_ui
 
 # ─── Audit Pro integration ───
 from audit_pro import log_event, read_events, verify_chain, user_summary, all_users_summary, owner_wipe
@@ -326,30 +330,15 @@ from notify import send_notification, get_active_channel, format_order_sms, form
 import notify_pro
 
 st.set_page_config(page_title="Meena Agencies", page_icon="logo.png", layout="wide", initial_sidebar_state="collapsed")
+animations_v2.apply()
 
 navigation.init_nav()
 
 # ═══════════════════════════════════════════════════════════
 # GLOBAL BACK BAR — appears on every screen
 # ═══════════════════════════════════════════════════════════
-try:
-    if st.session_state.get("role") is not None:
-        _gb1, _gb2, _gb3 = st.columns([1, 1, 6])
-        with _gb1:
-            if st.button("← Back", key="global_back_btn", use_container_width=True,
-                         disabled=not navigation.can_go_back()):
-                navigation.go_back()
-        with _gb2:
-            if st.button("🏠 Home", key="global_home_btn", use_container_width=True):
-                navigation.clear_history()
-                for _gk in list(st.session_state.keys()):
-                    try:
-                        del st.session_state[_gk]
-                    except Exception:
-                        pass
-                st.rerun()
-except Exception:
-    pass
+# Back + Home bar removed (per user request)
+
 
 responsive.inject_responsive()
 
@@ -1091,6 +1080,10 @@ elif st.session_state.role == "retailer_login":
                     st.session_state.retailer = ret
                     st.session_state.role = "retailer"
                     st.session_state.login_attempts[rid] = 0
+                    try:
+                        notifications.add(ret.get("id","RET"), ret.get("shop","Retailer"), "retailer", "retailer_login", "Retailer logged in: " + ret.get("shop",""), severity="info")
+                    except Exception:
+                        pass
                     log_action(rid, "LOGIN_SUCCESS")
                     track(rid, "LOGIN_SUCCESS", page="login")
                     track(rid, "LOGIN_SUCCESS", page="login")
@@ -1191,6 +1184,10 @@ elif st.session_state.role in ("retailer", "customer"):
                     order["otp_verified_at"] = fmt_dt(datetime.now())
                     orders.append(order); save_orders(orders)
                     log_activity(r["id"], "ORDER_PLACED", f"order={order['order_id']} total=₹{order['total']:.0f}")
+                    try:
+                        notifications.add(r.get("id","RET"), r.get("shop","Retailer"), "retailer", "order_placed", "New order " + order.get("order_id","") + " · ₹" + str(round(order.get("total",0),2)), severity="info", link="approvals")
+                    except Exception:
+                        pass
                     
                     # Send welcome (if first order) + thank you
                     prior_count = len([o for o in orders if o.get("retailer_id") == r["id"] and o.get("status") != "Awaiting OTP"]) - 1
@@ -1730,16 +1727,39 @@ elif st.session_state.role == "staff":
         st.rerun()
 
 elif st.session_state.role == "owner":
-    st.markdown(animations.hero('👔 Owner Dashboard', f'Control Center • {fmt_dt(datetime.now())}'), unsafe_allow_html=True)
-    _signout_spacer, _signout_btn = st.columns([6, 1])
-    with _signout_btn:
-        if st.button("🚪 Sign Out", key="owner_logout_final_2024", use_container_width=True):
-            for _sk in list(st.session_state.keys()):
-                try:
-                    del st.session_state[_sk]
-                except Exception:
-                    pass
-            st.rerun()
+    # ── Owner header with notification bell ──
+    # Rich header with logo, KPIs, live activity
+    _pending_count = len([o for o in load_orders() if o.get("status") == "Pending"])
+    _all_orders = [o for o in load_orders() if o.get("status") != "Awaiting OTP"]
+    _approved = len([o for o in _all_orders if o.get("status") == "Approved"])
+    _pending_val = sum(o.get("total", 0) for o in _all_orders if o.get("status") == "Pending")
+    try:
+        import notifications as _ntf
+        _unread = _ntf.unread_count()
+    except Exception:
+        _unread = 0
+
+    rich_header.render(
+        owner_name="Swaminathan",
+        pending=_pending_count,
+        total_orders=len(_all_orders),
+        approved=_approved,
+        pending_value=_pending_val,
+        unread=_unread,
+    )
+
+    # Bell + user + sign out strip (compact)
+    _act = notification_ui.render_bell_strip("", user_name="Swaminathan")
+    if _act == "signout":
+        for _sk in list(st.session_state.keys()):
+            try:
+                del st.session_state[_sk]
+            except Exception:
+                pass
+        st.rerun()
+
+    # ── Panel opens ONLY when bell was clicked on this rerun ──
+    # (no persistent state, so it doesn't linger)
     orders_all = load_orders()
     orders = [o for o in orders_all if o["status"] != "Awaiting OTP"]
     pending = [o for o in orders if o["status"]=="Pending"]
