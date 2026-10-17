@@ -3574,18 +3574,17 @@ def _r_cart():
         st.warning("⚠️ " + _msg + "  Order will be **flagged for owner review**.")
     elif _level == "block":
         st.error("🚫 " + _msg + "  **Submission blocked.**")
-
     if not _allowed:
         st.button("🚫 Cannot Submit — Credit Hold", type="primary",
                   use_container_width=True, disabled=True)
-            else:
-                if not st.session_state.get("otp_sent_for_cart"):
-                    b1col, b2col = st.columns(2)
-                    if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
-                        import random
-                        otp_code = str(random.randint(100000, 999999))
-                        st.session_state.current_otp_code = otp_code
-                        st.session_state.otp_sent_for_cart = True
+    else:
+        if not st.session_state.get("otp_sent_for_cart"):
+            b1col, b2col = st.columns(2)
+            if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
+                import random
+                otp_code = str(random.randint(100000, 999999))
+                st.session_state.current_otp_code = otp_code
+                st.session_state.otp_sent_for_cart = True
                 
                 owner_chat_id = "8205802064"
                 msg = f"🔐 New Order — OTP Confirmation\n\nRetailer: {_rtr.get('shop', 'RET001')}\nTotal: ₹{total:.2f}\nOTP: {otp_code}\n\nValid for 5 minutes."
@@ -3600,8 +3599,6 @@ def _r_cart():
                 if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
                     swami_otp_entry_box()
                 st.rerun()
-                else:
-                    st.error("OTP module not loaded.")
             if b2col.button("🗑️ Clear Cart", use_container_width=True):
                 st.session_state.cart = []
                 st.rerun()
@@ -3616,41 +3613,24 @@ def _r_cart():
                 )
                 if st.button("✅ Verify & Submit", type="primary",
                              use_container_width=True, disabled=not _confirm_ok):
-                    if OTP_LOADED:
-                        rid = st.session_state.get("retailer_id", "")
-                        ok, msg, payload = otp_mod.verify_otp(rid, otp_input)
-                        if not ok:
-                            st.error(msg)
-                        else:
-                            order = place_order_with_approval(st.session_state.get("retailer"), st.session_state.cart)
-                            if order:
-                                try:
-                                    otp_mod.notify_order_placed(order)
-                                except Exception:
-                                    pass
-                                d = order.get("approval_decision", "manual")
-                                # Show success popup
-                                st.session_state.success_order = order
-                                try:
-                                    _so = st.session_state.get("success_order") or {}
-                                    _oid = _so.get("id") or _so.get("order_id") or (_so.get("order", {}) or {}).get("id")
-                                    if _oid and st.session_state.get("_toasted_for") != _oid:
-                                        st.toast(f"🧾 Order placed! ID: {_oid}", icon="✅", duration=4500)
-                                        st.balloons()
-                                        st.session_state["_toasted_for"] = _oid
-                                except Exception:
-                                    pass
-
-                                st.session_state.cart = []
-                                st.session_state.otp_sent_for_cart = False
-                                st.session_state.pop("otp_code_input", None)
-                                st.rerun()
+                    otp = otp_input.strip()
+                    saved_otp = st.session_state.get("current_otp_code", "")
+                    if saved_otp and otp == saved_otp:
+                        order = place_order_with_approval(st.session_state.get("retailer"), st.session_state.cart)
+                        if order:
+                            st.session_state.success_order = order
+                            st.toast(f"🧾 Order placed! ID: {order.get('order_id')}", icon="✅", duration=4500)
+                            st.balloons()
+                            st.session_state.cart = []
+                            st.session_state.otp_sent_for_cart = False
+                            st.session_state.pop("current_otp_code", None)
+                            st.rerun()
                     else:
-                        st.error("OTP module not loaded.")
+                        st.error("❌ Invalid OTP.")
             with vc2:
                 if st.button("↩️ Cancel / New OTP", use_container_width=True):
                     st.session_state.otp_sent_for_cart = False
-                    st.session_state.pop("otp_code_input", None)
+                    st.session_state.pop("current_otp_code", None)
                     st.rerun()
 
 
