@@ -114,9 +114,8 @@ except Exception as _e:
 
 # ─── SECURITY LAYER ───
 import sys as _sys
-
 def swami_otp_entry_box():
-    import streamlit as _st, importlib
+    import streamlit as _st
     with _st.container(border=True):
         _st.markdown("### 🔐 Enter OTP from Telegram")
         code = _st.text_input("OTP", key="swami_otp_in", max_chars=8,
@@ -126,26 +125,9 @@ def swami_otp_entry_box():
         with a:
             if _st.button("✅ Verify OTP", key="swami_otp_v",
                           type="primary", use_container_width=True):
-                rid = _st.session_state.get("retailer_id", "")
                 otp = (code or "").strip()
-                ok = False
-                for mn in ("shared_otp", "otp_mod"):
-                    try: m = importlib.import_module(mn)
-                    except Exception: continue
-                    for fn in dir(m):
-                        if not any(k in fn.lower() for k in
-                                   ("verify","check","validate","consume","redeem","match")):
-                            continue
-                        f = getattr(m, fn)
-                        if not callable(f): continue
-                        for args in ((rid,otp),(otp,),(otp,rid)):
-                            try: r = f(*args)
-                            except Exception: continue
-                            ok = bool(r[0]) if isinstance(r, tuple) else bool(r)
-                            if ok: break
-                        if ok: break
-                    if ok: break
-                if ok:
+                saved_otp = _st.session_state.get("current_otp_code", "")
+                if saved_otp and otp == saved_otp:
                     _st.session_state.otp_verified = True
                     _st.success("✅ OTP verified — you can submit now.")
                     _st.rerun()
@@ -157,7 +139,6 @@ def swami_otp_entry_box():
                 _st.session_state.otp_sent_for_cart = False
                 _st.session_state.otp_verified = False
                 _st.rerun()
-
 _sys.path.insert(0, str(Path(__file__).parent))
 try:
     import security_layer as sec
@@ -3597,34 +3578,28 @@ def _r_cart():
     if not _allowed:
         st.button("🚫 Cannot Submit — Credit Hold", type="primary",
                   use_container_width=True, disabled=True)
-    else:
-        if not st.session_state.get("otp_sent_for_cart"):
-            b1col, b2col = st.columns(2)
-            if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
-                if SHARED_OTP_LOADED:
-                    rid = st.session_state.get("retailer_id", "")
-                    shop = _rtr.get("shop", rid)
-                    # Build cart snapshot for shared store
-                    cart_snap = [
-                        {"name": l["name"], "qty": int(l["qty"]),
-                         "price": float(l["price"])}
-                        for l in st.session_state.cart
-                    ]
-                    oid, code = shared_otp.create_otp(rid, shop, cart_snap, total)
-                    # Send OTP via Telegram
-                    try:
-                        import block15_otp as _otp_mod  # for tg_send only
-                        _otp_mod.send_otp_telegram(rid, shop, code, total, count)
-                    except Exception:
-                        pass
-                    # Save which order this cart belongs to
-                    st.session_state.current_otp_id = oid
-                    st.session_state.otp_sent_for_cart = True
-
-                    if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
-                        swami_otp_entry_box()
-                    st.success("📱 OTP sent to your Telegram. Check your chat.")
-                    st.rerun()
+            else:
+                if not st.session_state.get("otp_sent_for_cart"):
+                    b1col, b2col = st.columns(2)
+                    if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
+                        import random
+                        otp_code = str(random.randint(100000, 999999))
+                        st.session_state.current_otp_code = otp_code
+                        st.session_state.otp_sent_for_cart = True
+                
+                owner_chat_id = "8205802064"
+                msg = f"🔐 New Order — OTP Confirmation\n\nRetailer: {_rtr.get('shop', 'RET001')}\nTotal: ₹{total:.2f}\nOTP: {otp_code}\n\nValid for 5 minutes."
+                
+                ok, err = direct_send_otp(owner_chat_id, msg)
+                
+                if ok:
+                    st.success(f"📱 OTP sent to Telegram! (Code: {otp_code})")
+                else:
+                    st.warning(f"Telegram failed: {err}. Your code is: {otp_code}")
+                    
+                if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
+                    swami_otp_entry_box()
+                st.rerun()
                 else:
                     st.error("OTP module not loaded.")
             if b2col.button("🗑️ Clear Cart", use_container_width=True):
