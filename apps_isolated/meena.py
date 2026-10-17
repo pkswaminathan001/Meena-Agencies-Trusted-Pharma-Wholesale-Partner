@@ -10,6 +10,35 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import os
+import requests
+
+def direct_send_otp(chat_id, message_text):
+    """Send OTP directly from the Streamlit Cloud App to Telegram."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        try:
+            import streamlit as st
+            token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+        except Exception:
+            pass
+            
+    if not token:
+        return False, "Missing TELEGRAM_BOT_TOKEN in Secrets."
+        
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message_text}
+    
+    try:
+        r = requests.post(url, json=payload, timeout=10)
+        if r.status_code == 200:
+            return True, "Sent"
+        else:
+            return False, r.text
+    except Exception as e:
+        return False, str(e)
+
+
 # ─── Load environment from pharma-agi/.env ───
 try:
     from dotenv import load_dotenv as _load_env
