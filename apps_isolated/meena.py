@@ -1037,7 +1037,17 @@ def owner_login():
     _, mid, _ = st.columns([1,2,1])
     with mid:
         st.markdown(f'<div style="text-align:center;margin:1rem 0;">{logo_html(72)}</div>',
+                   
+    _, mid, _ = st.columns([1,2,1])
+    with mid:
+        st.markdown(f'<div style="text-align:center;margin:2rem 0 1rem;">{logo_html(96)}</div>',
                     unsafe_allow_html=True)
+        st.markdown('<h1 style="text-align:center;color:#00d4ff;margin-bottom:.2rem;">MEENA AGENCIES</h1>',
+                    unsafe_allow_html=True)
+        st.markdown('<p style="text-align:center;color:#8892b0;margin-top:0;letter-spacing:2px;">WHOLESALE PHARMA PARTNER</p>',
+                    unsafe_allow_html=True)
+        st.markdown("---")
+        c1, c2 = st.columns(2) unsafe_allow_html=True)
         st.markdown('<h2 style="text-align:center;color:#f59e0b;">👑 Owner Login</h2>',
                     unsafe_allow_html=True)
         st.markdown("---")
@@ -3847,6 +3857,18 @@ def render_sidebar():
                 st.session_state.page = k
                 if "cat_open" in st.session_state: st.session_state.cat_open=None
                 st.rerun()
+        
+        # ── ENTERPRISE ERP BUTTON ──
+        if role == "owner":
+            st.markdown("---")
+            if st.button("🏢  Enterprise ERP (Phases 3-5)", key="nav_enterprise", use_container_width=True, type="primary" if st.session_state.get("show_enterprise") else "secondary"):
+                st.session_state["show_enterprise"] = True
+                st.rerun()
+        # ───────────────────────────
+        if role == "owner":
+            if st.button("🏢 Enterprise ERP (Phases 3-5)", key="nav_enterprise", use_container_width=True):
+                st.session_state.page = "enterprise"
+                st.rerun()
         st.markdown("---")
         if st.button("🚪  Sign Out", key="so", use_container_width=True):
             st.session_state.clear(); st.rerun()
@@ -3871,6 +3893,8 @@ def main():
     p = st.session_state.page
 
     if role == "owner":
+        if p=="enterprise": show_enterprise_dashboard()
+        elif p=="home":
         if   p=="home":      owner_home()
         elif p=="map":       page_owner_map()
         elif p=="payments":  owner_payments()
