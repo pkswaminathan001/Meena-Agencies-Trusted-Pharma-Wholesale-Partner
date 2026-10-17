@@ -1036,12 +1036,14 @@ def landing():
 def owner_login():
     _, mid, _ = st.columns([1,2,1])
     with mid:
-        st.markdown(f'<div style="text-align:center;margin:1rem 0;">{logo_html(72)}</div>',
-                   
-    _, mid, _ = st.columns([1,2,1])
-    with mid:
         st.markdown(f'<div style="text-align:center;margin:2rem 0 1rem;">{logo_html(96)}</div>',
                     unsafe_allow_html=True)
+        st.markdown('<h1 style="text-align:center;color:#00d4ff;margin-bottom:.2rem;">MEENA AGENCIES</h1>',
+                    unsafe_allow_html=True)
+        st.markdown('<p style="text-align:center;color:#8892b0;margin-top:0;letter-spacing:2px;">WHOLESALE PHARMA PARTNER</p>',
+                    unsafe_allow_html=True)
+        st.markdown("---")
+                   unsafe_allow_html=True)
         st.markdown('<h1 style="text-align:center;color:#00d4ff;margin-bottom:.2rem;">MEENA AGENCIES</h1>',
                     unsafe_allow_html=True)
         st.markdown('<p style="text-align:center;color:#8892b0;margin-top:0;letter-spacing:2px;">WHOLESALE PHARMA PARTNER</p>',
