@@ -3603,6 +3603,7 @@ def _r_cart():
                 st.session_state.cart = []
                 st.rerun()
         else:
+
             st.info("📱 OTP sent. Enter the 6-digit code from Telegram.")
             otp_input = st.text_input("Enter OTP", max_chars=6, key="otp_code_input")
             vc1, vc2 = st.columns(2)
@@ -3618,13 +3619,45 @@ def _r_cart():
                     if saved_otp and otp == saved_otp:
                         order = place_order_with_approval(st.session_state.get("retailer"), st.session_state.cart)
                         if order:
+                            try:
+                                _msg = (
+                                    f"🦚 வெற்றி வேல் வீரா! 🗡️\n"
+                                    f"🛕 Swamimalai Murugan 🛕\n\n"
+                                    f"🧾 Order Placed\n"
+                                    f"ID: {order.get('order_id')}\n"
+                                    f"Retailer: {order.get('shop')} ({order.get('retailer_id')})\n"
+                                    f"Total: Rs.{order.get('total'):.2f}\n"
+                                    f"Status: {order.get('status')}\n\n"
+                                )
+                                for item in order.get("items", []):
+                                    _msg += f"{item.get('medicine')} x {item.get('qty')} = Rs.{item.get('line_total'):.2f}\n"
+                                
+                                _msg += (
+                                    f"\nMeena Agencies மூலம் order செய்ததற்கு மிக்க நன்றி! 🙏\n"
+                                    f"சுவாமிமலை முருகன் அருள் உங்களுக்கு எப்போதும் இருக்கட்டும்! 🦚"
+                                )
+                                direct_send_otp("8205802064", _msg)
+                            except Exception as e:
+                                st.error(f"Failed to send Telegram: {e}")
+                            
                             st.session_state.success_order = order
                             st.toast(f"🧾 Order placed! ID: {order.get('order_id')}", icon="✅", duration=4500)
                             st.balloons()
                             st.session_state.cart = []
                             st.session_state.otp_sent_for_cart = False
                             st.session_state.pop("current_otp_code", None)
+                            st.balloons()
+                            st.session_state.cart = []
+                            st.session_state.otp_sent_for_cart = False
+                            st.session_state.pop("current_otp_code", None)
                             st.rerun()
+                    else:
+                        st.error("❌ Invalid OTP.")
+            with vc2:
+                if st.button("↩️ Cancel / New OTP", use_container_width=True):
+                    st.session_state.otp_sent_for_cart = False
+                    st.session_state.pop("current_otp_code", None)
+                    st.rerun()
                     else:
                         st.error("❌ Invalid OTP.")
             with vc2:
