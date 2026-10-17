@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
 import streamlit as st
+from apps_isolated.owner_enterprise import show_enterprise_dashboard
 
 # ─── Load environment from pharma-agi/.env ───
 try:
