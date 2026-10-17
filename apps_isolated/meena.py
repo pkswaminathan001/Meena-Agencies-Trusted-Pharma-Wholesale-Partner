@@ -8,36 +8,27 @@ import base64, hashlib, json, sys
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
-import streamlit as st
 
-import os
-import requests
-
+import os, requests
 def direct_send_otp(chat_id, message_text):
-    """Send OTP directly from the Streamlit Cloud App to Telegram."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token:
         try:
             import streamlit as st
             token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
-        except Exception:
-            pass
-            
-    if not token:
-        return False, "Missing TELEGRAM_BOT_TOKEN in Secrets."
-        
+        except Exception: pass
+    if not token: return False, "Missing token"
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {"chat_id": chat_id, "text": message_text}
-    
     try:
         r = requests.post(url, json=payload, timeout=10)
-        if r.status_code == 200:
-            return True, "Sent"
-        else:
-            return False, r.text
-    except Exception as e:
-        return False, str(e)
+        if r.status_code == 200: return True, "Sent"
+        else: return False, r.text
+    except Exception as e: return False, str(e)
 
+import streamlit as st
+
+from owner_enterprise import show_enterprise_dashboard
 
 # ─── Load environment from pharma-agi/.env ───
 try:
@@ -114,8 +105,9 @@ except Exception as _e:
 
 # ─── SECURITY LAYER ───
 import sys as _sys
+
 def swami_otp_entry_box():
-    import streamlit as _st
+    import streamlit as _st, importlib
     with _st.container(border=True):
         _st.markdown("### 🔐 Enter OTP from Telegram")
         code = _st.text_input("OTP", key="swami_otp_in", max_chars=8,
@@ -139,6 +131,7 @@ def swami_otp_entry_box():
                 _st.session_state.otp_sent_for_cart = False
                 _st.session_state.otp_verified = False
                 _st.rerun()
+
 _sys.path.insert(0, str(Path(__file__).parent))
 try:
     import security_layer as sec
@@ -3552,119 +3545,6 @@ def place_order_with_approval(retailer, cart):
 
     return order
 
-
-def _r_cart():
-    cart = st.session_state.get("cart",[])
-    if not cart: return
-    total = sum(l["price"]*l["qty"] for l in cart)
-    count = sum(l["qty"] for l in cart)
-    st.markdown("---")
-    st.markdown(f'<div class="section-head">🧺 Cart — {count} item(s) · {money(total)}</div>', unsafe_allow_html=True)
-    for i,line in enumerate(list(cart)):
-        c1,c2,c3,c4 = st.columns([4,2,2,1])
-        c1.markdown(f"**{line['name']}**")
-        c2.markdown(f"₹{line['price']:,.2f} × {line['qty']}")
-        c3.markdown(f"**₹{line['price']*line['qty']:,.2f}**")
-        if c4.button("✕", key=f"rm_{i}_{line['name']}"):
-            cart.pop(i); st.rerun()
-    # ─── Credit rule check (Owner Commandment) ───
-    _rtr = st.session_state.get("retailer") or {}
-    _allowed, _level, _msg = evaluate_credit_rule(_rtr, total)
-    if _level == "warn":
-        st.warning("⚠️ " + _msg + "  Order will be **flagged for owner review**.")
-    elif _level == "block":
-        st.error("🚫 " + _msg + "  **Submission blocked.**")
-    if not _allowed:
-        st.button("🚫 Cannot Submit — Credit Hold", type="primary",
-                  use_container_width=True, disabled=True)
-    else:
-        if not st.session_state.get("otp_sent_for_cart"):
-            b1col, b2col = st.columns(2)
-            if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
-                import random
-                otp_code = str(random.randint(100000, 999999))
-                st.session_state.current_otp_code = otp_code
-                st.session_state.otp_sent_for_cart = True
-                
-                owner_chat_id = "8205802064"
-                msg = f"🔐 New Order — OTP Confirmation\n\nRetailer: {_rtr.get('shop', 'RET001')}\nTotal: ₹{total:.2f}\nOTP: {otp_code}\n\nValid for 5 minutes."
-                
-                ok, err = direct_send_otp(owner_chat_id, msg)
-                
-                if ok:
-                    st.success(f"📱 OTP sent to Telegram! (Code: {otp_code})")
-                else:
-                    st.warning(f"Telegram failed: {err}. Your code is: {otp_code}")
-                    
-                if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
-                    swami_otp_entry_box()
-                st.rerun()
-            if b2col.button("🗑️ Clear Cart", use_container_width=True):
-                st.session_state.cart = []
-                st.rerun()
-        else:
-
-            st.info("📱 OTP sent. Enter the 6-digit code from Telegram.")
-            otp_input = st.text_input("Enter OTP", max_chars=6, key="otp_code_input")
-            vc1, vc2 = st.columns(2)
-            with vc1:
-                _confirm_ok = st.checkbox(
-                    "✓ Naan items check panniten, order place pannunga",
-                    key="_otp_confirm_check"
-                )
-                if st.button("✅ Verify & Submit", type="primary",
-                             use_container_width=True, disabled=not _confirm_ok):
-                    otp = otp_input.strip()
-                    saved_otp = st.session_state.get("current_otp_code", "")
-                    if saved_otp and otp == saved_otp:
-                        order = place_order_with_approval(st.session_state.get("retailer"), st.session_state.cart)
-                        if order:
-                            try:
-                                _msg = (
-                                    f"🦚 வெற்றி வேல் வீரா! 🗡️\n"
-                                    f"🛕 Swamimalai Murugan 🛕\n\n"
-                                    f"🧾 Order Placed\n"
-                                    f"ID: {order.get('order_id')}\n"
-                                    f"Retailer: {order.get('shop')} ({order.get('retailer_id')})\n"
-                                    f"Total: Rs.{order.get('total'):.2f}\n"
-                                    f"Status: {order.get('status')}\n\n"
-                                )
-                                for item in order.get("items", []):
-                                    _msg += f"{item.get('medicine')} x {item.get('qty')} = Rs.{item.get('line_total'):.2f}\n"
-                                
-                                _msg += (
-                                    f"\nMeena Agencies மூலம் order செய்ததற்கு மிக்க நன்றி! 🙏\n"
-                                    f"சுவாமிமலை முருகன் அருள் உங்களுக்கு எப்போதும் இருக்கட்டும்! 🦚"
-                                )
-                                direct_send_otp("8205802064", _msg)
-                            except Exception as e:
-                                st.error(f"Failed to send Telegram: {e}")
-                            
-                            st.session_state.success_order = order
-                            st.toast(f"🧾 Order placed! ID: {order.get('order_id')}", icon="✅", duration=4500)
-                            st.balloons()
-                            st.session_state.cart = []
-                            st.session_state.otp_sent_for_cart = False
-                            st.session_state.pop("current_otp_code", None)
-                            st.balloons()
-                            st.session_state.cart = []
-                            st.session_state.otp_sent_for_cart = False
-                            st.session_state.pop("current_otp_code", None)
-                            st.rerun()
-                    else:
-                        st.error("❌ Invalid OTP.")
-            with vc2:
-                if st.button("↩️ Cancel / New OTP", use_container_width=True):
-                    st.session_state.otp_sent_for_cart = False
-                    st.session_state.pop("current_otp_code", None)
-                    st.rerun()
-                    else:
-                        st.error("❌ Invalid OTP.")
-            with vc2:
-                if st.button("↩️ Cancel / New OTP", use_container_width=True):
-                    st.session_state.otp_sent_for_cart = False
-                    st.session_state.pop("current_otp_code", None)
-                    st.rerun()
 
 
 def retailer_stock():
