@@ -4,3 +4,5 @@ edge-tts
 requests
 pandas
 plotly
+python-telegram-bot
+requests
