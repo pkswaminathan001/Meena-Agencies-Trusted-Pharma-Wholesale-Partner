@@ -3601,37 +3601,6 @@ def _r_cart():
         if not st.session_state.get("otp_sent_for_cart"):
             b1col, b2col = st.columns(2)
             if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
-                import random, os
-                import streamlit as st
-                
-                # 1. Generate a 6-digit OTP
-                code = str(random.randint(100000, 999999))
-                
-                # 2. Save to session state
-                st.session_state.current_otp = code
-                st.session_state.otp_sent_for_cart = True
-                
-                # 3. Get the chat ID (for testing, use the owner's ID, or map retailer to telegram ID)
-                # In a real scenario, you would look up the retailer's Telegram ID from your database
-                chat_id = os.environ.get("OWNER_CHAT_ID", "8205802064") 
-                try:
-                    chat_id = st.secrets.get("OWNER_CHAT_ID", chat_id)
-                except Exception:
-                    pass
-                
-                # 4. Send directly to Telegram
-                msg = f"🔐 New Order — OTP Confirmation\n\nRetailer: {st.session_state.get('retailer_id', 'RET001')}\nOTP: {code}\n\nValid for 5 minutes."
-                ok, err = direct_send_otp(chat_id, msg)
-                
-                if ok:
-                    st.success(f"📱 OTP sent to your Telegram! (Code: {code})")
-                else:
-                    st.error(f"❌ Failed to send Telegram OTP: {err}")
-                
-                st.rerun()
-                
-            # The original logic below is bypassed by the rerun above
-            if False:
                 if SHARED_OTP_LOADED:
                     rid = st.session_state.get("retailer_id", "")
                     shop = _rtr.get("shop", rid)
