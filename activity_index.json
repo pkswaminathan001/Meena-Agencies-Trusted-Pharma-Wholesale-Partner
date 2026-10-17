@@ -57,21 +57,39 @@
       }
     },
     "10-OCT-2026": {
-      "events": 288,
+      "events": 336,
       "clicks": 0,
       "pages": {
-        "login": 30,
-        "Approvals": 24,
-        "Health": 23,
-        "Fraud": 23,
-        "AutoPOs": 23,
-        "Forecast": 23,
-        "WhatIf": 23,
-        "Intelligence": 23,
-        "Settings": 24,
-        "Audit": 24,
-        "Operations": 24,
-        "Accounting": 24
+        "login": 34,
+        "Approvals": 28,
+        "Health": 27,
+        "Fraud": 27,
+        "AutoPOs": 27,
+        "Forecast": 27,
+        "WhatIf": 27,
+        "Intelligence": 27,
+        "Settings": 28,
+        "Audit": 28,
+        "Operations": 28,
+        "Accounting": 28
+      }
+    },
+    "11-OCT-2026": {
+      "events": 118,
+      "clicks": 0,
+      "pages": {
+        "login": 8,
+        "Approvals": 10,
+        "Health": 10,
+        "Fraud": 10,
+        "AutoPOs": 10,
+        "Forecast": 10,
+        "WhatIf": 10,
+        "Intelligence": 10,
+        "Settings": 10,
+        "Audit": 10,
+        "Operations": 10,
+        "Accounting": 10
       }
     }
   },
@@ -121,10 +139,18 @@
       }
     },
     "10-OCT-2026": {
-      "events": 24,
+      "events": 165,
       "clicks": 0,
       "pages": {
-        "login": 24
+        "login": 164,
+        "signout": 1
+      }
+    },
+    "11-OCT-2026": {
+      "events": 25,
+      "clicks": 0,
+      "pages": {
+        "login": 25
       }
     }
   },
@@ -160,6 +186,13 @@
       "pages": {
         "login": 2,
         "signout": 1
+      }
+    },
+    "10-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
+        "login": 1
       }
     }
   },

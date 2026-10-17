@@ -1,19 +1,5 @@
-# ═══════════════════════════════════════════════════════════
-# Meena Agencies — Production requirements
-# Unpinned — pip picks the correct wheel for the Python version
-# ═══════════════════════════════════════════════════════════
-
 streamlit
-pandas
-numpy
-plotly
-Pillow
-requests
-feedparser
-groq
-reportlab
-fpdf2
 python-dotenv
-PyYAML
-openpyxl
-cryptography
+edge-tts
+requests
+python-telegram-bot

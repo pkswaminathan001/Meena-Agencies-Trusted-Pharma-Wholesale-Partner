@@ -20,7 +20,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], footer, #MainMenu {
 /* Background mesh */
 [data-testid="stAppViewContainer"]::before {
     content: '';
-    position: fixed; inset: -20%; z-index: 0;
+     inset: -20%; z-index: 0;
     background:
         radial-gradient(closest-side, rgba(0,212,170,0.28), transparent 70%) 15% 20% / 60% 60% no-repeat,
         radial-gradient(closest-side, rgba(123,97,255,0.32), transparent 70%) 85% 25% / 70% 70% no-repeat,
@@ -150,7 +150,7 @@ div[data-testid="stTextInput"] input:focus {
 
 /* User badge when logged in */
 .ma-user-badge {
-    position: fixed; top: 14px; right: 18px;
+     top: 14px; right: 18px;
     padding: 8px 16px; border-radius: 20px;
     background: linear-gradient(135deg, rgba(0,212,170,0.2), rgba(123,97,255,0.2));
     border: 1px solid rgba(0,212,170,0.4);

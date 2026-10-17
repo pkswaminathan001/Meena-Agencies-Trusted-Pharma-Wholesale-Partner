@@ -68,7 +68,7 @@ footer { display: none !important; }
 .block-container { padding: 3vh 1rem !important; max-width: 100% !important; }
 [data-testid="stAppViewContainer"]::before {
   content: '';
-  position: fixed; inset: -20%; z-index: 0;
+   inset: -20%; z-index: 0;
   background:
     radial-gradient(closest-side, rgba(0,212,170,0.28), transparent 70%) 15% 20% / 60% 60% no-repeat,
     radial-gradient(closest-side, rgba(123,97,255,0.32), transparent 70%) 85% 25% / 70% 70% no-repeat,

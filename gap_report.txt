@@ -1,0 +1,99 @@
+#### Retailer Portal card source ####
+app.py:1080:        eyebrow=f"Retailer Portal · {r['id']}",
+force_light.py:527:/* ── Eyebrow pill "RETAILER PORTAL · RET001" ── */
+
+#### Every padding-top / margin-top / stMainBlockContainer / stHeader rule ####
+rich_header.py:168:        margin-top: 4px;
+rich_header.py:192:        margin-top: 18px;
+rich_header.py:216:        margin-top: 4px;
+rich_header.py:223:        margin-top: 2px;
+rich_header.py:228:        margin-top: 18px;
+unified_brand.py:55:                    margin-top:6px; text-transform:uppercase; font-weight:600;">
+water_responsive.py:28:    .main .block-container,
+water_responsive.py:30:    [data-testid="stMainBlockContainer"],
+water_responsive.py:31:    section.main > div.block-container,
+water_responsive.py:32:    [data-testid="stAppViewContainer"] > .main > .block-container,
+water_responsive.py:40:        padding-top: var(--water-pad-y) !important;
+water_responsive.py:156:    html, body, .stApp, .main, section.main, [data-testid="stAppViewContainer"] {
+responsive.py:33:    .block-container {
+responsive.py:165:        .block-container {
+responsive.py:174:        .block-container {
+responsive.py:185:        .block-container {
+responsive.py:208:        .block-container { padding: 0.5cm !important; }
+compact_spacing.py:58:   KILL THE TOP GAP — Streamlit's default block-container padding
+compact_spacing.py:60:.block-container {
+compact_spacing.py:61:    padding-top: 0.8rem !important;
+compact_spacing.py:66:[data-testid="stAppViewContainer"] > .main > div:first-child {
+compact_spacing.py:67:    padding-top: 0 !important;
+compact_spacing.py:69:[data-testid="stAppViewContainer"] > .main {
+compact_spacing.py:70:    padding-top: 0 !important;
+compact_spacing.py:73:    padding-top: 0 !important;
+compact_spacing.py:77:[data-testid="stHeader"] {
+compact_spacing.py:85:    margin-top: 0 !important;
+compact_spacing.py:86:    padding-top: 0 !important;
+compact_spacing.py:91:    margin-top: 0 !important;
+compact_spacing.py:92:    padding-top: 2rem !important;
+compact_spacing.py:97:    .block-container {
+compact_spacing.py:98:        padding-top: 0.4rem !important;
+compact_spacing.py:101:        padding-top: 1.2rem !important;
+compact_spacing.py:110:.block-container,
+compact_spacing.py:111:[data-testid="stMainBlockContainer"],
+compact_spacing.py:115:[data-testid="stAppViewContainer"] > .main > div:first-child,
+compact_spacing.py:116:[data-testid="stAppViewContainer"] > .main {
+compact_spacing.py:117:    padding-top: 0 !important;
+compact_spacing.py:119:    margin-top: 0 !important;
+compact_spacing.py:126:    margin-top: 0 !important;
+compact_spacing.py:127:    padding-top: 0 !important;
+compact_spacing.py:132:    padding-top: 1.2rem !important;
+compact_spacing.py:133:    margin-top: 0 !important;
+compact_spacing.py:136:    padding-top: 0 !important;
+compact_spacing.py:137:    margin-top: 0 !important;
+compact_spacing.py:141:[data-testid="stHeader"],
+compact_spacing.py:143:header[data-testid="stHeader"] {
+compact_spacing.py:152:    .block-container,
+compact_spacing.py:153:    [data-testid="stMainBlockContainer"] {
+compact_spacing.py:154:        padding-top: 0 !important;
+compact_spacing.py:157:        padding-top: 0.8rem !important;
+dense_layout.py:14:    margin-top: 0.2rem !important;
+dense_layout.py:16:    padding-top: 0 !important;
+dense_layout.py:21:    margin-top: 0 !important;
+dense_layout.py:55:.block-container {
+dense_layout.py:56:    padding-top: 0.4rem !important;
+dense_layout.py:62:.main, [data-testid="stAppViewContainer"] > .main {
+dense_layout.py:63:    padding-top: 0 !important;
+dense_layout.py:167:    .block-container {
+dense_layout.py:170:        padding-top: 0.3rem !important;
+mobile_sidebar.py:63:        .main, [data-testid="stAppViewContainer"] > .main {{
+top_gap_fix.py:5:[data-testid="stMainBlockContainer"],
+top_gap_fix.py:6:.block-container {
+top_gap_fix.py:7:    padding-top: 3.5rem !important;
+top_gap_fix.py:9:[data-testid="stHeader"] {
+top_gap_fix.py:13:.corp-hero { margin-top: 0 !important; }
+top_gap_fix.py:15:    [data-testid="stMainBlockContainer"] {
+ui.py:74:html, body, .stApp, [data-testid="stAppViewContainer"] {
+ui.py:86:.block-container,
+ui.py:87:.main .block-container {
+ui.py:94:    .block-container,
+ui.py:95:    .main .block-container {
+ui.py:100:    .block-container {
+ui.py:105:[data-testid="stHeader"], [data-testid="stToolbar"] {
+ui.py:236:    margin-top: 16px !important;
+ui.py:237:    padding-top: 16px !important;
+
+#### Same rules inside app.py ####
+476:.block-container {
+481:    .block-container { padding: 0 5rem 3rem 5rem !important; }
+486:[data-testid="stAppViewContainer"] > .main { padding-top: 0 !important; }
+578:    padding-top: 1.5rem;
+
+#### Order the CSS modules are applied ####
+369:    dense_layout.apply()
+370:    top_gap_fix.apply()
+465:ui.inject()  # responsive design system
+840:animations.inject_animations()
+842:medicine_cards.inject_card_styles()
+892:    df["status"] = df["days_to_expiry"].apply(lambda x: "Expired" if x<0 else ("Critical" if x<30 else ("Warning" if x<90 else "Healthy")))
+990:    _page = retailer_sidebar.render(_r)
+992:        mobile_sidebar.render()
+1705:    unified_brand.render(size=140)
+1718:    rich_header.render(

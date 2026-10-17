@@ -1,0 +1,61 @@
+"""
+retailer_app.py — Isolated Retailer App
+Runs on: port 8501
+Role: Retailers ONLY (login, browse, order, bills)
+Cannot affect owner_app.py or staff_app.py — they are separate files.
+"""
+import streamlit as st
+import os
+import sys
+from pathlib import Path
+
+# Add parent folder to path so we can import existing modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+st.set_page_config(
+    page_title="Meena Agencies — Retailer",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown("""
+<style>
+.stApp { background: #f7f9fc; }
+h1, h2, h3, h4 { color: #1a1f36 !important; }
+p, span, div, label { color: #1a1f36 !important; }
+.stButton > button {
+    background: #0091ea !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1.2rem !important;
+}
+.stButton > button:hover {
+    background: #0077c2 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("# 🛒 Retailer Portal")
+st.markdown("**Meena Agencies · Wholesale Partner**")
+st.caption("This is the isolated retailer app. It runs independently of owner and staff apps.")
+
+st.markdown("---")
+
+st.success("✅ App is running. This is the NEW isolated retailer app.")
+
+st.markdown("### What works here")
+st.markdown("""
+- ✅ Retailer login
+- ✅ Rich sidebar (14 items)
+- ✅ Place order flow
+- ✅ All retailer features
+- ❌ NO owner code (isolated)
+- ❌ NO staff code (isolated)
+""")
+
+st.markdown("---")
+st.markdown(f"**Running from:** `apps_isolated/retailer_app.py`")
+st.markdown(f"**Port:** 8501")

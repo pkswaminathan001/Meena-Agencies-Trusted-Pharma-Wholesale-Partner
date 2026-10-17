@@ -14,3 +14,8 @@
 {"ts": "2026-10-10T08:13:23.941761", "date": "10-Oct-2026", "time": "08:13:23", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=unknown", "extra": {}, "risk": "normal"}
 {"ts": "2026-10-10T09:59:10.651887", "date": "10-Oct-2026", "time": "09:59:10", "staff_id": "STAFF001", "staff_name": "Counter Staff", "action": "SESSION_START", "details": "", "extra": {}, "risk": "normal"}
 {"ts": "2026-10-10T09:59:10.652222", "date": "10-Oct-2026", "time": "09:59:10", "staff_id": "STAFF001", "staff_name": "Counter Staff", "action": "PAGE_VIEW", "details": "home", "extra": {}, "risk": "normal"}
+{"ts": "2026-10-10T13:15:00.895189", "date": "10-Oct-2026", "time": "13:15:00", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=owner_greeting", "extra": {}, "risk": "normal"}
+{"ts": "2026-10-10T13:15:01.893787", "date": "10-Oct-2026", "time": "13:15:01", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=owner_greeting", "extra": {}, "risk": "normal"}
+{"ts": "2026-10-10T23:56:23.935679", "date": "10-Oct-2026", "time": "23:56:23", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=owner_greeting", "extra": {}, "risk": "normal"}
+{"ts": "2026-10-11T01:49:46.497881", "date": "11-Oct-2026", "time": "01:49:46", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=owner_pending", "extra": {}, "risk": "normal"}
+{"ts": "2026-10-11T18:02:40.571214", "date": "11-Oct-2026", "time": "18:02:40", "staff_id": "owner", "staff_name": "Swaminathan", "action": "AI_CHAT", "details": "intent=owner_greeting", "extra": {}, "risk": "normal"}

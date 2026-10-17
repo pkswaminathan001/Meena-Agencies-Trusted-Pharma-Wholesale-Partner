@@ -436,5 +436,11 @@
     "worker": "OWNER",
     "action": "AI_STRATEGY",
     "details": ""
+  },
+  {
+    "ts": "2026-10-10T12:35:32.405384",
+    "worker": "RET001",
+    "action": "SIGNOUT",
+    "details": ""
   }
 ]

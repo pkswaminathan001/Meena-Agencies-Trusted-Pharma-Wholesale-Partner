@@ -1,0 +1,271 @@
+"""
+retailer_app.py — Full Retailer App v3
+Runs on: 8501 | Uses existing retailer_sidebar.py + retailer_pages.py
+Isolated from owner_app.py and staff_app.py.
+"""
+import streamlit as st
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+# ─── Parent folder for imports ───
+PARENT = Path(__file__).parent.parent
+sys.path.insert(0, str(PARENT))
+
+st.set_page_config(
+    page_title="Meena Agencies — Retailer",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ═══════════════════════════════════════════════════════
+# THEME
+# ═══════════════════════════════════════════════════════
+st.markdown("""
+<style>
+.stApp, [data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #f0f4ff 0%, #f7f9fc 50%, #eef2ff 100%) !important;
+}
+h1, h2, h3, h4, h5 { color: #0a0e27 !important; font-weight: 800 !important; }
+p, span, div, label, li { color: #1a1f36 !important; }
+[data-testid="stSidebar"] { background: #ffffff !important; border-right: 1px solid #e2e8f0 !important; }
+[data-testid="stSidebar"] * { color: #1a1f36 !important; }
+[data-testid="stMetric"] {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 4px solid #0091ea !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.2rem !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+[data-testid="stMetricLabel"] { color: #64748b !important; font-weight: 600 !important; text-transform: uppercase !important; font-size: 0.7rem !important; letter-spacing: 1px !important; }
+[data-testid="stMetricValue"] { color: #0a0e27 !important; font-weight: 800 !important; font-size: 1.6rem !important; }
+.stButton > button {
+    background: #ffffff !important;
+    color: #1a1f36 !important;
+    border: 1px solid #cbd5e0 !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1rem !important;
+    transition: all 0.15s ease !important;
+}
+.stButton > button:hover { background: #e0f2ff !important; border-color: #0091ea !important; color: #0091ea !important; }
+.stButton > button[kind="primary"] { background: linear-gradient(135deg, #0091ea, #5b21b6) !important; color: #ffffff !important; border: none !important; }
+input, textarea, select { background: #ffffff !important; color: #1a1f36 !important; border: 1px solid #cbd5e0 !important; border-radius: 10px !important; }
+input:focus { border-color: #0091ea !important; box-shadow: 0 0 0 3px rgba(0,145,234,0.15) !important; }
+.ma-hero {
+    background: linear-gradient(135deg, #0a1535 0%, #1a2851 100%);
+    border-radius: 16px; padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+    color: #ffffff; box-shadow: 0 10px 40px rgba(10,21,53,0.15);
+}
+.ma-hero h1 { color: #ffffff !important; margin: 0 !important; font-size: 1.8rem !important; }
+.ma-hero .sub { color: #a8b2d1 !important; font-size: 0.9rem; margin-top: 0.3rem; }
+.ma-hero .badge {
+    display: inline-block; background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.4); color: #00d4ff;
+    padding: 0.25rem 0.75rem; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════
+# DATA HELPERS
+# ═══════════════════════════════════════════════════════
+def load_json(fname, default):
+    p = PARENT / fname
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return default
+    return default
+
+
+def load_retailers():
+    return load_json("retailers.json", [])
+
+
+def verify_pin(provided, stored_hash):
+    try:
+        from security import verify_secret
+        return verify_secret(provided, stored_hash)
+    except Exception:
+        import hashlib
+        return hashlib.sha256(provided.encode()).hexdigest() == stored_hash
+
+
+# ═══════════════════════════════════════════════════════
+# SESSION
+# ═══════════════════════════════════════════════════════
+if "retailer_user" not in st.session_state:
+    st.session_state.retailer_user = None
+if "retailer_page" not in st.session_state:
+    st.session_state.retailer_page = "home"
+
+
+# ═══════════════════════════════════════════════════════
+# LOGIN
+# ═══════════════════════════════════════════════════════
+def render_login():
+    st.markdown("""
+    <div class="ma-hero" style="text-align:center; max-width: 500px; margin: 2rem auto;">
+        <div class="badge">RETAILER PORTAL</div>
+        <h1>🛒 Meena Agencies</h1>
+        <div class="sub">Trusted Pharma Wholesale Partner</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("retailer_login"):
+            rid = st.text_input("Retailer ID", placeholder="RET001").strip().upper()
+            pin = st.text_input("PIN", type="password", max_chars=6)
+            submitted = st.form_submit_button("🔓 Login", use_container_width=True)
+
+            if submitted:
+                retailers = load_retailers()
+                r = next((x for x in retailers if x["id"] == rid), None)
+                if not r:
+                    st.error(f"❌ Retailer '{rid}' not found")
+                elif not verify_pin(pin, r.get("pin_hash", "")):
+                    st.error("❌ Wrong PIN")
+                else:
+                    st.session_state.retailer_user = rid
+                    st.session_state.retailer_page = "home"
+                    st.rerun()
+
+        st.caption("Demo: RET001/3210 · RET002/3211 · RET003/3212")
+
+
+# ═══════════════════════════════════════════════════════
+# SIDEBAR — uses existing retailer_sidebar.py
+# ═══════════════════════════════════════════════════════
+def render_sidebar(retailer):
+    try:
+        import retailer_sidebar
+        with st.sidebar:
+            page = retailer_sidebar.render(retailer)
+            if page and page != st.session_state.retailer_page:
+                st.session_state.retailer_page = page
+                st.rerun()
+    except Exception as e:
+        # Fallback: simple menu
+        with st.sidebar:
+            st.error(f"Sidebar module failed: {e}")
+            st.markdown("### 🛒 Menu")
+            for key, label in [
+                ("home", "🏠 Home"),
+                ("order", "🛒 Place Order"),
+                ("bills", "🧾 Bill History"),
+                ("ledger", "💰 Ledger"),
+                ("profile", "👤 My Profile"),
+            ]:
+                if st.button(label, key=f"fb_{key}", use_container_width=True):
+                    st.session_state.retailer_page = key
+                    st.rerun()
+            st.markdown("---")
+            if st.button("🚪 Sign Out", use_container_width=True):
+                st.session_state.retailer_user = None
+                st.rerun()
+
+
+# ═══════════════════════════════════════════════════════
+# PAGES — delegate to existing retailer_pages.py
+# ═══════════════════════════════════════════════════════
+def page_home(retailer):
+    st.markdown(f"""
+    <div class="ma-hero">
+        <div class="badge">RETAILER PORTAL · {retailer.get('id', '')}</div>
+        <h1>Welcome back, {retailer.get('owner', '')}</h1>
+        <div class="sub">{retailer.get('shop', '')} · {datetime.now().strftime('%d-%b-%Y %H:%M')}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Credit Limit", f"₹{retailer.get('credit_limit', 0):,.0f}")
+    c2.metric("Outstanding", f"₹{retailer.get('outstanding', 0):,.0f}")
+    c3.metric("Available", f"₹{retailer.get('credit_limit', 0) - retailer.get('outstanding', 0):,.0f}")
+    c4.metric("Status", retailer.get("status", "Active"))
+
+
+def render_existing_page(page_key, retailer):
+    """Try to delegate to existing retailer_pages.py functions."""
+    try:
+        import retailer_pages
+    except Exception as e:
+        st.error(f"Could not import retailer_pages: {e}")
+        return False
+
+    mapping = {
+        "order":     ("render_order",     None),
+        "reorder":   ("render_reorder",   None),
+        "bills":     ("render_bills",     None),
+        "track":     ("render_track",     None),
+        "cart":      ("render_cart",      None),
+        "favorites": ("render_favorites", None),
+        "stock":     ("render_stock",     None),
+        "ledger":    ("render_ledger",    None),
+        "notify":    ("render_notifications", None),
+        "offers":    ("render_offers",    None),
+        "business":  ("render_business",  None),
+        "contact":   ("render_contact",   None),
+        "profile":   ("render_profile",   None),
+    }
+
+    if page_key not in mapping:
+        return False
+
+    func_name, _ = mapping[page_key]
+    func = getattr(retailer_pages, func_name, None)
+
+    if func is None:
+        st.warning(f"⚠️ `retailer_pages.{func_name}()` not found")
+        st.info(f"This page will be built next. Currently showing placeholder.")
+        st.caption(f"Available in retailer_pages.py: "
+                   f"{[x for x in dir(retailer_pages) if x.startswith('render_')]}")
+        return True
+
+    try:
+        func(retailer)
+        return True
+    except Exception as e:
+        st.error(f"Error in {func_name}: {e}")
+        import traceback
+        with st.expander("Full traceback"):
+            st.code(traceback.format_exc())
+        return True
+
+
+# ═══════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════
+if st.session_state.retailer_user is None:
+    render_login()
+else:
+    retailers = load_retailers()
+    retailer = next((r for r in retailers if r["id"] == st.session_state.retailer_user), None)
+
+    if not retailer:
+        st.error("Session expired. Please log in again.")
+        st.session_state.retailer_user = None
+        st.rerun()
+
+    render_sidebar(retailer)
+
+    page = st.session_state.retailer_page
+
+    if page == "home":
+        page_home(retailer)
+    else:
+        # Try existing retailer_pages first
+        handled = render_existing_page(page, retailer)
+        if not handled:
+            st.info(f"Page '{page}' — not yet wired")
+            if st.button("← Home"):
+                st.session_state.retailer_page = "home"
+                st.rerun()

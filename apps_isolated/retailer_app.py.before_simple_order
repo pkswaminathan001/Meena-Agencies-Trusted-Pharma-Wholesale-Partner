@@ -1,0 +1,444 @@
+"""
+retailer_app.py — Isolated Retailer App v2
+Runs on port 8501
+Full retailer experience: login, sidebar, place order, bills, etc.
+Isolated from owner_app.py and staff_app.py.
+"""
+import streamlit as st
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+# Add parent to path for shared modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+st.set_page_config(
+    page_title="Meena Agencies — Retailer",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ─── Clean light styling ───
+st.markdown("""
+<style>
+/* ═══════════════════════════════════════════════════
+   MEENA AGENCIES — Retailer Theme v1
+   ═══════════════════════════════════════════════════ */
+
+/* Background: soft gradient */
+.stApp, [data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #f0f4ff 0%, #f7f9fc 50%, #eef2ff 100%) !important;
+}
+
+/* All text dark and readable */
+h1, h2, h3, h4, h5 { color: #0a0e27 !important; font-weight: 800 !important; }
+p, span, div, label, li { color: #1a1f36 !important; }
+
+/* Sidebar: clean white with subtle border */
+[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+[data-testid="stSidebar"] * { color: #1a1f36 !important; }
+
+/* Metric cards: white with shadow and accent */
+[data-testid="stMetric"] {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 4px solid #0091ea !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.2rem !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stMetric"]:hover {
+    box-shadow: 0 6px 20px rgba(0,145,234,0.12) !important;
+    transform: translateY(-2px) !important;
+}
+[data-testid="stMetricLabel"] {
+    color: #64748b !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 1px !important;
+}
+[data-testid="stMetricValue"] {
+    color: #0a0e27 !important;
+    font-weight: 800 !important;
+    font-size: 1.6rem !important;
+}
+
+/* Buttons: clean with brand blue */
+.stButton > button {
+    background: #ffffff !important;
+    color: #1a1f36 !important;
+    border: 1px solid #cbd5e0 !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1rem !important;
+    transition: all 0.15s ease !important;
+    text-align: left !important;
+}
+.stButton > button:hover {
+    background: #e0f2ff !important;
+    border-color: #0091ea !important;
+    color: #0091ea !important;
+    transform: translateX(3px) !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #0091ea, #5b21b6) !important;
+    color: #ffffff !important;
+    border: none !important;
+    text-align: center !important;
+}
+
+/* Hero banner */
+.ma-hero {
+    background: linear-gradient(135deg, #0a1535 0%, #1a2851 100%);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    color: #ffffff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(10,21,53,0.15);
+}
+.ma-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -20%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,212,255,0.25) 0%, transparent 60%);
+    pointer-events: none;
+}
+.ma-hero h1 {
+    color: #ffffff !important;
+    margin: 0 !important;
+    font-size: 1.8rem !important;
+    letter-spacing: -0.5px;
+}
+.ma-hero .sub {
+    color: #a8b2d1 !important;
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
+}
+.ma-hero .badge {
+    display: inline-block;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.4);
+    color: #00d4ff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+/* Login card */
+.ma-login-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 20px 60px rgba(10,21,53,0.10);
+    max-width: 420px;
+    margin: 2rem auto;
+    text-align: center;
+}
+.ma-login-card h2 {
+    color: #0a0e27 !important;
+    font-weight: 800 !important;
+    margin-bottom: 0.3rem;
+}
+.ma-login-card p {
+    color: #64748b !important;
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Inputs */
+input, textarea, select,
+.stTextInput input, .stNumberInput input, .stTextArea textarea {
+    background: #ffffff !important;
+    color: #1a1f36 !important;
+    border: 1px solid #cbd5e0 !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 0.9rem !important;
+    font-size: 0.95rem !important;
+}
+input:focus {
+    border-color: #0091ea !important;
+    box-shadow: 0 0 0 3px rgba(0,145,234,0.15) !important;
+}
+
+/* Info/success boxes */
+.stAlert { border-radius: 12px !important; }
+
+/* Sidebar menu highlight for active */
+[data-testid="stSidebar"] button[kind="secondary"] {
+    background: #f8fafc !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════
+# DATA HELPERS
+# ═══════════════════════════════════════════════════════════
+PARENT = Path(__file__).parent.parent
+
+
+LOGO_PATH = Path(__file__).parent / "static" / "logo.png"
+
+def render_logo(size=60):
+    """Render peacock logo if available, else emoji fallback."""
+    if LOGO_PATH.exists():
+        st.markdown(
+            f'<div style="text-align:center;margin-bottom:1rem;">'
+            f'<img src="data:image/png;base64,{_logo_b64()}" '
+            f'style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'box-shadow:0 4px 20px rgba(0,145,234,0.3);" />'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f'<div style="text-align:center;font-size:{size}px;margin-bottom:1rem;">🦚</div>',
+            unsafe_allow_html=True,
+        )
+
+def _logo_b64():
+    """Load logo as base64 string."""
+    import base64
+    try:
+        return base64.b64encode(LOGO_PATH.read_bytes()).decode()
+    except Exception:
+        return ""
+
+
+
+def load_json(fname, default):
+    p = PARENT / fname
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return default
+    return default
+
+def load_retailers():
+    return load_json("retailers.json", [])
+
+def save_retailers(r):
+    (PARENT / "retailers.json").write_text(json.dumps(r, indent=2))
+
+def verify_pin(provided, stored_hash):
+    """Uses existing security.py if available; else fallback."""
+    try:
+        from security import verify_secret
+        return verify_secret(provided, stored_hash)
+    except Exception:
+        import hashlib
+        return hashlib.sha256(provided.encode()).hexdigest() == stored_hash
+
+
+# ═══════════════════════════════════════════════════════════
+# SESSION INIT
+# ═══════════════════════════════════════════════════════════
+if "retailer_user" not in st.session_state:
+    st.session_state.retailer_user = None
+if "retailer_page" not in st.session_state:
+    st.session_state.retailer_page = "home"
+
+
+# ═══════════════════════════════════════════════════════════
+# LOGIN SCREEN
+# ═══════════════════════════════════════════════════════════
+def render_login():
+    st.markdown("""
+    <div class="ma-hero" style="text-align:center;">
+        <div class="badge">RETAILER PORTAL</div>
+        <h1>🛒 Meena Agencies</h1>
+        <div class="sub">Wholesale Partner · Retailer Login</div>
+    </div>
+    """, unsafe_allow_html=True)
+    render_logo(size=100)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("retailer_login"):
+            rid = st.text_input("Retailer ID", placeholder="RET001").strip().upper()
+            pin = st.text_input("PIN", type="password", max_chars=6)
+            submitted = st.form_submit_button("🔓 Login", use_container_width=True)
+
+            if submitted:
+                retailers = load_retailers()
+                r = next((x for x in retailers if x["id"] == rid), None)
+                if not r:
+                    st.error(f"❌ Retailer '{rid}' not found")
+                elif not verify_pin(pin, r.get("pin_hash", "")):
+                    st.error("❌ Wrong PIN")
+                else:
+                    st.session_state.retailer_user = rid
+                    st.session_state.retailer_page = "home"
+                    st.rerun()
+
+        st.caption(f"Demo: RET001 / 3210   ·   RET002 / 3211   ·   RET003 / 3212")
+
+
+# ═══════════════════════════════════════════════════════════
+# SIDEBAR (14-item rich menu)
+# ═══════════════════════════════════════════════════════════
+MENU_ITEMS = [
+    ("home",      "🏠", "Home",              "Dashboard at a glance"),
+    ("order",     "🛒", "Place Order",       "Browse & buy medicines"),
+    ("reorder",   "🔁", "Reorder Last",      "One-tap repeat of last order"),
+    ("bills",     "🧾", "Bill History",      "Date-range bill selector"),
+    ("track",     "🚚", "Track Deliveries",  "See where your orders are"),
+    ("cart",      "🛍️", "My Cart",           "Review before submitting"),
+    ("favorites", "⭐", "Frequently Ordered", "Your top medicines"),
+    ("stock",     "🔍", "Stock Check",       "Search any medicine"),
+    ("ledger",    "💰", "Ledger / Balance",  "Payments & dues"),
+    ("notify",    "🔔", "Notifications",     "Order updates"),
+    ("offers",    "🎁", "Offers & Schemes",  "Current deals"),
+    ("business",  "📊", "My Business",       "Your purchase history"),
+    ("contact",   "📞", "Contact Us",        "Reach Meena Agencies"),
+    ("profile",   "👤", "My Profile",        "Contact, PIN, settings"),
+]
+
+
+def render_sidebar(retailer):
+    with st.sidebar:
+        render_logo(size=80)
+        st.markdown("### 🛒 Meena Agencies")
+        st.caption(f"**{retailer.get('shop', '')}**")
+        st.caption(f"{retailer.get('owner', '')} · {retailer.get('id', '')}")
+        st.caption(f"₹{retailer.get('outstanding', 0):,.0f} outstanding")
+        st.markdown("---")
+
+        for key, icon, label, help_text in MENU_ITEMS:
+            active = st.session_state.retailer_page == key
+            prefix = "**▸ " if active else ""
+            suffix = "**" if active else ""
+            if st.button(f"{prefix}{icon} {label}{suffix}",
+                         key=f"nav_{key}",
+                         use_container_width=True,
+                         help=help_text):
+                st.session_state.retailer_page = key
+                st.rerun()
+
+        st.markdown("---")
+        if st.button("🚪 Sign Out", use_container_width=True):
+            st.session_state.retailer_user = None
+            st.session_state.retailer_page = "home"
+            st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# PAGE RENDERERS
+# ═══════════════════════════════════════════════════════════
+def page_home(retailer):
+    st.markdown(f"""
+    <div class="ma-hero">
+        <div class="badge">RETAILER PORTAL · {retailer.get('id', '')}</div>
+        <h1>Welcome back, {retailer.get('owner', '')}</h1>
+        <div class="sub">{retailer.get('shop', '')} · {datetime.now().strftime('%d-%b-%Y %H:%M')}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Credit Limit", f"₹{retailer.get('credit_limit', 0):,.0f}")
+    c2.metric("Outstanding", f"₹{retailer.get('outstanding', 0):,.0f}")
+    c3.metric("Available", f"₹{retailer.get('credit_limit', 0) - retailer.get('outstanding', 0):,.0f}")
+    c4.metric("Status", retailer.get("status", "Active"))
+
+    st.markdown("---")
+    st.markdown("### Quick Actions")
+    qc1, qc2, qc3, qc4 = st.columns(4)
+    with qc1:
+        if st.button("🛒 Place Order", use_container_width=True):
+            st.session_state.retailer_page = "order"; st.rerun()
+    with qc2:
+        if st.button("🧾 Bill History", use_container_width=True):
+            st.session_state.retailer_page = "bills"; st.rerun()
+    with qc3:
+        if st.button("💰 Ledger", use_container_width=True):
+            st.session_state.retailer_page = "ledger"; st.rerun()
+    with qc4:
+        if st.button("📞 Contact", use_container_width=True):
+            st.session_state.retailer_page = "contact"; st.rerun()
+
+
+def page_placeholder(retailer, page_key, title, description):
+    st.markdown(f"## {title}")
+    st.info(description)
+    st.caption(f"This page is under construction. Coming next: full {title.lower()} functionality.")
+    if st.button("← Back to Home"):
+        st.session_state.retailer_page = "home"; st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════
+if st.session_state.retailer_user is None:
+    render_login()
+else:
+    retailers = load_retailers()
+    retailer = next((r for r in retailers if r["id"] == st.session_state.retailer_user), None)
+
+    if not retailer:
+        st.error("Session expired. Please log in again.")
+        st.session_state.retailer_user = None
+        st.rerun()
+
+    render_sidebar(retailer)
+
+    page = st.session_state.retailer_page
+
+    if page == "home":
+        page_home(retailer)
+    elif page == "order":
+        page_placeholder(retailer, "order", "🛒 Place Order",
+                         "Browse catalog by category, add to cart, submit with OTP.")
+    elif page == "reorder":
+        page_placeholder(retailer, "reorder", "🔁 Reorder Last",
+                         "One-tap repeat of your previous order.")
+    elif page == "bills":
+        page_placeholder(retailer, "bills", "🧾 Bill History",
+                         "View past orders with date-range filter and PDF download.")
+    elif page == "track":
+        page_placeholder(retailer, "track", "🚚 Track Deliveries",
+                         "Live delivery tracking for your orders.")
+    elif page == "cart":
+        page_placeholder(retailer, "cart", "🛍️ My Cart",
+                         "Review items before submitting.")
+    elif page == "favorites":
+        page_placeholder(retailer, "favorites", "⭐ Frequently Ordered",
+                         "Your top medicines for quick reorder.")
+    elif page == "stock":
+        page_placeholder(retailer, "stock", "🔍 Stock Check",
+                         "Search any medicine in our catalog.")
+    elif page == "ledger":
+        page_placeholder(retailer, "ledger", "💰 Ledger / Balance",
+                         "All payments, outstanding, and due history.")
+    elif page == "notify":
+        page_placeholder(retailer, "notify", "🔔 Notifications",
+                         "Order updates and alerts.")
+    elif page == "offers":
+        page_placeholder(retailer, "offers", "🎁 Offers & Schemes",
+                         "Current deals and bulk discounts.")
+    elif page == "business":
+        page_placeholder(retailer, "business", "📊 My Business",
+                         "Your purchase history and analytics.")
+    elif page == "contact":
+        page_placeholder(retailer, "contact", "📞 Contact Us",
+                         "Reach Meena Agencies · Phone: 6382130536")
+    elif page == "profile":
+        page_placeholder(retailer, "profile", "👤 My Profile",
+                         "Update contact info, change PIN, manage preferences.")
+    else:
+        page_home(retailer)

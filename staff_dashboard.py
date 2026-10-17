@@ -1,3 +1,4 @@
+import unified_brand
 """
 staff_dashboard.py — Role 1: Counter Staff / Sales
 Only 7 tasks. All confidential data blocked. Silent audit logging.
@@ -267,6 +268,13 @@ def _staff_info():
 # ═══════════════════════════════════════════════════════════
 
 def render():
+    # Big centered brand — same look as login + owner
+    try:
+        import unified_brand
+        unified_brand.render(size=140)
+    except Exception:
+        pass
+
     staff_id, staff_name = _staff_info()
 
     # ── Session logging (once) ──

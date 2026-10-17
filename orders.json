@@ -1,127 +1,5 @@
 [
   {
-    "order_id": "ORD-20260926171231-936",
-    "retailer_id": "RET001",
-    "shop": "Sri Balaji Medicals",
-    "items": [
-      {
-        "item_id": "MED0004",
-        "medicine": "Cough Syrup 100ml",
-        "batch": "B4304",
-        "qty": 10,
-        "price": 207.76
-      }
-    ],
-    "total": 2077.6,
-    "status": "Cancelled",
-    "placed_at": "26-SEP-2026 17:12",
-    "location": "Sri Balaji Medicals, Chennai",
-    "otp_verified_at": "26-SEP-2026 17:12",
-    "approved_at": "26-SEP-2026 17:34",
-    "cancelled_at": "26-SEP-2026 17:43",
-    "cancel_reason": ""
-  },
-  {
-    "order_id": "ORD-20260926171231-936",
-    "retailer_id": "RET001",
-    "shop": "Sri Balaji Medicals",
-    "items": [
-      {
-        "item_id": "MED0004",
-        "medicine": "Cough Syrup 100ml",
-        "batch": "B4304",
-        "qty": 10,
-        "price": 207.76
-      }
-    ],
-    "total": 2077.6,
-    "status": "Approved",
-    "placed_at": "26-SEP-2026 17:12",
-    "location": "Sri Balaji Medicals, Chennai",
-    "otp_verified_at": "26-SEP-2026 17:12",
-    "approved_at": "26-SEP-2026 17:34"
-  },
-  {
-    "order_id": "ORD-20260926172048-460",
-    "retailer_id": "RET001",
-    "shop": "Sri Balaji Medicals",
-    "items": [
-      {
-        "item_id": "MED0003",
-        "medicine": "Cetirizine 10mg",
-        "batch": "B6943",
-        "qty": 10,
-        "price": 390.36
-      },
-      {
-        "item_id": "MED0001",
-        "medicine": "Insulin Glargine",
-        "batch": "B1300",
-        "qty": 10,
-        "price": 358.3
-      },
-      {
-        "item_id": "MED0005",
-        "medicine": "Azithromycin 500mg",
-        "batch": "B6943",
-        "qty": 10,
-        "price": 596.96
-      }
-    ],
-    "total": 13456.2,
-    "status": "Cancelled",
-    "placed_at": "26-SEP-2026 17:20",
-    "location": "Sri Balaji Medicals, Chennai",
-    "otp_verified_at": "26-SEP-2026 17:21",
-    "approved_at": "26-SEP-2026 17:34",
-    "cancelled_at": "26-SEP-2026 17:43",
-    "cancel_reason": ""
-  },
-  {
-    "order_id": "ORD-20260927010808-611",
-    "retailer_id": "RET001",
-    "shop": "Sri Balaji Medicals",
-    "items": [
-      {
-        "item_id": "MED0186",
-        "medicine": "Amoxicillin 250mg",
-        "batch": "B3362",
-        "qty": 10,
-        "price": 540.29
-      }
-    ],
-    "total": 5402.9,
-    "status": "Delivered",
-    "placed_at": "27-SEP-2026 01:08",
-    "location": "Sri Balaji Medicals, Chennai",
-    "otp_verified_at": "27-SEP-2026 01:08",
-    "delivery_timeline": {
-      "Delivered": "27-SEP-2026 01:09"
-    }
-  },
-  {
-    "order_id": "ORD-20260927010808-611",
-    "retailer_id": "RET001",
-    "shop": "Sri Balaji Medicals",
-    "items": [
-      {
-        "item_id": "MED0186",
-        "medicine": "Amoxicillin 250mg",
-        "batch": "B3362",
-        "qty": 10,
-        "price": 540.29
-      }
-    ],
-    "total": 5402.9,
-    "status": "Delivered",
-    "placed_at": "27-SEP-2026 01:08",
-    "location": "Sri Balaji Medicals, Chennai",
-    "otp_verified_at": "27-SEP-2026 01:08",
-    "delivery_timeline": {
-      "Delivered": "27-SEP-2026 01:09"
-    }
-  },
-  {
     "order_id": "ORD-20260927190532-591",
     "retailer_id": "RET001",
     "shop": "Sri Balaji Medicals",
@@ -135,7 +13,7 @@
       }
     ],
     "total": 5402.9,
-    "status": "Pending",
+    "status": "Approved",
     "placed_at": "27-SEP-2026 19:05",
     "location": "Sri Balaji Medicals, Chennai",
     "otp_verified_at": "27-SEP-2026 19:05"
@@ -168,7 +46,7 @@
       }
     ],
     "total": 16208.699999999999,
-    "status": "Pending",
+    "status": "Approved",
     "placed_at": "27-SEP-2026 19:09",
     "location": "Sri Balaji Medicals, Chennai",
     "otp_verified_at": "27-SEP-2026 19:09"
@@ -186,10 +64,306 @@
       }
     ],
     "total": 0.0,
-    "status": "Pending",
+    "status": "Approved",
     "placed_at": "03-OCT-2026 00:30",
     "location": "Sri Balaji Medicals, Chennai",
     "source": "app",
     "otp_verified_at": "03-OCT-2026 00:30"
+  },
+  {
+    "order_id": "ORD-20261011202912",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "11-Oct-2026 20:29",
+    "total": 1225.6,
+    "items": [
+      {
+        "medicine": "Insulin Glargine",
+        "qty": 32,
+        "price": 38.3,
+        "line_total": 1225.6
+      }
+    ],
+    "status": "Approved",
+    "approval_decision": "manual",
+    "approval_reason": "Restricted category (Insulin)",
+    "approved_by": null,
+    "approved_at": null
+  },
+  {
+    "order_id": "ORD-20261011203135",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "11-Oct-2026 20:31",
+    "total": 8554.5,
+    "items": [
+      {
+        "medicine": "Salbutamol Inhaler",
+        "qty": 150,
+        "price": 57.03,
+        "line_total": 8554.5
+      }
+    ],
+    "status": "Approved",
+    "approval_decision": "manual",
+    "approval_reason": "High value order (\u20b98,554.50 > \u20b95,000.00)",
+    "approved_by": null,
+    "approved_at": null
+  },
+  {
+    "order_id": "ORD-TEST-RET001-045",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "27-Aug-2026 21:47",
+    "total": 4850,
+    "items": [
+      {
+        "medicine": "Paracetamol 500mg",
+        "qty": 20,
+        "price": 179.18,
+        "line_total": 3583.6
+      },
+      {
+        "medicine": "ORS Powder",
+        "qty": 5,
+        "price": 330.11,
+        "line_total": 1650.55
+      }
+    ],
+    "status": "delivered"
+  },
+  {
+    "order_id": "ORD-TEST-RET002-075",
+    "retailer_id": "RET002",
+    "shop": "Annai Pharmacy",
+    "placed_at": "28-Jul-2026 21:47",
+    "total": 18500,
+    "items": [
+      {
+        "medicine": "Amoxicillin 250mg",
+        "qty": 30,
+        "price": 540.29,
+        "line_total": 16208.7
+      },
+      {
+        "medicine": "Azithromycin 500mg",
+        "qty": 10,
+        "price": 342.3,
+        "line_total": 3423.0
+      }
+    ],
+    "status": "delivered"
+  },
+  {
+    "order_id": "ORD-TEST-RET003-040",
+    "retailer_id": "RET003",
+    "shop": "Vetri Medicals",
+    "placed_at": "01-Sep-2026 21:47",
+    "total": 6200,
+    "items": [
+      {
+        "medicine": "Cetirizine 10mg",
+        "qty": 15,
+        "price": 390.36,
+        "line_total": 5855.4
+      }
+    ],
+    "status": "delivered"
+  },
+  {
+    "order_id": "ORD-TEST-RET003-062",
+    "retailer_id": "RET003",
+    "shop": "Vetri Medicals",
+    "placed_at": "10-Aug-2026 21:47",
+    "total": 3100,
+    "items": [
+      {
+        "medicine": "Cough Syrup 100ml",
+        "qty": 15,
+        "price": 207.76,
+        "line_total": 3116.4
+      }
+    ],
+    "status": "delivered"
+  },
+  {
+    "order_id": "ORD-20261016220052",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 22:00",
+    "total": 125.12,
+    "items": [
+      {
+        "medicine": "Cough Syrup 100ml",
+        "qty": 4,
+        "price": 31.28,
+        "line_total": 125.12
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (6 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 22:00"
+  },
+  {
+    "order_id": "ORD-20261016230035",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:00",
+    "total": 117.32,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 4,
+        "price": 29.33,
+        "line_total": 117.32
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (7 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:00"
+  },
+  {
+    "order_id": "ORD-20261016231128",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:11",
+    "total": 87.99,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 3,
+        "price": 29.33,
+        "line_total": 87.99
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (8 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:11"
+  },
+  {
+    "order_id": "ORD-20261016234544",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:45",
+    "total": 29.33,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 1,
+        "price": 29.33,
+        "line_total": 29.33
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (9 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:45"
+  },
+  {
+    "order_id": "ORD-20261016235047",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:50",
+    "total": 410.62,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 14,
+        "price": 29.33,
+        "line_total": 410.62
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (10 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:50"
+  },
+  {
+    "order_id": "ORD-20261016235313",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:53",
+    "total": 55.24,
+    "items": [
+      {
+        "medicine": "Omeprazole 20mg",
+        "qty": 4,
+        "price": 13.81,
+        "line_total": 55.24
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (11 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:53"
+  },
+  {
+    "order_id": "ORD-20261016235634",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:56",
+    "total": 29.33,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 1,
+        "price": 29.33,
+        "line_total": 29.33
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (12 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:56"
+  },
+  {
+    "order_id": "ORD-20261016235655",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "16-Oct-2026 23:56",
+    "total": 29.33,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 1,
+        "price": 29.33,
+        "line_total": 29.33
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (13 prior orders)",
+    "approved_by": "System",
+    "approved_at": "16-Oct-2026 23:56"
+  },
+  {
+    "order_id": "ORD-20261017073729",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "17-Oct-2026 07:37",
+    "total": 38.3,
+    "items": [
+      {
+        "medicine": "Insulin Glargine",
+        "qty": 1,
+        "price": 38.3,
+        "line_total": 38.3
+      }
+    ],
+    "status": "pending",
+    "approval_decision": "manual",
+    "approval_reason": "Restricted category (Insulin)",
+    "approved_by": null,
+    "approved_at": null
   }
 ]

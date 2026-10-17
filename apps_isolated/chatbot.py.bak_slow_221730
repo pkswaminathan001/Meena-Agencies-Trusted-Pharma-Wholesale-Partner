@@ -1,0 +1,487 @@
+"""
+chatbot.py — Telegram chatbot for Meena Agencies
+Runs as a standalone background process.
+Polls Telegram, identifies user role, replies with filtered data.
+Owner gets AI-powered replies (Groq). Retailers get own data only.
+"""
+import json, os, sys, time, traceback, urllib.request, urllib.parse
+from datetime import datetime
+from pathlib import Path
+
+PARENT = Path(__file__).parent.parent
+ENV_FILE = Path.home() / ".config" / "meena" / ".env"
+USERS_FILE = PARENT / "chatbot_users.json"
+LOG_FILE = PARENT / "chatbot.log"
+STATE_FILE = PARENT / "chatbot_state.json"
+
+
+def log(msg):
+    try:
+        ts = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
+
+def load_env():
+    env = {}
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text().split("\n"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+def load_json(path, default):
+    if Path(path).exists():
+        try:
+            return json.loads(Path(path).read_text())
+        except Exception:
+            return default
+    return default
+
+
+def save_json(path, data):
+    try:
+        Path(path).write_text(json.dumps(data, indent=2))
+    except Exception as e:
+        log(f"save error {path}: {e}")
+
+
+ENV = load_env()
+TOKEN = ENV.get("TELEGRAM_BOT_TOKEN", "")
+OWNER_CHAT_ID = str(ENV.get("OWNER_CHAT_ID", ""))
+
+
+# ═══════════════════════════════════════════════════════
+# USER ROLES
+# ═══════════════════════════════════════════════════════
+def get_user_role(chat_id):
+    """Look up a chat_id. Returns (role, name, retailer_id) or (None, None, None)."""
+    cid = str(chat_id)
+
+    # Owner
+    if cid == OWNER_CHAT_ID:
+        return ("owner", "Swaminathan", None)
+
+    # Retailer
+    retailers = load_json(PARENT / "retailers.json", [])
+    if isinstance(retailers, dict):
+        retailers = list(retailers.values())
+    for r in retailers:
+        if not isinstance(r, dict):
+            continue
+        if str(r.get("telegram_chat_id", "")).strip() == cid:
+            return ("retailer", r.get("owner", r.get("shop", "Retailer")), r.get("id"))
+
+    # Sales rep
+    reps = load_json(PARENT / "salespeople.json", [])
+    if isinstance(reps, dict):
+        reps = list(reps.values())
+    for rep in reps:
+        if not isinstance(rep, dict):
+            continue
+        if str(rep.get("telegram_chat_id", "")).strip() == cid:
+            return ("rep", rep.get("name", "Rep"), rep.get("id"))
+
+    return (None, None, None)
+
+
+# ═══════════════════════════════════════════════════════
+# TELEGRAM API
+# ═══════════════════════════════════════════════════════
+def tg_send(chat_id, text, parse_mode="HTML"):
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({
+            "chat_id": str(chat_id),
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_web_page_preview": "true",
+        }).encode()
+        req = urllib.request.Request(url, data=data, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            d = json.loads(resp.read())
+            return d.get("ok", False)
+    except Exception as e:
+        log(f"tg_send error: {e}")
+        return False
+
+
+def tg_get_updates(offset=None):
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+        params = {"timeout": "25"}
+        if offset:
+            params["offset"] = str(offset)
+        url += "?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            d = json.loads(resp.read())
+            if d.get("ok"):
+                return d.get("result", [])
+    except Exception as e:
+        log(f"getUpdates error: {e}")
+    return []
+
+
+# ═══════════════════════════════════════════════════════
+# DATA ACCESS (read-only)
+# ═══════════════════════════════════════════════════════
+def load_orders():
+    o = load_json(PARENT / "orders.json", [])
+    return o if isinstance(o, list) else list(o.values())
+
+
+def load_retailers():
+    r = load_json(PARENT / "retailers.json", [])
+    return r if isinstance(r, list) else list(r.values())
+
+
+def money(v):
+    try:
+        return f"Rs.{float(v):,.2f}"
+    except Exception:
+        return "Rs.0.00"
+
+
+# ═══════════════════════════════════════════════════════
+# GROQ AI (for owner only)
+# ═══════════════════════════════════════════════════════
+def groq_ask(question, context):
+    try:
+        key = ""
+        gk = PARENT / ".groq_key"
+        if gk.exists():
+            key = gk.read_text().strip()
+        if not key:
+            return None
+        payload = {
+            "model": "openai/gpt-oss-120b",
+            "messages": [
+                {"role": "system", "content":
+                 "You are JARVIS, AI assistant for Meena Agencies, "
+                 "a wholesale pharma distributor in Tamil Nadu. "
+                 "Answer concisely with real numbers from the data. "
+                 "Use Rs. for amounts. Never invent data."},
+                {"role": "system", "content": "LIVE DATA:\n" + context},
+                {"role": "user", "content": question},
+            ],
+            "temperature": 0.3,
+            "max_tokens": 600,
+        }
+        req = urllib.request.Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": "Bearer " + key,
+                "Content-Type": "application/json",
+                "User-Agent": "Meena-Chatbot/1.0",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            d = json.loads(resp.read())
+            return d["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        log(f"groq error: {e}")
+        return None
+
+
+def build_context():
+    orders = load_orders()
+    rets = load_retailers()
+    lines = ["=== BUSINESS SNAPSHOT ==="]
+    lines.append(f"Total orders: {len(orders)}")
+    pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+    lines.append(f"Pending orders: {len(pending)}")
+    lines.append("")
+    lines.append("=== RETAILERS ===")
+    for r in rets:
+        if not isinstance(r, dict):
+            continue
+        lines.append(
+            f"- {r.get('shop','?')} ({r.get('id','?')}): "
+            f"owner={r.get('owner','?')}, "
+            f"outstanding={money(r.get('outstanding',0))}, "
+            f"limit={money(r.get('credit_limit',0))}, "
+            f"status={r.get('status','Active')}"
+        )
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════
+# ROLE-SPECIFIC HANDLERS
+# ═══════════════════════════════════════════════════════
+def handle_owner(chat_id, text):
+    """Owner gets full AI-powered replies."""
+    text_lower = text.strip().lower()
+
+    # Fast rule-based for common queries
+    if text_lower in ("hi", "hello", "start", "/start"):
+        return (
+            "🙏 <b>Vanakkam Swaminathan!</b>\n\n"
+            "I'm your AI assistant for Meena Agencies.\n\n"
+            "<b>Try asking:</b>\n"
+            "• who should I call today?\n"
+            "• pending orders\n"
+            "• retailers\n"
+            "• daily brief\n"
+            "• How is business?"
+        )
+
+    if text_lower in ("pending", "pending orders"):
+        orders = load_orders()
+        pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+        if not pending:
+            return "✅ No pending orders."
+        lines = [f"⏳ <b>{len(pending)} pending order(s):</b>\n"]
+        for o in pending[:10]:
+            lines.append(
+                f"• {o.get('order_id','?')} · {o.get('shop','?')} · "
+                f"{money(o.get('total',0))}"
+            )
+        return "\n".join(lines)
+
+    if text_lower in ("retailers", "list retailers"):
+        rets = load_retailers()
+        lines = [f"🏪 <b>{len(rets)} retailer(s):</b>\n"]
+        for r in rets:
+            if not isinstance(r, dict):
+                continue
+            out = float(r.get("outstanding") or 0)
+            lim = float(r.get("credit_limit") or 0)
+            pct = (out / lim * 100) if lim else 0
+            emoji = "🔴" if pct >= 90 else ("🟠" if pct >= 60 else "🟢")
+            lines.append(
+                f"{emoji} <b>{r.get('shop','?')}</b> ({r.get('id','?')})\n"
+                f"   {money(out)} / {money(lim)} ({pct:.0f}%)"
+            )
+        return "\n".join(lines)
+
+    if text_lower in ("brief", "daily brief", "morning brief"):
+        orders = load_orders()
+        pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+        rets = load_retailers()
+        total_out = sum(float(r.get("outstanding") or 0) for r in rets if isinstance(r, dict))
+        return (
+            f"📊 <b>Daily Brief — {datetime.now().strftime('%d-%b-%Y')}</b>\n\n"
+            f"📦 Orders: {len(orders)} total, {len(pending)} pending\n"
+            f"💰 Total outstanding: {money(total_out)}\n"
+            f"🏪 Retailers: {len(rets)}\n\n"
+            f"<i>Type 'who should I call today' for AI recommendations</i>"
+        )
+
+    # AI fallback — anything else
+    context = build_context()
+    reply = groq_ask(text, context)
+    if reply:
+        return reply
+
+    return (
+        "I'm not sure how to help. Try:\n"
+        "• pending orders\n"
+        "• retailers\n"
+        "• who should I call today?\n"
+        "• daily brief"
+    )
+
+
+def handle_retailer(chat_id, text, name, retailer_id):
+    """Retailer gets own data only. No cross-tenant leakage."""
+    text_lower = text.strip().lower()
+
+    # Find their record
+    retailers = load_retailers()
+    me = None
+    for r in retailers:
+        if isinstance(r, dict) and str(r.get("id", "")).upper() == str(retailer_id).upper():
+            me = r
+            break
+
+    if text_lower in ("hi", "hello", "start", "/start"):
+        out = float((me or {}).get("outstanding") or 0)
+        lim = float((me or {}).get("credit_limit") or 0)
+        avail = lim - out
+        return (
+            f"🙏 <b>Vanakkam {name}!</b>\n\n"
+            f"🏪 {me.get('shop','your shop') if me else 'your shop'}\n"
+            f"💰 Outstanding: <b>{money(out)}</b>\n"
+            f"💳 Available: <b>{money(avail)}</b>\n\n"
+            f"<b>Reply with:</b>\n"
+            f"• <b>bills</b> — your order history\n"
+            f"• <b>balance</b> — your ledger\n"
+            f"• <b>order</b> — place a new order"
+        )
+
+    if text_lower in ("bills", "my bills", "orders"):
+        all_orders = load_orders()
+        mine = [o for o in all_orders
+                if str(o.get("retailer_id", "")).upper() == str(retailer_id).upper()]
+        if not mine:
+            return "No orders yet."
+        lines = [f"🧾 <b>Your last {min(len(mine), 10)} order(s):</b>\n"]
+        for o in mine[-10:][::-1]:
+            status_emoji = {
+                "pending": "⏳", "approved": "✅",
+                "delivered": "🎉", "cancelled": "❌"
+            }.get((o.get("status") or "").lower(), "•")
+            lines.append(
+                f"{status_emoji} <b>{o.get('order_id','?')}</b>\n"
+                f"   {money(o.get('total', 0))} · {o.get('placed_at','')}"
+            )
+        return "\n".join(lines)
+
+    if text_lower in ("balance", "ledger", "outstanding"):
+        out = float((me or {}).get("outstanding") or 0)
+        lim = float((me or {}).get("credit_limit") or 0)
+        avail = lim - out
+        pct = (out / lim * 100) if lim else 0
+        return (
+            f"💰 <b>Your Ledger</b>\n\n"
+            f"Credit Limit: <b>{money(lim)}</b>\n"
+            f"Outstanding:  <b>{money(out)}</b>\n"
+            f"Available:    <b>{money(avail)}</b>\n"
+            f"Used: {pct:.0f}%"
+        )
+
+    if text_lower in ("order", "place order", "new order"):
+        return (
+            f"🛒 To place a new order:\n\n"
+            f"1. Open the app: <a href='http://localhost:8501'>http://localhost:8501</a>\n"
+            f"2. Login as {retailer_id}\n"
+            f"3. Add medicines → Request OTP\n\n"
+            f"Or call your sales rep."
+        )
+
+    return (
+        f"Vanakkam {name}! 🙏\n\n"
+        f"<b>Available commands:</b>\n"
+        f"• bills\n"
+        f"• balance\n"
+        f"• order"
+    )
+
+
+def handle_rep(chat_id, text, name, rep_id):
+    """Sales rep messages get forwarded to owner."""
+    # Forward to owner
+    fwd = (
+        f"👤 <b>Sales Rep Message</b>\n\n"
+        f"<b>From:</b> {name} ({rep_id})\n"
+        f"<b>Time:</b> {datetime.now().strftime('%d-%b-%Y %H:%M')}\n"
+        f"<b>Message:</b> {text}"
+    )
+    tg_send(OWNER_CHAT_ID, fwd)
+
+    return (
+        f"✅ Message sent to owner.\n"
+        f"<i>He'll follow up with you shortly.</i>"
+    )
+
+
+def handle_unknown(chat_id, text):
+    """Unknown user."""
+    return (
+        "🙏 <b>Vanakkam!</b>\n\n"
+        "This bot is for registered Meena Agencies partners only.\n\n"
+        "If you're a retailer, please contact us to register:\n"
+        "📞 +91 63821 30536"
+    )
+
+
+# ═══════════════════════════════════════════════════════
+# MESSAGE ROUTER
+# ═══════════════════════════════════════════════════════
+def route_message(chat_id, text):
+    """Route incoming message to the right handler."""
+    role, name, retailer_id = get_user_role(chat_id)
+
+    log(f"Message from {chat_id} ({role or 'unknown'}) — {text[:50]!r}")
+
+    if role == "owner":
+        return handle_owner(chat_id, text)
+    elif role == "retailer":
+        return handle_retailer(chat_id, text, name, retailer_id)
+    elif role == "rep":
+        return handle_rep(chat_id, text, name, retailer_id)
+    else:
+        return handle_unknown(chat_id, text)
+
+
+# ═══════════════════════════════════════════════════════
+# MAIN LOOP (long polling)
+# ═══════════════════════════════════════════════════════
+def main():
+    if not TOKEN:
+        print("❌ No TELEGRAM_BOT_TOKEN in env")
+        sys.exit(1)
+
+    log("=" * 50)
+    log("Chatbot starting...")
+    print("═" * 50)
+    print("  Meena Agencies — Telegram Chatbot")
+    print("═" * 50)
+    print(f"  Bot: @MeenaAgenciesBot")
+    print(f"  Owner chat_id: {OWNER_CHAT_ID}")
+    print(f"  Log: {LOG_FILE}")
+    print("═" * 50)
+
+    state = load_json(STATE_FILE, {"offset": 0})
+    offset = state.get("offset", 0)
+
+    # Skip any accumulated messages from before this session
+    updates = tg_get_updates(None)
+    if updates:
+        last_id = max(u.get("update_id", 0) for u in updates)
+        offset = last_id + 1
+        save_json(STATE_FILE, {"offset": offset})
+        print(f"  Skipped {len(updates)} old message(s)")
+
+    print("  ✅ Listening for messages...")
+    print("═" * 50)
+
+    consecutive_errors = 0
+
+    while True:
+        try:
+            updates = tg_get_updates(offset)
+            if updates:
+                for u in updates:
+                    msg = u.get("message") or u.get("edited_message") or {}
+                    chat = msg.get("chat", {})
+                    chat_id = chat.get("id")
+                    text = msg.get("text") or msg.get("caption") or ""
+                    if not chat_id or not text:
+                        offset = u.get("update_id", offset) + 1
+                        continue
+
+                    try:
+                        reply = route_message(chat_id, text)
+                        if reply:
+                            ok = tg_send(chat_id, reply)
+                            log(f"Replied to {chat_id}: {'OK' if ok else 'FAILED'}")
+                    except Exception as e:
+                        log(f"Handler error: {e}\n{traceback.format_exc()}")
+
+                    offset = u.get("update_id", offset) + 1
+                    save_json(STATE_FILE, {"offset": offset})
+
+            consecutive_errors = 0
+            time.sleep(1)
+
+        except KeyboardInterrupt:
+            print("\n👋 Chatbot stopped by user")
+            log("Stopped by user")
+            break
+        except Exception as e:
+            consecutive_errors += 1
+            log(f"Loop error {consecutive_errors}: {e}")
+            print(f"⚠️  Error: {e}")
+            time.sleep(min(30, 2 ** consecutive_errors))
+
+
+if __name__ == "__main__":
+    main()

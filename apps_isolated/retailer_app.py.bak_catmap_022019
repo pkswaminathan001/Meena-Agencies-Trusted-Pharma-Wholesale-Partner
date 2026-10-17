@@ -1,0 +1,1196 @@
+"""
+retailer_app.py — Bulletproof Retailer App (v5)
+Fixes: missing sidebar, mobile overlay, wrong app routing
+"""
+import base64, sys, json, hashlib
+from pathlib import Path
+import pandas as pd
+import streamlit as st
+RESPONSIVE_ALL_DEVICES_CSS = """
+<style>
+/* ─── Fluid typography: scales from phone to 4K ─── */
+html { font-size: 16px; }
+@media (max-width: 480px)  { html { font-size: 14px; } }
+@media (max-width: 360px)  { html { font-size: 13px; } }
+@media (min-width: 1920px) { html { font-size: 17px; } }
+
+/* ─── Main container: never let content touch screen edges ─── */
+.main .block-container,
+[data-testid="stAppViewContainer"] .main .block-container,
+section.main > div {
+    padding-left: max(1rem, env(safe-area-inset-left)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right)) !important;
+    padding-top: 1rem !important;
+    max-width: 1400px !important;
+}
+@media (max-width: 768px) {
+    .main .block-container,
+    section.main > div {
+        padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+        padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+        padding-top: 0.5rem !important;
+    }
+}
+
+/* ─── Sidebar: slide-in overlay on mobile, always-visible on desktop ─── */
+section[data-testid="stSidebar"] {
+    transition: transform 0.25s ease !important;
+}
+@media (min-width: 1024px) {
+    /* Desktop: sidebar is a normal column */
+    section[data-testid="stSidebar"] {
+        min-width: 260px !important;
+        max-width: 320px !important;
+        position: relative !important;
+        transform: none !important;
+    }
+}
+@media (min-width: 769px) and (max-width: 1023px) {
+    /* Tablet / iPad: narrower sidebar */
+    section[data-testid="stSidebar"] {
+        min-width: 220px !important;
+        max-width: 260px !important;
+    }
+}
+@media (max-width: 768px) {
+    /* Phone: sidebar overlays, doesn't push content off */
+    section[data-testid="stSidebar"] {
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        height: 100vh !important;
+        width: 82vw !important;
+        max-width: 320px !important;
+        z-index: 999999 !important;
+        overflow-y: auto !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(-100%) !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="true"] {
+        transform: translateX(0) !important;
+    }
+    /* Dim the background when sidebar is open */
+    section[data-testid="stSidebar"][aria-expanded="true"]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: -1;
+        pointer-events: none;
+    }
+}
+
+/* ─── Stack columns on phone ─── */
+@media (max-width: 768px) {
+    /* Force any st.columns() row to stack vertically */
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+    }
+    /* Exception: keep small metric rows 2-up on phone if they're very short */
+    div[data-testid="stHorizontalBlock"]:has(> div > div > div > div[data-testid="stMetric"]) > div {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        min-width: calc(50% - 0.25rem) !important;
+    }
+}
+
+/* ─── Tables: horizontal scroll instead of cut-off ─── */
+[data-testid="stDataFrame"],
+[data-testid="stTable"],
+.stDataFrame,
+.stTable {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+[data-testid="stDataFrame"] > div,
+[data-testid="stTable"] > div {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+}
+/* Make table cells readable at small sizes */
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] th {
+    white-space: nowrap !important;
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.6rem !important;
+}
+@media (max-width: 480px) {
+    [data-testid="stDataFrame"] td,
+    [data-testid="stDataFrame"] th {
+        font-size: 0.72rem !important;
+        padding: 0.3rem 0.45rem !important;
+    }
+}
+
+/* ─── Buttons: bigger tap targets on touch ─── */
+@media (max-width: 768px) {
+    .stButton > button,
+    [data-testid="stBaseButton-secondary"],
+    [data-testid="stBaseButton-primary"] {
+        min-height: 44px !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 0.9rem !important;
+    }
+}
+
+/* ─── Text inputs / selects: prevent iOS zoom ─── */
+@media (max-width: 768px) {
+    input, select, textarea {
+        font-size: 16px !important;   /* iOS won't zoom below 16px */
+    }
+}
+
+/* ─── Metric cards: scale down text on phone ─── */
+@media (max-width: 480px) {
+    [data-testid="stMetric"] {
+        padding: 0.6rem !important;
+    }
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+    }
+}
+
+/* ─── Headings: shrink on phone ─── */
+@media (max-width: 480px) {
+    h1 { font-size: 1.5rem !important; line-height: 1.25 !important; }
+    h2 { font-size: 1.25rem !important; line-height: 1.3 !important; }
+    h3 { font-size: 1.1rem !important; line-height: 1.35 !important; }
+}
+
+/* ─── Custom product/medicine card grids: responsive ─── */
+.med-grid, .product-grid, .card-grid {
+    display: grid !important;
+    gap: 0.75rem !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+}
+@media (max-width: 768px) {
+    .med-grid, .product-grid, .card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+}
+@media (max-width: 420px) {
+    .med-grid, .product-grid, .card-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.4rem !important;
+    }
+    .med-card, .product-card { padding: 0.5rem !important; }
+    .med-card .med-emoji { font-size: 1.5rem !important; }
+}
+
+/* ─── Hide floating widgets that block content on phone ─── */
+@media (max-width: 768px) {
+    iframe[title="streamlit_float.float"] {
+        max-height: 40vh !important;
+    }
+}
+
+/* ─── Prevent horizontal page scroll (common mobile bug) ─── */
+html, body, [data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+
+/* ─── Chatbot / JARVIS widgets: full width on mobile ─── */
+@media (max-width: 768px) {
+    [data-testid="stChatMessage"],
+    [data-testid="stChatInput"] {
+        max-width: 100% !important;
+    }
+    [data-testid="stChatInput"] textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* ─── Tabs: horizontal scroll on mobile ─── */
+[data-testid="stTabs"] [role="tablist"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+}
+[data-testid="stTabs"] [role="tablist"] button {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* ─── Expander / forms: prevent overflow ─── */
+[data-testid="stExpander"], .stForm {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* ─── Fix iPad landscape specifically (1024-1366) ─── */
+@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+    .main .block-container {
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+}
+
+/* ─── Very wide screens (4K): don't stretch infinitely ─── */
+@media (min-width: 2200px) {
+    .main .block-container {
+        max-width: 1800px !important;
+        margin: 0 auto !important;
+    }
+}
+</style>
+"""
+
+st.markdown(RESPONSIVE_ALL_DEVICES_CSS, unsafe_allow_html=True)
+
+
+PARENT = Path(__file__).parent.parent
+sys.path.insert(0, str(PARENT))
+
+st.set_page_config(
+    page_title="Meena Agencies — Retailer",
+    page_icon="🦚",
+    layout="wide",
+    initial_sidebar_state="expanded",   # ALWAYS start open
+)
+
+# ────────── CSS ──────────
+st.markdown("""
+<style>
+/* ════════════════════════════════════════════════════════
+   MEENA AGENCIES — DARK THEME v3
+   ════════════════════════════════════════════════════════ */
+:root {
+    --bg:        #0a0e1a;
+    --bg-2:      #111827;
+    --card:      #1a1f2e;
+    --card-2:    #232938;
+    --border:    #2a3142;
+    --text:      #e8eaf6;
+    --muted:     #8892b0;
+    --cyan:      #00d4ff;
+    --purple:    #7b61ff;
+    --green:     #00d47a;
+    --orange:    #ffb547;
+    --red:       #ff4d6d;
+    --pink:      #e91e63;
+}
+
+/* Global */
+html, body, .stApp, [data-testid="stAppViewContainer"] {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    font-family: 'Inter', 'Source Sans', -apple-system, sans-serif !important;
+}
+[data-testid="stHeader"] { background: transparent !important; }
+#MainMenu, footer { visibility: hidden; }
+
+/* Main container */
+.main .block-container {
+    padding: 1.2rem 1.5rem 3rem !important;
+    max-width: 1400px !important;
+}
+@media (max-width: 768px) {
+    .main .block-container { padding: 0.8rem 0.8rem 3rem !important; }
+}
+
+/* ─── SIDEBAR ─── */
+section[data-testid="stSidebar"] {
+    background: #0d1220 !important;
+    border-right: 1px solid var(--border) !important;
+}
+section[data-testid="stSidebar"] * { color: var(--text) !important; }
+section[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--muted) !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    font-weight: 500 !important;
+    padding: 0.5rem 0.8rem !important;
+    margin: 2px 0 !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(0, 212, 255, 0.08) !important;
+    color: var(--text) !important;
+    border-color: rgba(0, 212, 255, 0.25) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(90deg, rgba(0,212,255,0.15), rgba(123,97,255,0.15)) !important;
+    color: var(--cyan) !important;
+    border: 1px solid rgba(0,212,255,0.4) !important;
+    font-weight: 700 !important;
+}
+
+/* ─── BUTTONS ─── */
+.stButton > button {
+    background: var(--card) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease !important;
+}
+.stButton > button:hover {
+    border-color: var(--cyan) !important;
+    color: var(--cyan) !important;
+    box-shadow: 0 0 12px rgba(0,212,255,0.2) !important;
+    transform: translateY(-1px);
+}
+[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(90deg, var(--cyan), var(--purple)) !important;
+    color: #0a0e1a !important;
+    border: none !important;
+    font-weight: 800 !important;
+}
+[data-testid="stBaseButton-primary"]:hover {
+    box-shadow: 0 0 20px rgba(0,212,255,0.5) !important;
+    transform: translateY(-1px);
+}
+
+/* ─── INPUTS ─── */
+.stTextInput input, .stNumberInput input, .stSelectbox select,
+[data-baseweb="select"] > div, [data-baseweb="input"] > div {
+    background: var(--card) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    border-radius: 10px !important;
+}
+.stTextInput input:focus, .stNumberInput input:focus {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.2) !important;
+}
+label, .stSelectbox label, .stTextInput label { color: var(--muted) !important; }
+
+/* ─── HEADINGS ─── */
+h1, h2, h3, h4 { color: var(--text) !important; font-weight: 700 !important; }
+h1 { font-size: 1.9rem !important; }
+h2 { font-size: 1.4rem !important; }
+h3 { font-size: 1.1rem !important; }
+@media (max-width: 480px) {
+    h1 { font-size: 1.4rem !important; }
+    h2 { font-size: 1.15rem !important; }
+}
+
+/* ─── HERO BANNER ─── */
+.hero {
+    background: linear-gradient(135deg, #0d3b66 0%, #4a3a8c 60%, #7b61ff 100%);
+    border-radius: 18px;
+    padding: 1.8rem 2rem 1.6rem;
+    margin-bottom: 1.4rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(123,97,255,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% 20%, rgba(0,212,255,0.25), transparent 55%);
+    pointer-events: none;
+}
+.hero-eyebrow {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 4px 12px;
+    margin-bottom: 0.8rem;
+    color: #ffffff;
+}
+.hero h1 {
+    margin: 0 !important;
+    font-size: 1.9rem !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    letter-spacing: -0.5px;
+}
+.hero h1 .accent {
+    background: linear-gradient(90deg, #00d4ff, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero p {
+    margin: 0.5rem 0 1rem !important;
+    color: rgba(255,255,255,0.85) !important;
+    font-size: 0.95rem;
+    max-width: 640px;
+}
+.hero-stats {
+    display: flex;
+    gap: 1.8rem;
+    flex-wrap: wrap;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 1rem;
+    margin-top: 0.4rem;
+}
+.hero-stat-label {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.65);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 2px;
+}
+.hero-stat-value {
+    font-size: 1.05rem;
+    color: #ffffff;
+    font-weight: 700;
+}
+@media (max-width: 480px) {
+    .hero { padding: 1.2rem 1.1rem; border-radius: 14px; }
+    .hero h1 { font-size: 1.3rem !important; }
+    .hero p { font-size: 0.82rem; }
+    .hero-stats { gap: 1rem; }
+    .hero-stat-value { font-size: 0.9rem; }
+}
+
+/* ─── METRIC TILES ─── */
+.metric-tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--cyan);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+}
+.metric-tile::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    opacity: 0.6;
+}
+.metric-tile.purple  { border-top-color: var(--purple); }
+.metric-tile.green   { border-top-color: var(--green); }
+.metric-tile.orange  { border-top-color: var(--orange); }
+.metric-tile .label {
+    font-size: 0.7rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+}
+.metric-tile .value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--cyan);
+}
+.metric-tile.purple .value { color: var(--purple); }
+.metric-tile.green  .value { color: var(--green); }
+.metric-tile.orange .value { color: var(--orange); }
+@media (max-width: 480px) {
+    .metric-tile { padding: 0.7rem 0.8rem; }
+    .metric-tile .value { font-size: 1.25rem; }
+}
+
+/* ─── SECTION HEADER ─── */
+.section-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0 0.9rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+.section-head::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--cyan), var(--purple));
+}
+
+/* ─── QUICK ACTION CARDS ─── */
+.action-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    transition: all 0.15s ease;
+    height: 100%;
+}
+.action-card:hover {
+    border-color: var(--cyan);
+    box-shadow: 0 6px 24px rgba(0,212,255,0.12);
+    transform: translateY(-2px);
+}
+.action-card .icon {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+.action-card .label {
+    margin-top: 0.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text);
+}
+.action-card .sub {
+    margin-top: 0.15rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+}
+
+/* ─── PRODUCT / MEDICINE CARD ─── */
+.med-card {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.9rem 0.8rem 0.6rem;
+    margin-bottom: 0.6rem;
+    position: relative;
+    transition: all 0.15s ease;
+}
+.med-card:hover {
+    border-color: var(--cyan);
+    box-shadow: 0 6px 20px rgba(0,212,255,0.1);
+}
+.med-emoji {
+    font-size: 2rem;
+    text-align: center;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(0,212,255,0.3));
+}
+.med-name {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text);
+    margin-top: 0.4rem;
+    min-height: 2.4rem;
+    line-height: 1.2;
+}
+.med-cat-chip {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+.med-price {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-top: 0.4rem;
+}
+.med-meta {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.1rem;
+}
+
+/* ─── TABLE ─── */
+[data-testid="stDataFrame"], .stDataFrame {
+    background: var(--card) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    overflow-x: auto !important;
+}
+
+/* ─── ALERTS ─── */
+.stAlert {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+def logo_html(h: int = 40) -> str:
+    p = Path(__file__).parent / "static" / "logo.png"
+    if p.exists():
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        return f'<img src="data:image/png;base64,{b64}" style="height:{h}px;" alt="Meena">'
+    return "🦚"
+
+
+def find_col(df, *cands):
+    cols = list(df.columns)
+    for c in cands:
+        if c in cols: return c
+    lower = {str(c).lower(): c for c in cols}
+    for c in cands:
+        if c.lower() in lower: return lower[c.lower()]
+    return None
+
+
+@st.cache_data(ttl=5)
+def load_inventory() -> pd.DataFrame:
+    for p in (PARENT / "inventory.csv", Path("inventory.csv")):
+        if p.exists():
+            try:
+                df = pd.read_csv(p)
+                df.columns = [c.strip().lower() for c in df.columns]
+                return df
+            except Exception: pass
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=60)
+def load_retailers() -> pd.DataFrame:
+    import json as _json
+    # JSON first
+    for p in (PARENT / "retailers.json", Path("retailers.json")):
+        if p.exists():
+            try:
+                data = _json.loads(p.read_text())
+                if isinstance(data, dict):
+                    data = list(data.values())
+                return pd.DataFrame(data)
+            except Exception: pass
+    # CSVs
+    for name in ("retailers.csv","retailer_master.csv","users.csv","credentials.csv"):
+        for base in (PARENT, Path(".")):
+            p = base / name
+            if p.exists():
+                try: return pd.read_csv(p)
+                except Exception: pass
+    return pd.DataFrame()
+
+
+# ────────── LOGIN ──────────
+def login_screen():
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        st.markdown(
+            f'<div style="text-align:center;margin:2rem 0 1rem;">{logo_html(80)}</div>',
+            unsafe_allow_html=True)
+        st.markdown(
+            '<h2 style="text-align:center;color:#0e7490;margin-bottom:0;">Meena Agencies</h2>',
+            unsafe_allow_html=True)
+        st.markdown(
+            '<p style="text-align:center;color:#6b7280;margin-top:0;">Retailer Portal</p>',
+            unsafe_allow_html=True)
+        st.markdown("---")
+
+        with st.form("login_form"):
+            rid = st.text_input("Retailer ID", placeholder="e.g. RET001")
+            pin = st.text_input("PIN", type="password", placeholder="4-digit PIN")
+            ok = st.form_submit_button("Sign In", use_container_width=True)
+
+        if not ok:
+            return
+
+        if not rid or not pin:
+            st.error("Enter both Retailer ID and PIN.")
+            return
+
+        users = load_retailers()
+        if users.empty:
+            st.error("User database not found.")
+            return
+
+        id_col = find_col(users, "retailer_id","id","code","user_id","username")
+        pin_col = find_col(users, "pin_hash","pin","password","passcode")
+        name_col = find_col(users, "name","firm_name","retailer_name")
+
+        if not id_col or not pin_col:
+            st.error(f"Columns wrong. Found: {list(users.columns)}")
+            return
+
+        users["_id"]  = users[id_col].astype(str).str.strip().str.upper()
+        users["_pin"] = users[pin_col].astype(str).str.strip()
+
+        sub = users[users["_id"] == rid.strip().upper()]
+        if sub.empty:
+            st.error(f"Retailer {rid.upper()} not found.")
+            return
+
+        stored = sub.iloc[0]["_pin"]
+        entered = pin.strip()
+
+        # Try plain, then sha256, then sha256 of lowercase
+        candidates = {
+            entered,
+            hashlib.sha256(entered.encode()).hexdigest(),
+            hashlib.sha256(entered.lower().encode()).hexdigest(),
+            hashlib.md5(entered.encode()).hexdigest(),
+        }
+        if stored not in candidates:
+            st.error("Invalid PIN.")
+            return
+
+        user = sub.iloc[0].drop(labels=["_id","_pin"], errors="ignore").to_dict()
+        st.session_state.retailer = user
+        st.session_state.retailer_id = rid.strip().upper()
+        st.session_state.page = "home"
+        st.rerun()
+
+
+# ────────── PAGES ──────────
+
+def page_home(r):
+    """Polished dashboard."""
+    name = (r.get("owner") or r.get("name") or r.get("firm_name")
+            or r.get("retailer_name") or "Retailer")
+    shop = r.get("shop") or r.get("firm_name") or st.session_state.get("retailer_id", "")
+    rid = st.session_state.get("retailer_id", "-")
+
+    st.markdown(f"""
+    <div class="hero">
+        <div class="hero-eyebrow">RETAILER PORTAL · {rid}</div>
+        <h1>Welcome back, <span class="accent">{name}</span></h1>
+        <p>Place orders, track deliveries, and manage your account for <b>{shop}</b>.</p>
+        <div class="hero-stats">
+            <div>
+                <div class="hero-stat-label">Credit Limit</div>
+                <div class="hero-stat-value">Rs.2,00,000</div>
+            </div>
+            <div>
+                <div class="hero-stat-label">Outstanding</div>
+                <div class="hero-stat-value">Rs.1,45,000</div>
+            </div>
+            <div>
+                <div class="hero-stat-label">Available</div>
+                <div class="hero-stat-value">Rs.55,000</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    m1, m2, m3, m4 = st.columns(4)
+    tiles = [
+        (m1, "cyan",   "Total Orders", "8",      "all time"),
+        (m2, "purple", "Total Spent",  "Rs.2,078", "lifetime"),
+        (m3, "green",  "Avg Order",    "Rs.2,078", "per order"),
+        (m4, "orange", "Last Order",   "03 Oct", "2026"),
+    ]
+    for col, tone, label, val, sub in tiles:
+        with col:
+            st.markdown(f"""
+            <div class="metric-tile {tone}">
+                <div class="label">{label}</div>
+                <div class="value">{val}</div>
+                <div style="font-size:0.68rem;color:#8892b0;margin-top:0.3rem;">{sub}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown('<div class="section-head">Quick Actions</div>', unsafe_allow_html=True)
+
+    q1, q2, q3, q4 = st.columns(4)
+    with q1:
+        if st.button("Place Order", use_container_width=True, key="qa_order"):
+            st.session_state.page = "order"
+            st.rerun()
+    with q2:
+        if st.button("Stock Check", use_container_width=True, key="qa_stock"):
+            st.session_state.page = "stock"
+            st.rerun()
+    with q3:
+        if st.button("Bill History", use_container_width=True, key="qa_bills"):
+            st.session_state.page = "bills"
+            st.rerun()
+    with q4:
+        if st.button("Ledger", use_container_width=True, key="qa_ledger"):
+            st.session_state.page = "ledger"
+            st.rerun()
+
+    st.markdown('<div class="section-head">Seasonal Picks</div>', unsafe_allow_html=True)
+
+    season_items = [
+        ("Paracetamol 500mg", "Rs.179.18"),
+        ("Cetirizine 10mg",   "Rs.390.36"),
+        ("Cough Syrup 100ml", "Rs.207.76"),
+        ("ORS Powder",        "Rs.330.11"),
+    ]
+    for nm, pr in season_items:
+        c1, c2 = st.columns([5, 2])
+        c1.markdown(
+            f"<div style='padding:0.5rem 0;border-bottom:1px solid #2a3142;color:#e8eaf6;font-size:0.9rem;'>{nm}</div>",
+            unsafe_allow_html=True,
+        )
+        c2.markdown(
+            f"<div style='padding:0.5rem 0;border-bottom:1px solid #2a3142;text-align:right;color:#00d47a;font-weight:700;font-size:0.9rem;'>{pr}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _classify(name: str):
+    """Return (emoji, color, category) for a medicine name."""
+    n = name.lower()
+    for key, emoji, color in _CAT_MAP:
+        if key.lower() in n:
+            return emoji, color, key
+    return "💊", "#00d4ff", "Medicine"
+
+
+@st.cache_data(ttl=15)
+def _order_catalog():
+    """Load + clean inventory for the ordering page."""
+    import pandas as pd
+    raw = load_inventory()
+    if raw.empty:
+        return pd.DataFrame()
+    df = raw.copy()
+
+    name_col  = find_col(df, "medicine_name","medicine","name","product","product_name","item")
+    price_col = find_col(df, "cost_price","price","mrp","rate","selling_price","unit_price")
+    stock_col = find_col(df, "quantity","stock","qty","available","on_hand")
+    batch_col = find_col(df, "batch_number","batch","lot")
+    exp_col   = find_col(df, "expiry_date","expiry","exp")
+    if not name_col:
+        return pd.DataFrame()
+
+    out = pd.DataFrame()
+    out["name"]  = df[name_col].astype(str).str.strip()
+    out["price"] = pd.to_numeric(df[price_col], errors="coerce").fillna(0) if price_col else 0.0
+    out["stock"] = pd.to_numeric(df[stock_col], errors="coerce").fillna(0).astype(int) if stock_col else 0
+    out["batch"] = df[batch_col].astype(str) if batch_col else "—"
+    out["exp"]   = df[exp_col].astype(str) if exp_col else "—"
+
+    # Apply a sale markup so cost_price looks like a retail price
+    if price_col and price_col.lower() in ("cost_price",):
+        out["price"] = (out["price"] * 1.18).round(2)
+
+    # Group duplicates: keep one row per name, sum stock, cheapest price
+    grouped = (
+        out.groupby("name", as_index=False)
+           .agg(
+                price=("price", "min"),
+                stock=("stock", "sum"),
+                batches=("batch", "count"),
+                earliest_exp=("exp", "min"),
+           )
+    )
+    grouped["emoji"], grouped["color"], grouped["cat"] = zip(
+        *grouped["name"].map(_classify)
+    )
+    return grouped.sort_values("name").reset_index(drop=True)
+
+
+def page_order(r):
+    st.markdown("## 🛒 Place Order")
+    st.caption("Search or tap a category. Set quantity → Add to cart.")
+
+    df = _order_catalog()
+    if df.empty:
+        st.error("Inventory is empty or unreadable.")
+        with st.expander("🔍 Debug"):
+            raw = load_inventory()
+            if not raw.empty:
+                st.write("Columns found:", list(raw.columns))
+                st.dataframe(raw.head(5))
+        return
+
+    # ── Session state ──
+    st.session_state.setdefault("cart", [])
+    st.session_state.setdefault("order_cat", "All")
+    st.session_state.setdefault("order_q",  "")
+
+    # ── Top toolbar: search + categories ──
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        q = st.text_input(
+            "Search", value=st.session_state.order_q,
+            placeholder="e.g. Dolo, ORS, Amoxicillin…",
+            key="order_q_input", label_visibility="collapsed",
+        ).strip().lower()
+        st.session_state.order_q = q
+    with c2:
+        sort_by = st.selectbox(
+            "Sort", ["A → Z", "Price ↑", "Price ↓", "Stock ↑"],
+            key="order_sort", label_visibility="collapsed",
+        )
+
+    # ── Category chips ──
+    cats = ["All"] + sorted(df["cat"].unique().tolist())
+    row = st.columns(min(len(cats), 6))
+    for i, cat in enumerate(cats):
+        with row[i % len(row)]:
+            active = st.session_state.order_cat == cat
+            if st.button(
+                f"{'✅ ' if active else ''}{cat}",
+                key=f"cat_{cat}",
+                use_container_width=True,
+                type="primary" if active else "secondary",
+            ):
+                st.session_state.order_cat = cat
+                st.rerun()
+
+    # ── Filter ──
+    view = df.copy()
+    if st.session_state.order_cat != "All":
+        view = view[view["cat"] == st.session_state.order_cat]
+    if q:
+        view = view[view["name"].str.lower().str.contains(q, na=False)]
+
+    if sort_by == "Price ↑":
+        view = view.sort_values("price")
+    elif sort_by == "Price ↓":
+        view = view.sort_values("price", ascending=False)
+    elif sort_by == "Stock ↑":
+        view = view.sort_values("stock")
+
+    st.caption(f"**{len(view)}** medicine(s) · {int(view['stock'].sum()):,} units in stock")
+
+    # ── Card grid (3 columns on desktop, stacks on mobile via CSS) ──
+    if view.empty:
+        st.info("No medicines match your filter.")
+    else:
+        # Paginate to keep UI snappy
+        PAGE = 24
+        st.session_state.setdefault("order_page", 1)
+        max_pages = max(1, (len(view) + PAGE - 1) // PAGE)
+        cur_page = min(st.session_state.order_page, max_pages)
+        page_slice = view.iloc[(cur_page-1)*PAGE : cur_page*PAGE]
+
+        cols = st.columns(3)
+        for i, (_, row) in enumerate(page_slice.iterrows()):
+            with cols[i % 3]:
+                _render_med_card(row)
+
+        # Pagination
+        if max_pages > 1:
+            pc1, pc2, pc3 = st.columns([1, 2, 1])
+            with pc1:
+                if st.button("← Prev", disabled=cur_page == 1, use_container_width=True):
+                    st.session_state.order_page = cur_page - 1
+                    st.rerun()
+            with pc2:
+                st.markdown(
+                    f"<div style='text-align:center;padding-top:0.5rem;'>"
+                    f"Page {cur_page} of {max_pages}</div>",
+                    unsafe_allow_html=True,
+                )
+            with pc3:
+                if st.button("Next →", disabled=cur_page == max_pages,
+                             use_container_width=True):
+                    st.session_state.order_page = cur_page + 1
+                    st.rerun()
+
+    # ── Cart drawer ──
+    _render_cart()
+
+
+def _render_med_card(row):
+    """One medicine card with qty stepper + Add button."""
+    name  = row["name"]
+    price = float(row["price"])
+    stock = int(row["stock"])
+    emoji = row["emoji"]
+    color = row["color"]
+    cat   = row["cat"]
+    batches = int(row.get("batches", 1))
+
+    # Card container
+    st.markdown(f"""
+    <div style="
+        background:#1a1f2e;border:1px solid #2a3142;border-radius:12px;
+        padding:0.9rem 0.8rem 0.5rem;margin-bottom:0.5rem;
+        border-top:3px solid {color};
+    ">
+        <div style="text-align:center;font-size:1.8rem;line-height:1;">{emoji}</div>
+        <div style="text-align:center;font-weight:700;font-size:0.9rem;
+                    margin-top:0.4rem;color:#e8eaf6;min-height:2.4rem;line-height:1.2;">
+            {name[:36]}
+        </div>
+        <div style="text-align:center;margin-top:0.4rem;">
+            <span style="background:{color}22;color:{color};
+                         border:1px solid {color}55;border-radius:6px;
+                         padding:1px 8px;font-size:0.68rem;">{cat}</span>
+        </div>
+        <div style="text-align:center;font-size:1.15rem;font-weight:800;
+                    color:{color};margin-top:0.5rem;">
+            ₹{price:,.2f}
+        </div>
+        <div style="text-align:center;font-size:0.72rem;color:#8892b0;margin-top:0.15rem;">
+            {batches} batch{'es' if batches != 1 else ''} · {stock:,} in stock
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    qty_key = f"qty_{name}"
+    st.session_state.setdefault(qty_key, 1)
+
+    qc1, qc2 = st.columns([1, 2])
+    with qc1:
+        qty = st.number_input(
+            "Qty", min_value=1, max_value=max(1, min(stock, 999)),
+            value=st.session_state[qty_key],
+            key=f"qty_in_{name}",
+            label_visibility="collapsed",
+        )
+        st.session_state[qty_key] = qty
+    with qc2:
+        if stock <= 0:
+            st.button("Out of stock", key=f"add_{name}", disabled=True,
+                      use_container_width=True)
+        else:
+            if st.button("➕ Add", key=f"add_{name}", use_container_width=True,
+                         type="primary"):
+                # Merge with existing cart line if same name
+                cart = st.session_state.cart
+                for line in cart:
+                    if line["name"] == name:
+                        line["qty"] += qty
+                        break
+                else:
+                    cart.append({"name": name, "price": price, "qty": qty})
+                st.session_state.cart = cart
+                st.toast(f"Added {qty} × {name}")
+                st.rerun()
+
+
+def _render_cart():
+    """Bottom cart summary."""
+    cart = st.session_state.get("cart", [])
+    if not cart:
+        return
+
+    total = sum(l["price"] * l["qty"] for l in cart)
+    count = sum(l["qty"] for l in cart)
+
+    st.markdown("---")
+    st.markdown(f"### 🧺 Cart — {count} item(s) · ₹{total:,.2f}")
+
+    for i, line in enumerate(list(cart)):
+        c1, c2, c3, c4 = st.columns([4, 2, 2, 1])
+        c1.markdown(f"**{line['name']}**")
+        c2.markdown(f"₹{line['price']:,.2f} × {line['qty']}")
+        c3.markdown(f"₹{line['price']*line['qty']:,.2f}")
+        if c4.button("✕", key=f"rm_{i}_{line['name']}"):
+            cart.pop(i)
+            st.session_state.cart = cart
+            st.rerun()
+
+    b1, b2 = st.columns(2)
+    if b1.button("✅ Submit Order (Get OTP)", type="primary",
+                 use_container_width=True):
+        st.success(f"Order placed! Total ₹{total:,.2f} — {count} item(s).")
+        st.session_state.cart = []
+        st.rerun()
+    if b2.button("🗑️ Clear Cart", use_container_width=True):
+        st.session_state.cart = []
+        st.rerun()
+
+
+def page_stock(r):
+    st.markdown("## 🔍 Stock Check")
+    st.caption("Search any medicine — see stock & price instantly")
+    df = load_inventory()
+    if df.empty:
+        st.warning("Inventory not available."); return
+    name_col = find_col(df, "medicine_name","medicine","name","product","product_name","item")
+    price_col = find_col(df, "cost_price","price","mrp","rate","selling_price","unit_price")
+    stock_col = find_col(df, "quantity","stock","qty","available","on_hand")
+
+    if not name_col:
+        st.error("Inventory has no product column.")
+        with st.expander("🔍 Debug — see what's in inventory.csv"):
+            st.write("**Columns detected:**", list(df.columns))
+            st.write("**Row count:**", len(df))
+            st.write("**Sample row:**")
+            st.dataframe(df.head(3))
+        return
+
+    q = st.text_input("Search", placeholder="Type medicine name...",
+                      key="sq", label_visibility="collapsed").strip().lower()
+    if not q:
+        st.caption("Type to search..."); return
+    view = df[df[name_col].astype(str).str.lower().str.contains(q, na=False)].head(50)
+    st.caption(f"{len(view)} result(s)")
+    for _, row in view.iterrows():
+        nm = str(row[name_col])
+        pr = row[price_col] if price_col and pd.notna(row[price_col]) else "—"
+        stk = row[stock_col] if stock_col and pd.notna(row[stock_col]) else "—"
+        st.markdown(f"""
+            <div class="product-card">
+                <div class="name">{nm}</div>
+                <div class="price">₹{pr}</div>
+                <div class="stock">Stock: {stk}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+
+def page_placeholder(r, label, icon="⏳"):
+    st.markdown(f"## {icon} {label}")
+    st.info("Coming soon.")
+
+
+MENU = [
+    ("home",     "🏠", "Home"),
+    ("order",    "🛒", "Place Order"),
+    ("reorder",  "🔁", "Reorder Last"),
+    ("bills",    "🧾", "Bill History"),
+    ("track",    "🚚", "Track Deliveries"),
+    ("cart",     "🛍️", "My Cart"),
+    ("favorites","⭐", "Frequently Ordered"),
+    ("stock",    "🔍", "Stock Check"),
+    ("ledger",   "💰", "Ledger / Balance"),
+    ("notify",   "🔔", "Notifications"),
+    ("offers",   "🎁", "Offers & Schemes"),
+    ("business", "📊", "My Business"),
+    ("contact",  "📞", "Contact Us"),
+    ("profile",  "👤", "My Profile"),
+]
+
+
+def render_sidebar():
+    with st.sidebar:
+        st.markdown(f'<div style="padding:0.8rem 0;">{logo_html(52)}</div>',
+                    unsafe_allow_html=True)
+        st.markdown("**Meena Agencies**")
+        st.caption(st.session_state.get("retailer_id", ""))
+        st.markdown("---")
+
+        cur = st.session_state.get("page", "home")
+        for k, ic, lbl in MENU:
+            is_active = (k == cur)
+            if st.button(f"{ic}  {lbl}", key=f"nav_{k}",
+                         use_container_width=True,
+                         type="primary" if is_active else "secondary"):
+                st.session_state.page = k
+                st.rerun()
+
+        st.markdown("---")
+        if st.button("🚪  Sign Out", key="nav_out", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
+
+
+def main():
+    if "retailer" not in st.session_state:
+        login_screen()
+        return
+
+    r = st.session_state.retailer
+    st.session_state.setdefault("page", "home")
+    render_sidebar()
+
+    page = st.session_state.page
+    if page == "home":        page_home(r)
+    elif page == "order":     page_order(r)
+    elif page == "stock":     page_stock(r)
+    else:
+        # try external module first
+        try:
+            import importlib
+            rp = importlib.import_module("retailer_pages")
+            fn = getattr(rp, f"render_{page}", None)
+            if fn:
+                fn(r); return
+        except Exception:
+            pass
+        label = next((m[2] for m in MENU if m[0] == page), page.title())
+        icon  = next((m[1] for m in MENU if m[0] == page), "⏳")
+        page_placeholder(r, label, icon)
+
+
+main()

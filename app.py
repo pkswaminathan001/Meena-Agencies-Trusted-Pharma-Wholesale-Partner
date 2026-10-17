@@ -1,4 +1,10 @@
 import streamlit as st
+from inr import inr
+import compact_spacing
+import dense_layout
+import top_gap_fix
+import mobile_sidebar
+import ui
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -22,7 +28,9 @@ import marketing
 import marketing_ui
 import rbac
 import notifications
+import water_responsive
 import animations_v2
+import unified_brand
 import rich_header
 import notification_ui
 
@@ -32,6 +40,9 @@ from analytics_engine import full_report as analytics_full_report
 from operations import (record_payment, cancel_order, add_stock, search_orders, generate_invoice)
 import forecast_pro
 import catalog
+import peacock_calendar
+import retailer_sidebar
+import customer_bill
 import invoice_pro
 import animations
 import responsive
@@ -329,22 +340,401 @@ def _cached_yearly(wm, orders, retailers, breaks, _key):
 from notify import send_notification, get_active_channel, format_order_sms, format_otp_sms
 import notify_pro
 
-st.set_page_config(page_title="Meena Agencies", page_icon="logo.png", layout="wide", initial_sidebar_state="collapsed")
-animations_v2.apply()
+import theme
+import jarvis_tab
+# ── URL sanitizer MUST run before set_page_config ──
+# ══════════════════════════════════════════════════════════
+# URL SANITIZER — clears "undefined" from query params
+# (Streamlit's router leaks this when a page key is None)
+# ══════════════════════════════════════════════════════════
+try:
+    # Force a valid page key BEFORE Streamlit serializes to URL.
+    # Without this, Streamlit's router writes "undefined" to the URL
+    # whenever a query-param-backed widget has no value yet.
+    _qp = st.query_params
 
-navigation.init_nav()
+    # 1. Drop any key literally named "undefined"
+    for _k in list(_qp.keys()):
+        if _k == "undefined":
+            try: del _qp[_k]
+            except Exception: pass
+
+    # 2. Sanitize any value equal to "undefined"
+    for _k in list(_qp.keys()):
+        try:
+            _v = _qp.get(_k)
+        except Exception:
+            continue
+        if isinstance(_v, str) and _v.strip().lower() == "undefined":
+            try: del _qp[_k]
+            except Exception: pass
+
+    # 3. Guarantee "page" always has a real value
+    if "page" not in _qp or not _qp.get("page"):
+        _qp["page"] = "home"
+except Exception:
+    pass
+
+
+# BYPASS_AUTH_BLOCK — remove to restore logins
+import os as _os
 
 # ═══════════════════════════════════════════════════════════
-# GLOBAL BACK BAR — appears on every screen
+# RESPONSIVE_ALL_DEVICES_V1 — phone / tablet / iPad / desktop
 # ═══════════════════════════════════════════════════════════
-# Back + Home bar removed (per user request)
+RESPONSIVE_ALL_DEVICES_CSS = """
+<style>
+/* ─── Fluid typography: scales from phone to 4K ─── */
+html { font-size: 16px; }
+@media (max-width: 480px)  { html { font-size: 14px; } }
+@media (max-width: 360px)  { html { font-size: 13px; } }
+@media (min-width: 1920px) { html { font-size: 17px; } }
+
+/* ─── Main container: never let content touch screen edges ─── */
+.main .block-container,
+[data-testid="stAppViewContainer"] .main .block-container,
+section.main > div {
+    padding-left: max(1rem, env(safe-area-inset-left)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right)) !important;
+    padding-top: 1rem !important;
+    max-width: 1400px !important;
+}
+@media (max-width: 768px) {
+    .main .block-container,
+    section.main > div {
+        padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+        padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+        padding-top: 0.5rem !important;
+    }
+}
+
+/* ─── Sidebar: slide-in overlay on mobile, always-visible on desktop ─── */
+section[data-testid="stSidebar"] {
+    transition: transform 0.25s ease !important;
+}
+@media (min-width: 1024px) {
+    /* Desktop: sidebar is a normal column */
+    section[data-testid="stSidebar"] {
+        min-width: 260px !important;
+        max-width: 320px !important;
+        position: relative !important;
+        transform: none !important;
+    }
+}
+@media (min-width: 769px) and (max-width: 1023px) {
+    /* Tablet / iPad: narrower sidebar */
+    section[data-testid="stSidebar"] {
+        min-width: 220px !important;
+        max-width: 260px !important;
+    }
+}
+@media (max-width: 768px) {
+    /* Phone: sidebar overlays, doesn't push content off */
+    section[data-testid="stSidebar"] {
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        height: 100vh !important;
+        width: 82vw !important;
+        max-width: 320px !important;
+        z-index: 999999 !important;
+        overflow-y: auto !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        transform: translateX(-100%) !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="true"] {
+        transform: translateX(0) !important;
+    }
+    /* Dim the background when sidebar is open */
+    section[data-testid="stSidebar"][aria-expanded="true"]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: -1;
+        pointer-events: none;
+    }
+}
+
+/* ─── Stack columns on phone ─── */
+@media (max-width: 768px) {
+    /* Force any st.columns() row to stack vertically */
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+    }
+    /* Exception: keep small metric rows 2-up on phone if they're very short */
+    div[data-testid="stHorizontalBlock"]:has(> div > div > div > div[data-testid="stMetric"]) > div {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        min-width: calc(50% - 0.25rem) !important;
+    }
+}
+
+/* ─── Tables: horizontal scroll instead of cut-off ─── */
+[data-testid="stDataFrame"],
+[data-testid="stTable"],
+.stDataFrame,
+.stTable {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+[data-testid="stDataFrame"] > div,
+[data-testid="stTable"] > div {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+}
+/* Make table cells readable at small sizes */
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] th {
+    white-space: nowrap !important;
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.6rem !important;
+}
+@media (max-width: 480px) {
+    [data-testid="stDataFrame"] td,
+    [data-testid="stDataFrame"] th {
+        font-size: 0.72rem !important;
+        padding: 0.3rem 0.45rem !important;
+    }
+}
+
+/* ─── Buttons: bigger tap targets on touch ─── */
+@media (max-width: 768px) {
+    .stButton > button,
+    [data-testid="stBaseButton-secondary"],
+    [data-testid="stBaseButton-primary"] {
+        min-height: 44px !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 0.9rem !important;
+    }
+}
+
+/* ─── Text inputs / selects: prevent iOS zoom ─── */
+@media (max-width: 768px) {
+    input, select, textarea {
+        font-size: 16px !important;   /* iOS won't zoom below 16px */
+    }
+}
+
+/* ─── Metric cards: scale down text on phone ─── */
+@media (max-width: 480px) {
+    [data-testid="stMetric"] {
+        padding: 0.6rem !important;
+    }
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+    }
+}
+
+/* ─── Headings: shrink on phone ─── */
+@media (max-width: 480px) {
+    h1 { font-size: 1.5rem !important; line-height: 1.25 !important; }
+    h2 { font-size: 1.25rem !important; line-height: 1.3 !important; }
+    h3 { font-size: 1.1rem !important; line-height: 1.35 !important; }
+}
+
+/* ─── Custom product/medicine card grids: responsive ─── */
+.med-grid, .product-grid, .card-grid {
+    display: grid !important;
+    gap: 0.75rem !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+}
+@media (max-width: 768px) {
+    .med-grid, .product-grid, .card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+}
+@media (max-width: 420px) {
+    .med-grid, .product-grid, .card-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.4rem !important;
+    }
+    .med-card, .product-card { padding: 0.5rem !important; }
+    .med-card .med-emoji { font-size: 1.5rem !important; }
+}
+
+/* ─── Hide floating widgets that block content on phone ─── */
+@media (max-width: 768px) {
+    iframe[title="streamlit_float.float"] {
+        max-height: 40vh !important;
+    }
+}
+
+/* ─── Prevent horizontal page scroll (common mobile bug) ─── */
+html, body, [data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+
+/* ─── Chatbot / JARVIS widgets: full width on mobile ─── */
+@media (max-width: 768px) {
+    [data-testid="stChatMessage"],
+    [data-testid="stChatInput"] {
+        max-width: 100% !important;
+    }
+    [data-testid="stChatInput"] textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* ─── Tabs: horizontal scroll on mobile ─── */
+[data-testid="stTabs"] [role="tablist"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+}
+[data-testid="stTabs"] [role="tablist"] button {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* ─── Expander / forms: prevent overflow ─── */
+[data-testid="stExpander"], .stForm {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* ─── Fix iPad landscape specifically (1024-1366) ─── */
+@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+    .main .block-container {
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+}
+
+/* ─── Very wide screens (4K): don't stretch infinitely ─── */
+@media (min-width: 2200px) {
+    .main .block-container {
+        max-width: 1800px !important;
+        margin: 0 auto !important;
+    }
+}
+</style>
+"""
+
+st.markdown(RESPONSIVE_ALL_DEVICES_CSS, unsafe_allow_html=True)
+
+if _os.environ.get("BYPASS_AUTH") == "1":
+    import streamlit as _st
+    _st.session_state["authenticated"]  = True
+    _st.session_state["logged_in"]      = True
+    _st.session_state["role"]           = "owner"
+    _st.session_state["user_role"]      = "owner"
+    _st.session_state["user_id"]        = "OWNER"
+    _st.session_state["username"]       = "OWNER"
+    _st.session_state["user_name"]      = "Swaminathan (Owner)"
+    _st.session_state["name"]           = "Swaminathan (Owner)"
+    _st.session_state["retailer_id"]    = "RET001"
+    _st.session_state["retailer"]       = {
+        "id": "RET001", "shop": "Sri Balaji Medicals",
+        "owner": "Chitra", "phone": "6382130536",
+        "credit_limit": 200000, "outstanding": 145000.0,
+    }
+# END BYPASS_AUTH_BLOCK
+
+st.set_page_config(page_title="Meena Agencies", layout="wide", initial_sidebar_state="expanded")
+
+# tab-list-overflow-fix
+st.markdown("""
+<style>
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: thin;
+    scrollbar-color: #00d4ff transparent;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar {
+    height: 6px;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+    background: #00d4ff;
+    border-radius: 3px;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+</style>
+""", unsafe_allow_html=True)
+try:
+    theme.apply()
+    dense_layout.apply()
+    top_gap_fix.apply()
+except Exception:
+    pass
+
+# ── SIDEBAR_SMOOTH — smooth animation, native Streamlit toggle ──
+try:
+    import streamlit as _st_sm
+    _st_sm.markdown("""
+    <style>
+    /* Smooth slide for the sidebar */
+    section[data-testid="stSidebar"] {
+        transition: margin-left .35s cubic-bezier(0.4, 0, 0.2, 1),
+                    transform .35s cubic-bezier(0.4, 0, 0.2, 1),
+                    width .35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        will-change: margin-left, transform, width;
+    }
+    /* Style the native collapse arrow nicely */
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="stSidebarCollapsedControl"] button,
+    [data-testid="collapsedControl"] button {
+        background: linear-gradient(135deg, #4f46e5, #7b61ff) !important;
+        color: #fff !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 14px rgba(79,70,229,0.35) !important;
+        transition: transform .2s ease !important;
+    }
+    [data-testid="stSidebarCollapseButton"] button:hover,
+    [data-testid="stSidebarCollapsedControl"] button:hover,
+    [data-testid="collapsedControl"] button:hover {
+        transform: scale(1.08) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+except Exception as _sm_e:
+    print("sidebar smooth css skipped:", _sm_e)
 
 
-responsive.inject_responsive()
 
-# ═══════════════════════════════════════════════════════════
-# CORPORATE OVERHAUL — Full-width, Tesla-style layout
-# ═══════════════════════════════════════════════════════════
+
+# ── URL_CLEANUP_UNDEFINED — strip /undefined from URL bar ──
+try:
+    import streamlit.components.v1 as _stc
+    _stc.html("""
+    <script>
+    if (window.location.pathname.endsWith('/undefined')) {
+        window.history.replaceState(null, '', '/');
+    }
+    </script>
+    """, height=0)
+except Exception:
+    pass
+
+# Reset the sidebar menu flag each rerun
+try:
+    st.session_state.pop('_sidebar_menu_done', None)
+except Exception:
+    pass
+
+
+ui.inject()  # responsive design system
+ui.enable_sidebar()  # native left sidebar
+
+
+
+
+# ══════════════════════════════════════════════════════════
+
 st.markdown("""
 <style>
 /* FULL WIDTH LAYOUT — kill Streamlit's narrow container */
@@ -369,14 +759,14 @@ st.markdown("""
 /* ============ TESLA-STYLE HERO ============ */
 .corp-hero {
     position: relative;
-    background: linear-gradient(135deg, #0a1535 0%, #0f1e4a 40%, #1a2851 100%);
-    padding: 4rem 3rem 3rem 3rem;
+    background: linear-gradient(135deg, #0B3B8C 0%, #1560BD 55%, #F58220 130%);
+    padding: 1rem 1.2rem 1.2rem 1.2rem;
     margin: -1rem -3rem 2rem -3rem;
     border-bottom: 1px solid rgba(0,212,255,0.2);
     overflow: hidden;
 }
 @media (min-width: 1400px) {
-    .corp-hero { margin: -1rem -5rem 2rem -5rem; padding: 5rem 5rem 4rem 5rem; }
+    .corp-hero { margin: -1rem -5rem 2rem -5rem; padding: 1.2rem 1.5rem 1.2rem 1.5rem; }
 }
 .corp-hero::before {
     content: '';
@@ -505,7 +895,7 @@ st.markdown("""
     box-shadow: 0 20px 60px rgba(0,212,255,0.25) !important;
 }
 [data-testid="stMetricLabel"] {
-    color: #8892b0 !important;
+    color: #64748B !important;
     font-size: 0.8rem !important;
     font-weight: 700 !important;
     letter-spacing: 1.5px !important;
@@ -533,7 +923,7 @@ st.markdown("""
     padding: 1rem 1.5rem !important;
     font-weight: 600 !important;
     font-size: 0.9rem !important;
-    color: #8892b0 !important;
+    color: #64748B !important;
     border: none !important;
     background: transparent !important;
     position: relative !important;
@@ -566,7 +956,7 @@ st.markdown("""
     padding: 0.7rem 1.5rem !important;
     border: 1px solid rgba(0,212,255,0.35) !important;
     background: rgba(15,26,58,0.8) !important;
-    color: #e8eaf6 !important;
+    color: #1A1A2E !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .stButton > button:hover {
@@ -657,7 +1047,7 @@ hr {
 
 /* ============ CAPTIONS ============ */
 [data-testid="stCaptionContainer"] {
-    color: #8892b0 !important;
+    color: #64748B !important;
     font-size: 0.85rem !important;
 }
 
@@ -681,15 +1071,7 @@ hr {
 # CORPORATE HERO BUILDER
 # ─────────────────────────────────────────────────────────────
 def render_corp_hero(title, accent, subtitle, eyebrow="", meta=None):
-    # Sign Out — top right (owner)
-    _owner_top_l, _owner_top_r = st.columns([5, 1])
-    with _owner_top_r:
-        if st.button("🚪 Sign Out", key="hero_signout_owner", use_container_width=True):
-            try:
-                log_action("OWNER", "SIGNOUT")
-            except Exception:
-                pass
-            sign_out()
+    # (Sign Out button is rendered by the caller, inside the hero layout)
     meta = meta or []
     meta_html = ""
     if meta:
@@ -715,254 +1097,7 @@ def render_corp_hero(title, accent, subtitle, eyebrow="", meta=None):
 # ═══════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-/* Force dark background everywhere */
-.stApp, [data-testid="stAppViewContainer"] {
-    background: radial-gradient(ellipse at top left, #0f1535 0%, #050818 60%) !important;
-    background-attachment: fixed !important;
-}
-[data-testid="stHeader"] { background: transparent !important; }
-[data-testid="stToolbar"] { display: none !important; }
-footer { display: none !important; }
-#MainMenu { display: none !important; }
-
-/* Global font + color */
-html, body, [class*="css"], .stApp {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-    color: #e8eaf6 !important;
-}
-
-/* Beautiful metric cards */
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg, rgba(26,31,58,0.95) 0%, rgba(15,20,40,0.95) 100%) !important;
-    border: 1px solid rgba(123,97,255,0.25) !important;
-    border-radius: 18px !important;
-    padding: 1.5rem 1.2rem !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    position: relative !important;
-    overflow: hidden !important;
-}
-[data-testid="stMetric"]::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #00d4ff, #7b61ff);
-    opacity: 0.8;
-}
-[data-testid="stMetric"]:hover {
-    transform: translateY(-6px) !important;
-    border-color: rgba(0,212,255,0.6) !important;
-    box-shadow: 0 16px 48px rgba(0,212,255,0.25), 0 0 0 1px rgba(0,212,255,0.4) !important;
-}
-[data-testid="stMetricLabel"] {
-    color: #8892b0 !important;
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 1.5px !important;
-    text-transform: uppercase !important;
-}
-[data-testid="stMetricValue"] {
-    font-size: 2.2rem !important;
-    font-weight: 800 !important;
-    background: linear-gradient(90deg, #00d4ff, #7b61ff) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    background-clip: text !important;
-    letter-spacing: -0.5px !important;
-}
-
-/* Buttons — bold, lifted, gradient on primary */
-.stButton > button {
-    border-radius: 12px !important;
-    font-weight: 600 !important;
-    padding: 0.6rem 1.2rem !important;
-    border: 1px solid rgba(123,97,255,0.4) !important;
-    background: linear-gradient(145deg, rgba(26,31,58,0.9), rgba(15,20,40,0.9)) !important;
-    color: #e8eaf6 !important;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-}
-.stButton > button:hover {
-    transform: translateY(-2px) !important;
-    border-color: #00d4ff !important;
-    box-shadow: 0 10px 28px rgba(0,212,255,0.35) !important;
-    color: #00d4ff !important;
-}
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%) !important;
-    color: #fff !important;
-    border: none !important;
-}
-.stButton > button[kind="primary"]:hover {
-    box-shadow: 0 12px 32px rgba(0,212,255,0.55) !important;
-    transform: translateY(-2px) scale(1.01) !important;
-}
-
-/* Tabs — modern pill style */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 6px !important;
-    background: rgba(15,20,40,0.6) !important;
-    padding: 6px !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(123,97,255,0.15) !important;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 10px !important;
-    padding: 8px 18px !important;
-    font-weight: 500 !important;
-    color: #8892b0 !important;
-    transition: all 0.2s ease !important;
-    border: none !important;
-}
-.stTabs [data-baseweb="tab"]:hover {
-    background: rgba(0,212,255,0.10) !important;
-    color: #00d4ff !important;
-}
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, rgba(0,212,255,0.20), rgba(123,97,255,0.20)) !important;
-    color: #00d4ff !important;
-    font-weight: 700 !important;
-    box-shadow: 0 4px 14px rgba(0,212,255,0.25) !important;
-    border: 1px solid rgba(0,212,255,0.3) !important;
-}
-.stTabs [data-baseweb="tab-highlight"] { background: transparent !important; }
-
-/* Inputs — deep, clean */
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input,
-.stDateInput > div > div > input,
-.stSelectbox > div > div,
-.stTextArea textarea {
-    background: rgba(15,20,40,0.9) !important;
-    border: 1px solid rgba(123,97,255,0.3) !important;
-    border-radius: 10px !important;
-    color: #e8eaf6 !important;
-    padding: 0.6rem 0.8rem !important;
-}
-.stTextInput > div > div > input:focus,
-.stNumberInput > div > div > input:focus,
-.stTextArea textarea:focus {
-    border-color: #00d4ff !important;
-    box-shadow: 0 0 0 3px rgba(0,212,255,0.15) !important;
-}
-
-/* Expanders */
-.streamlit-expanderHeader {
-    background: rgba(26,31,58,0.7) !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(123,97,255,0.2) !important;
-    font-weight: 600 !important;
-    transition: all 0.2s ease !important;
-}
-.streamlit-expanderHeader:hover {
-    background: rgba(0,212,255,0.08) !important;
-    border-color: rgba(0,212,255,0.4) !important;
-}
-.streamlit-expanderContent {
-    background: rgba(15,20,40,0.6) !important;
-    border: 1px solid rgba(123,97,255,0.15) !important;
-    border-top: none !important;
-    border-radius: 0 0 12px 12px !important;
-}
-
-/* Alerts */
-.stAlert {
-    border-radius: 12px !important;
-    border-left-width: 4px !important;
-    font-size: 0.9rem !important;
-}
-
-/* Dataframes */
-[data-testid="stDataFrame"] {
-    border-radius: 14px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(123,97,255,0.2) !important;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.25) !important;
-}
-
-/* Progress bars */
-.stProgress > div > div > div > div {
-    background: linear-gradient(90deg, #00d4ff, #7b61ff) !important;
-    border-radius: 6px !important;
-}
-
-/* Radio buttons */
-.stRadio > div {
-    gap: 8px !important;
-}
-.stRadio label {
-    background: rgba(26,31,58,0.6) !important;
-    padding: 8px 14px !important;
-    border-radius: 10px !important;
-    border: 1px solid rgba(123,97,255,0.2) !important;
-    transition: all 0.2s ease !important;
-}
-.stRadio label:hover {
-    background: rgba(0,212,255,0.08) !important;
-    border-color: rgba(0,212,255,0.4) !important;
-}
-
-/* Multiselect / selectbox dropdowns */
-[data-baseweb="popover"], [data-baseweb="menu"] {
-    background: #1a1f3a !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(123,97,255,0.3) !important;
-}
-
-/* Headings */
-h1, h2, h3, h4 {
-    color: #e8eaf6 !important;
-    letter-spacing: -0.3px !important;
-}
-h3 {
-    font-size: 1.4rem !important;
-    font-weight: 700 !important;
-    border-left: 4px solid #00d4ff !important;
-    padding-left: 12px !important;
-    margin-top: 1.5rem !important;
-}
-h4 {
-    font-size: 1.1rem !important;
-    font-weight: 600 !important;
-    color: #00d4ff !important;
-    margin-top: 1.2rem !important;
-}
-
-/* Horizontal rules */
-hr {
-    border: none !important;
-    height: 1px !important;
-    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent) !important;
-    margin: 2rem 0 !important;
-}
-
-/* Captions */
-.stCaption, [data-testid="stCaptionContainer"] {
-    color: #8892b0 !important;
-    font-size: 0.8rem !important;
-}
-
-/* Containers get subtle glow */
-[data-testid="stVerticalBlock"] > [style*="flex-direction: column"] > [data-testid="stVerticalBlock"] {
-    border-radius: 16px;
-}
-
-/* Success/error/info messages bigger */
-.stSuccess, .stError, .stWarning, .stInfo {
-    padding: 1rem 1.2rem !important;
-    font-weight: 500 !important;
-}
-
-/* Logo animation at top */
-.logo-pulse {
-    display: inline-block;
-    animation: logoPulse 3s ease-in-out infinite;
-}
-@keyframes logoPulse {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(0,212,255,0.4)); }
-    50%      { transform: scale(1.05); filter: drop-shadow(0 0 32px rgba(123,97,255,0.6)); }
-}
+/* BEAUTY OVERHAUL disabled — theme is now managed by force_light.py */
 </style>
 """, unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════
@@ -1070,7 +1205,7 @@ elif st.session_state.role == "retailer_login":
     with st.form("rl"):
         rid = st.text_input("Retailer ID", placeholder="RET001")
         pin = st.text_input("PIN", type="password", max_chars=4)
-        if st.form_submit_button("🔓 Login", use_container_width=True):
+        if st.form_submit_button("🔓 Login", width='stretch'):
             attempts = st.session_state.login_attempts.get(rid, 0)
             if attempts >= 3:
                 st.error("🚫 Too many attempts")
@@ -1078,6 +1213,7 @@ elif st.session_state.role == "retailer_login":
                 ret = next((r for r in retailers if r["id"] == rid.strip().upper()), None)
                 if ret and verify_pin(pin, ret["pin_hash"]):
                     st.session_state.retailer = ret
+
                     st.session_state.role = "retailer"
                     st.session_state.login_attempts[rid] = 0
                     try:
@@ -1100,7 +1236,7 @@ elif st.session_state.role == "owner_login":
     owner = load_owner()
     with st.form("ol"):
         pin = st.text_input("Owner Password", type="password")
-        if st.form_submit_button("🔓 Login", use_container_width=True):
+        if st.form_submit_button("🔓 Login", width='stretch'):
             if verify_pin(pin, owner["pin_hash"]):
                 st.session_state.role = "owner"
                 log_action("OWNER", "LOGIN_SUCCESS")
@@ -1114,11 +1250,95 @@ elif st.session_state.role == "owner_login":
 
 # ============ RETAILER VIEW ============
 elif st.session_state.role in ("retailer", "customer"):
+    # ── Retailer sidebar navigation ──
+    _r = st.session_state.retailer
+    _page = retailer_sidebar.render(_r)
+    try:
+        mobile_sidebar.render()
+        top_gap_fix.apply()  # LATE
+    except Exception as _msb_e:
+        print('mobile_sidebar:', _msb_e)
+    # Route on selected page
+    if _page == "bills":
+        # Bill History view (title rendered inside peacock_calendar)
+        _my_orders = [o for o in load_orders() if o.get("retailer_id") == _r["id"]]
+        try:
+            _pk_company = load_company()
+        except Exception:
+            _pk_company = {"name": "Meena Agencies"}
+        peacock_calendar.render_bill_range_picker(_my_orders, retailer=_r, company=_pk_company)
+        st.stop()
+    elif _page == "profile":
+        st.markdown("### 👤 My Profile")
+        st.write(_r)
+        st.stop()
+    elif _page == "reorder":
+        import retailer_pages
+        retailer_pages.render_reorder(_r)
+        st.stop()
+    elif _page == "ledger":
+        import retailer_pages
+        retailer_pages.render_ledger(_r)
+        st.stop()
+    elif _page == "notify":
+        import retailer_pages
+        retailer_pages.render_notifications(_r)
+        st.stop()
+    elif _page == "offers":
+        import retailer_pages
+        retailer_pages.render_offers(_r)
+        st.stop()
+    elif _page == "favorites":
+        import retailer_pages
+        retailer_pages.render_favorites(_r)
+        st.stop()
+    elif _page == "contact":
+        import retailer_pages
+        retailer_pages.render_contact(_r)
+        st.stop()
+    elif _page == "stock":
+        import retailer_pages
+        retailer_pages.render_stock_check(_r)
+        st.stop()
+    elif _page == "business":
+        import retailer_pages
+        retailer_pages.render_business_stats(_r)
+        st.stop()
+    elif _page == "track":
+        pass  # fall through to default view (which shows deliveries)
+    elif _page == "order":
+        pass  # fall through to catalog
+    elif _page == "cart":
+        pass  # fall through (cart is rendered below)
+    # else: home → fall through to default dashboard
+
     retailers = load_retailers()
     r = next((x for x in retailers if x["id"] == st.session_state.retailer["id"]), st.session_state.retailer)
     st.session_state.retailer = r
 
+    # ── Hamburger menu (top-left) ──
+    def _ret_signout():
+        try:
+            log_activity(r["id"], "SIGNOUT")
+        except Exception:
+            pass
+        try:
+            navigation.clear_history()
+        except Exception:
+            pass
+        sign_out()
     # ── Corporate Hero for Retailer ──
+    # ── Left sidebar menu ──
+    def _ret_signout_home():
+        try:
+            log_activity(r['id'], 'SIGNOUT')
+        except Exception:
+            pass
+        try:
+            navigation.clear_history()
+        except Exception:
+            pass
+        sign_out()
     render_corp_hero(
         title="Meena",
         accent="Agencies",
@@ -1127,25 +1347,10 @@ elif st.session_state.role in ("retailer", "customer"):
         meta=[
             {"value": f"₹{r['credit_limit']:,}", "label": "Credit Limit"},
             {"value": f"₹{r['outstanding']:,}", "label": "Outstanding"},
-            {"value": f"₹{r['credit_limit'] - r['outstanding']:,}", "label": "Available"},
-            {"value": r['owner'], "label": "Contact"},
-            {"value": mask_phone(r['phone']), "label": "Phone"},
+            {"value": f"₹{r['credit_limit'] - r['outstanding']:,}", "label": "Available"}
         ]
     )
     # Sign Out — top right
-    _t1, _t2 = st.columns([5, 1])
-    with _t2:
-        st.markdown('<div class="topnav-signout">', unsafe_allow_html=True)
-        if st.button("🚪 Sign Out", key="hero_signout_ret", use_container_width=True):
-            try:
-                log_activity(r["id"], "SIGNOUT")
-            except Exception:
-                pass
-            navigation.clear_history()
-            sign_out()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
     used_pct = (r["outstanding"]/r["credit_limit"])*100
     c1, c2, c3 = st.columns(3)
     c1.metric("Credit Limit", f"₹{r['credit_limit']:,}")
@@ -1177,7 +1382,7 @@ elif st.session_state.role in ("retailer", "customer"):
         entered = st.text_input("Enter 6-digit OTP", max_chars=6, key="otp_input")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("✅ Verify & Confirm", use_container_width=True):
+            if st.button("✅ Verify & Confirm", width='stretch'):
                 if entered == po["otp"]:
                     orders = load_orders()
                     order = po["order"]; order["status"] = "Pending"
@@ -1205,7 +1410,7 @@ elif st.session_state.role in ("retailer", "customer"):
                     st.balloons(); st.rerun()
                 else: st.error("❌ Wrong OTP")
         with c2:
-            if st.button("❌ Cancel", use_container_width=True):
+            if st.button("❌ Cancel", width='stretch'):
                 st.session_state.pending_order = None; st.rerun()
         st.stop()
 
@@ -1232,9 +1437,9 @@ elif st.session_state.role in ("retailer", "customer"):
     with _qs1:
         st.metric("📦 Total Orders", len(_my_orders), help="All your orders till date")
     with _qs2:
-        st.metric("💰 Total Spent", f"₹{_my_total_spent:,.0f}", help="Approved orders only")
+        st.metric("💰 Total Spent", f"{inr(_my_total_spent)}", help="Approved orders only")
     with _qs3:
-        st.metric("🛒 Avg Order", f"₹{_my_avg_order:,.0f}", help="Average per approved order")
+        st.metric("🛒 Avg Order", f"{inr(_my_avg_order)}", help="Average per approved order")
     with _qs4:
         _last_dt = _my_last_order.get("placed_at", "—").split(" ")[0] if _my_last_order else "—"
         st.metric("🕐 Last Order", _last_dt, help="Date of your most recent order")
@@ -1251,7 +1456,7 @@ elif st.session_state.role in ("retailer", "customer"):
 
         _a1, _a2 = st.columns(2)
         with _a1:
-            if st.button("🔄 Reorder Last", key="qa_reorder", use_container_width=True,
+            if st.button("🔄 Reorder Last", key="qa_reorder", width='stretch',
                          help="Add your last order items to cart"):
                 if _my_last_order and _my_last_order.get("items"):
                     for _it in _my_last_order["items"]:
@@ -1268,7 +1473,7 @@ elif st.session_state.role in ("retailer", "customer"):
                     st.info("No previous order to reorder.")
 
             # ── Statement Download (PDF + PNG) ──
-            if st.button("📄 Generate Statement", key="qa_statement", use_container_width=True,
+            if st.button("📄 Generate Statement", key="qa_statement", width='stretch',
                          help="Download your account statement"):
                 try:
                     import json as _json_stmt
@@ -1287,7 +1492,7 @@ elif st.session_state.role in ("retailer", "customer"):
                             data=_pdf_bytes,
                             file_name=f"MeenaStatement_{r['id']}_{_ts}.pdf",
                             mime="application/pdf",
-                            use_container_width=True,
+                            width='stretch',
                             key="qa_statement_pdf_dl"
                         )
                         st.caption("✅ PDF — white background, print-ready, professional format")
@@ -1302,7 +1507,7 @@ elif st.session_state.role in ("retailer", "customer"):
                             data=_png_bytes,
                             file_name=f"MeenaStatement_{r['id']}_{_ts}.png",
                             mime="image/png",
-                            use_container_width=True,
+                            width='stretch',
                             key="qa_statement_png_dl"
                         )
                         st.caption("✅ PNG — dark theme, share via WhatsApp/email")
@@ -1315,11 +1520,11 @@ elif st.session_state.role in ("retailer", "customer"):
                     st.error(f"Statement generation failed: {_e}")
 
         with _a2:
-            if st.button("📞 Contact Us", key="qa_contact", use_container_width=True,
+            if st.button("📞 Contact Us", key="qa_contact", width='stretch',
                          help="Call or message us"):
                 st.info(f"📞 Call: 6382130536\n✉️ meena.agencies@gmail.com")
 
-            if st.button("📊 Payment History", key="qa_pay_hist", use_container_width=True,
+            if st.button("📊 Payment History", key="qa_pay_hist", width='stretch',
                          help="View all payments recorded against your account"):
                 _pays = r.get("payment_history", [])
                 if not _pays:
@@ -1328,16 +1533,16 @@ elif st.session_state.role in ("retailer", "customer"):
                     import pandas as _pd_ph
                     _ph_df = _pd_ph.DataFrame([{
                         "Date": p["date"][:16].replace("T", " "),
-                        "Amount": f"₹{p['amount']:,.0f}",
+                        "Amount": f"{inr(p['amount'])}",
                         "Mode": p.get("mode", "cash").upper(),
                         "Reference": p.get("reference", "—"),
                         "Note": p.get("note", ""),
                     } for p in reversed(_pays[-20:])])
-                    st.dataframe(_ph_df, use_container_width=True, hide_index=True, height=200)
+                    st.dataframe(_ph_df, width='stretch', hide_index=True, height=200)
 
                     _total_paid = sum(p["amount"] for p in _pays)
-                    st.success(f"💰 Total paid to Meena Agencies: **₹{_total_paid:,.0f}**")
-                    st.caption(f"Outstanding balance: ₹{r['outstanding']:,.0f}")
+                    st.success(f"💰 Total paid to Meena Agencies: **{inr(_total_paid)}**")
+                    st.caption(f"Outstanding balance: {inr(r['outstanding'])}")
 
     with _rec_col:
         st.markdown('<div class="corp-section"><div class="corp-section-title">🌦️ Seasonal Picks</div>'
@@ -1423,7 +1628,7 @@ elif st.session_state.role in ("retailer", "customer"):
             _fig_gap = _go_gap.Figure(data=[_go_gap.Bar(
                 x=_months, y=_totals,
                 marker=dict(color="#00d4ff", line=dict(color="#7b61ff", width=2)),
-                text=[f"₹{v:,.0f}" if v > 0 else "" for v in _totals],
+                text=[f"{inr(v)}" if v > 0 else "" for v in _totals],
                 textposition="outside",
                 hovertemplate="<b>%{x}</b><br>₹%{y:,.0f}<extra></extra>",
             )])
@@ -1437,7 +1642,7 @@ elif st.session_state.role in ("retailer", "customer"):
                 yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", title="Amount (₹)"),
                 showlegend=False,
             )
-            st.plotly_chart(_fig_gap, use_container_width=True, key="gap_spend_chart")
+            st.plotly_chart(_fig_gap, width='stretch', key="gap_spend_chart")
         except Exception:
             pass
 
@@ -1485,7 +1690,7 @@ elif st.session_state.role in ("retailer", "customer"):
                 unsafe_allow_html=True,
             )
 
-            if st.button("← Back to category", key="back_to_cat", use_container_width=False):
+            if st.button("← Back to category", key="back_to_cat", width='content'):
                 st.session_state.catalog_medicine = None
                 st.rerun()
 
@@ -1510,7 +1715,7 @@ elif st.session_state.role in ("retailer", "customer"):
                             border-radius:12px;padding:1rem;margin:1rem 0;">
                     <div style="color:#00d47a;font-weight:600;font-size:0.9rem;">✅ Available</div>
                     <div style="color:#e8eaf6;font-size:1.1rem;margin-top:0.4rem;">
-                        <b>₹{_unit_price:,.2f}</b> per unit
+                        <b>{inr(_unit_price, 2)}</b> per unit
                     </div>
                     <div style="color:#8892b0;font-size:0.8rem;margin-top:0.2rem;">
                         Fresh stock · Expires {_exp_str} · {_auto_batch['qty']:,} units in stock
@@ -1527,10 +1732,10 @@ elif st.session_state.role in ("retailer", "customer"):
                 )
 
                 _line_total = _qty * _unit_price
-                st.markdown(f"**Line total:** ₹{_line_total:,.2f}")
+                st.markdown(f"**Line total:** {inr(_line_total, 2)}")
 
                 # Placeholder for cart preview confirmation
-                if st.button("🛒 Add to Cart", key="add_fifo_cart", use_container_width=True):
+                if st.button("🛒 Add to Cart", key="add_fifo_cart", width='stretch'):
                     st.session_state.cart.append({
                         "item_id": _auto_batch["item_id"],
                         "medicine": _med["name"],
@@ -1557,7 +1762,7 @@ elif st.session_state.role in ("retailer", "customer"):
             _q = st.text_input("🔍 Search in " + _cat_name, key="cat_search_input", placeholder="Type a name...")
         with _c2:
             st.write("")
-            if st.button("← All Categories", key="back_to_cats", use_container_width=True):
+            if st.button("← All Categories", key="back_to_cats", width='stretch'):
                 st.session_state.catalog_category = None
                 st.rerun()
 
@@ -1575,11 +1780,11 @@ elif st.session_state.role in ("retailer", "customer"):
                         <div class="med-emoji" style="font-size:2.2rem;">{_cat_info['emoji']}</div>
                         <div style="font-weight:700;font-size:0.85rem;color:#e8eaf6;margin-top:0.4rem;min-height:2.2rem;">{_m['name'][:30]}</div>
                         <div style="color:#8892b0;font-size:0.7rem;">Exp: {_exp}</div>
-                        <div style="color:{_cat_info['color']};font-weight:700;margin-top:0.3rem;">₹{_m['avg_price']:,.2f}</div>
+                        <div style="color:{_cat_info['color']};font-weight:700;margin-top:0.3rem;">{inr(_m['avg_price'], 2)}</div>
                         <div style="color:#00d47a;font-size:0.7rem;">{_m['total_qty']} units · {_m['batch_count']} batches</div>
                     </div>
                     """, unsafe_allow_html=True)
-                    if st.button("Select", key=f"pick_{_m['name']}", use_container_width=True):
+                    if st.button("Select", key=f"pick_{_m['name']}", width='stretch'):
                         st.session_state.catalog_medicine = _m["name"]
                         st.rerun()
 
@@ -1611,11 +1816,11 @@ elif st.session_state.role in ("retailer", "customer"):
                             <div class="med-emoji" style="font-size:2.2rem;">{_c_info['emoji']}</div>
                             <div style="font-weight:700;font-size:0.85rem;color:#e8eaf6;margin-top:0.4rem;min-height:2.2rem;">{_m['name'][:30]}</div>
                             <div style="color:#8892b0;font-size:0.7rem;">{_m['category']} · Exp: {_exp}</div>
-                            <div style="color:{_c_info['color']};font-weight:700;margin-top:0.3rem;">₹{_m['avg_price']:,.2f}</div>
+                            <div style="color:{_c_info['color']};font-weight:700;margin-top:0.3rem;">{inr(_m['avg_price'], 2)}</div>
                             <div style="color:#00d47a;font-size:0.7rem;">{_m['total_qty']} units</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button("Select", key=f"gs_pick_{_m['name']}", use_container_width=True):
+                        if st.button("Select", key=f"gs_pick_{_m['name']}", width='stretch'):
                             st.session_state.catalog_medicine = _m["name"]
                             st.rerun()
         else:
@@ -1632,7 +1837,7 @@ elif st.session_state.role in ("retailer", "customer"):
                             <div style="color:{_s['color']};font-size:0.75rem;margin-top:0.2rem;">{_s['total_qty']:,} units</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button("Open →", key=f"cat_{_s['name']}", use_container_width=True):
+                        if st.button("Open →", key=f"cat_{_s['name']}", width='stretch'):
                             st.session_state.catalog_category = _s["name"]
                             st.rerun()
 
@@ -1641,13 +1846,13 @@ elif st.session_state.role in ("retailer", "customer"):
         st.markdown("### 🛒 Cart")
         cart_df = pd.DataFrame(st.session_state.cart)
         cart_df["Total"] = cart_df["qty"] * cart_df["price"]
-        st.dataframe(cart_df, use_container_width=True, hide_index=True)
+        st.dataframe(cart_df, width='stretch', hide_index=True)
         total = cart_df["Total"].sum()
-        st.markdown(f"**Total: ₹{total:,.2f}**")
+        st.markdown(f"**Total: {inr(total, 2)}**")
         location = st.text_input("Delivery location", value=r["shop"] + ", Chennai", key="loc")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("📤 Submit (Get OTP)", use_container_width=True):
+            if st.button("📤 Submit (Get OTP)", width='stretch'):
                 if not location.strip(): st.error("Enter location")
                 else:
                     allowed, remaining = check_rate(r["id"])
@@ -1664,7 +1869,7 @@ elif st.session_state.role in ("retailer", "customer"):
                         track(r["id"], "ORDER_SUBMIT", page="RetailerOrders", details=f"total=Rs{total:.0f}")
                         st.success("OTP sent!"); st.rerun()
         with c2:
-            if st.button("🗑 Clear", use_container_width=True):
+            if st.button("🗑 Clear", width='stretch'):
                 st.session_state.cart = []; st.rerun()
 
     st.markdown("---")
@@ -1685,14 +1890,48 @@ elif st.session_state.role in ("retailer", "customer"):
     with st.expander("📱 Update My Contact"):
         with st.form("uc"):
             new_phone = st.text_input("Phone Number", value=r["phone"])
-            new_tg = st.text_input("Telegram Chat ID", value=r.get("telegram_chat_id",""))
             if st.form_submit_button("Save"):
                 for rt in retailers:
                     if rt["id"] == r["id"]:
-                        rt["phone"] = new_phone; rt["telegram_chat_id"] = new_tg
+                        rt["phone"] = new_phone
                 save_retailers(retailers); st.success("✅ Updated")
 
+        st.markdown("---")
+        _tg_linked = bool(str(r.get("telegram_chat_id", "")).strip())
+        if _tg_linked:
+            st.success("✅ Telegram connected — you will receive order updates on Telegram.")
+            st.caption(f"Linked chat: {r.get('telegram_chat_id')}")
+        else:
+            st.info("📲 Tap below to connect your Telegram. It takes 5 seconds — no codes, no setup.")
+            _tg_url = f"https://t.me/Swaminathan_Inc_bot?start={r['id']}"
+            st.markdown(
+                f'<a href="{_tg_url}" target="_blank" style="'
+                f'display:block;text-align:center;padding:14px 20px;'
+                f'background:linear-gradient(135deg,#00d4ff,#7b61ff);'
+                f'color:#fff;font-weight:700;border-radius:10px;'
+                f'text-decoration:none;font-size:1rem;">'
+                f'📲 Connect on Telegram</a>',
+                unsafe_allow_html=True
+            )
+            st.caption("Opens Telegram → tap Start → done. Order updates will arrive automatically.")
+
+    # ── Peacock date-range bill picker ──
+    try:
+        _pk_company = load_company()
+    except Exception:
+        _pk_company = {"name": "Meena Agencies"}
+    peacock_calendar.render_bill_range_picker(_my_orders, retailer=st.session_state.retailer, company=_pk_company)
+
     st.markdown("### 📋 My Orders (only yours)")
+
+    # ── Bill previews for each order ──
+    _my_orders = [o for o in load_orders()
+                  if o.get("retailer_id") == st.session_state.retailer["id"]]
+    if _my_orders:
+        st.markdown("#### 🧾 Your Bills")
+        customer_bill.render_order_list(_my_orders, limit=5)
+        if len(_my_orders) > 5:
+            st.caption(f"... and {len(_my_orders) - 5} more orders (use 📄 Generate Statement above for the full list)")
 
     # ─── DELIVERY TRACKING (only after owner approval) ───
     _delivery_orders = [o for o in load_orders()
@@ -1701,7 +1940,7 @@ elif st.session_state.role in ("retailer", "customer"):
     if _delivery_orders:
         st.markdown("### 🚚 Track Your Deliveries")
         for _dlv_o in _delivery_orders[-3:][::-1]:
-            with st.expander(f"📦 {_dlv_o['order_id']} — ₹{_dlv_o['total']:,.0f}"):
+            with st.expander(f"📦 {_dlv_o['order_id']} — {inr(_dlv_o['total'])}"):
                 try:
                     delivery_ui.render_retailer_delivery(_dlv_o, r)
                 except Exception as _dlv_e:
@@ -1709,8 +1948,8 @@ elif st.session_state.role in ("retailer", "customer"):
 
     orders = [o for o in load_orders() if o["retailer_id"]==r["id"] and o["status"] != "Awaiting OTP"]
     if orders:
-        odf = pd.DataFrame([{"Order":o["order_id"],"Total":f"₹{o['total']:,.2f}","Status":o["status"],"Placed":o["placed_at"],"Location":o.get("location","")} for o in orders])
-        st.dataframe(odf, use_container_width=True, hide_index=True)
+        odf = pd.DataFrame([{"Order":o["order_id"],"Total":f"{inr(o['total'], 2)}","Status":o["status"],"Placed":o["placed_at"],"Location":o.get("location","")} for o in orders])
+        st.dataframe(odf, width='stretch', hide_index=True)
     else: st.info("No orders yet.")
 
 # ============ OWNER VIEW WITH OI TABS ============
@@ -1728,6 +1967,9 @@ elif st.session_state.role == "staff":
 
 elif st.session_state.role == "owner":
     # ── Owner header with notification bell ──
+    # Big centered brand — same look as the login page
+    unified_brand.render(size=140)
+
     # Rich header with logo, KPIs, live activity
     _pending_count = len([o for o in load_orders() if o.get("status") == "Pending"])
     _all_orders = [o for o in load_orders() if o.get("status") != "Awaiting OTP"]
@@ -1770,10 +2012,10 @@ elif st.session_state.role == "owner":
     c1.metric("Pending Orders", len(pending))
     c2.metric("Total Orders", len(orders))
     c3.metric("Approved", len([o for o in orders if o["status"]=="Approved"]))
-    c4.metric("Pending Value", f"₹{sum(o['total'] for o in pending):,.0f}")
+    c4.metric("Pending Value", f"{inr(sum(o['total'] for o in pending))}")
 
     st.markdown("---")
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs(["📋 Approvals", "🏥 Health", "🚨 Fraud", "📦 Auto POs", "🔮 Forecast", "💬 What-If", "🧠 Intelligence", "⚙️ Settings", "🔒 Audit", "💼 Ops", "📚 Accounting", "💰 Discounts", "📢 Marketing"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs(["📋 Approvals", "🏥 Health", "🚨 Fraud", "📦 Auto POs", "🔮 Forecast", "💬 What-If", "🧠 Intelligence", "⚙️ Settings", "🔒 Audit", "💼 Ops", "📚 Accounting", "💰 Discounts", "📢 Marketing", "🤖 Jarvis"])
 
     # ===== TAB 1: APPROVALS =====
     with tab1:
@@ -1786,10 +2028,10 @@ elif st.session_state.role == "owner":
             st.info("No pending orders.")
         else:
             for idx_o, o in enumerate(pending):
-                with st.expander(f"🔔 {o['order_id']} — {o['shop']} — ₹{o['total']:,.2f}"):
+                with st.expander(f"🔔 {o['order_id']} — {o['shop']} — {inr(o['total'], 2)}"):
                     st.write(f"**Placed:** {o['placed_at']} | **Location:** {o.get('location','')}")
                     items_df = pd.DataFrame(o["items"]); items_df["Total"] = items_df["qty"] * items_df["price"]
-                    st.dataframe(items_df, use_container_width=True, hide_index=True)
+                    st.dataframe(items_df, width='stretch', hide_index=True)
                     ret = next((x for x in retailers if x["id"]==o["retailer_id"]), None)
                     if ret:
                         new_out = ret["outstanding"] + o["total"]
@@ -1837,7 +2079,7 @@ elif st.session_state.role == "owner":
 
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button("✅ Approve", key=f"a_{o['order_id']}_{idx_o}", use_container_width=True):
+                        if st.button("✅ Approve", key=f"a_{o['order_id']}_{idx_o}", width='stretch'):
                             for oi in orders_all:
                                 if oi["order_id"] == o["order_id"]:
                                     oi["status"] = "Approved"; oi["approved_at"] = fmt_dt(datetime.now())
@@ -1847,7 +2089,7 @@ elif st.session_state.role == "owner":
                             track("OWNER", "APPROVE", page="Approvals", details=f"order={o['order_id']}")
                             st.success("Approved"); st.rerun()
                     with c2:
-                        if st.button("❌ Reject", key=f"r_{o['order_id']}_{idx_o}", use_container_width=True):
+                        if st.button("❌ Reject", key=f"r_{o['order_id']}_{idx_o}", width='stretch'):
                             for oi in orders_all:
                                 if oi["order_id"] == o["order_id"]:
                                     oi["status"] = "Rejected"; oi["rejected_at"] = fmt_dt(datetime.now())
@@ -1887,7 +2129,7 @@ elif st.session_state.role == "owner":
                 flags = detect_fraud(o, ret, orders)
                 if flags:
                     found = True
-                    st.markdown(f"**{o['order_id']} — {o['shop']} — ₹{o['total']:,.0f}**")
+                    st.markdown(f"**{o['order_id']} — {o['shop']} — {inr(o['total'])}**")
                     for f in flags: st.markdown(f'<div class="flag">{f}</div>', unsafe_allow_html=True)
                     st.markdown("")
         if not found:
@@ -1910,7 +2152,7 @@ elif st.session_state.role == "owner":
                 <div class="card">
                     <b>{po['medicine']}</b> from <b>{po['supplier']}</b><br>
                     Current: {po['current_qty']} units → Order: <b>{po['recommended_qty']} units</b><br>
-                    Cost: <b>₹{po['cost']:,.0f}</b><br>
+                    Cost: <b>{inr(po['cost'])}</b><br>
                     <small>{po['reason']}</small>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1937,7 +2179,7 @@ elif st.session_state.role == "owner":
             _fc_rid = _fc_ret.split(" — ")[0] if _fc_ret else ""
             _fc_retailer = next((r for r in retailers if r["id"] == _fc_rid), None)
 
-            if st.button("🌦️ Run Smart Forecast", key="smart_fc_run", use_container_width=True):
+            if st.button("🌦️ Run Smart Forecast", key="smart_fc_run", width='stretch'):
                 with st.spinner("Analyzing season + disease patterns + order history..."):
                     _fc_result = forecast_pro.forecast_retailer(_fc_retailer, orders, df)
                     _weather = forecast_pro.get_weather("Chennai")
@@ -1971,7 +2213,7 @@ elif st.session_state.role == "owner":
                         "Trend": f["trend"],
                         "Samples": f["history_samples"],
                     } for f in sorted(_fc_result["forecasts"], key=lambda x: -x["predicted_qty"])])
-                    st.dataframe(_fdf, use_container_width=True, hide_index=True)
+                    st.dataframe(_fdf, width='stretch', hide_index=True)
                 else:
                     st.info("No order history for this retailer yet — showing seasonal promotions below.")
 
@@ -2003,7 +2245,7 @@ elif st.session_state.role == "owner":
             if pred["items"]:
                 fdf = pd.DataFrame(pred["items"])
                 fdf.columns = ["Medicine", "Predicted Qty (30d)", "Confidence"]
-                st.dataframe(fdf, use_container_width=True, hide_index=True)
+                st.dataframe(fdf, width='stretch', hide_index=True)
 
     # ===== TAB 6: WHAT-IF =====
     with tab6:
@@ -2014,10 +2256,10 @@ elif st.session_state.role == "owner":
         st.markdown("### 💬 What-If Simulator")
         st.caption("Ask AI hypothetical business questions.")
         context = f"""Retailers: {len(retailers)}
-Total outstanding: ₹{sum(r['outstanding'] for r in retailers):,.0f}
-Total credit limits: ₹{sum(r['credit_limit'] for r in retailers):,.0f}
+Total outstanding: {inr(sum(r['outstanding'] for r in retailers))}
+Total credit limits: {inr(sum(r['credit_limit'] for r in retailers))}
 Pending orders: {len(pending)}
-Inventory value: ₹{df['inventory_value'].sum():,.0f}
+Inventory value: {inr(df['inventory_value'].sum())}
 Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
         q = st.text_area("Your question", placeholder="What if I raise RET001's credit limit by ₹50,000?", height=100)
         if st.button("Ask AI") and q.strip():
@@ -2127,7 +2369,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
             st.markdown("#### AI Business Reports")
             c1, c2, c3, c4 = st.columns(4)
             with c1:
-                if st.button("📅 Daily", use_container_width=True):
+                if st.button("📅 Daily", width='stretch'):
                     with st.spinner("Generating..."):
                         # --- Visual Daily Dashboard ---
                             st.markdown("### 📊 Today at a Glance")
@@ -2137,7 +2379,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                             break_count = len(breaks)
                             render_kpi_strip({
                                 "Orders":  {"value": len(orders), "delta": "today", "rag": "green" if orders else "red"},
-                                "Revenue": {"value": f"₹{total_rev:,.0f}", "delta": "total", "rag": "green" if total_rev > 0 else "red"},
+                                "Revenue": {"value": f"{inr(total_rev)}", "delta": "total", "rag": "green" if total_rev > 0 else "red"},
                                 "Pending": {"value": pending_count, "delta": "awaiting", "rag": "amber" if pending_count else "green"},
                                 "Workers": {"value": worker_count, "delta": "active", "rag": "green"},
                                 "Breaks":  {"value": break_count, "delta": "detected", "rag": "amber" if break_count > 2 else "green"},
@@ -2168,7 +2410,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                             if len(orders) == 0:
                                 render_root_cause(["Zero orders received today", "No customers attempted to place orders", "Either catalogue not visible OR no demand generation", "Likely catalogue/pricing issue OR lack of outreach", "Action: verify catalogue is live; call top 3 retailers"])
                             else:
-                                render_root_cause([f"{len(orders)} orders received", f"Total value ₹{total_rev:,.0f}", f"{pending_count} pending approval", "Pipeline is active", "Action: clear pending approvals to maintain flow"])
+                                render_root_cause([f"{len(orders)} orders received", f"Total value {inr(total_rev)}", f"{pending_count} pending approval", "Pipeline is active", "Action: clear pending approvals to maintain flow"])
                             st.markdown("---")
                             st.markdown("#### 💡 Recommended Actions")
                             if len(orders) == 0:
@@ -2197,23 +2439,23 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                             render_retailer_scorecard(ret_list)
                     log_activity("OWNER", "AI_DAILY_REPORT")
             with c2:
-                if st.button("📆 Weekly", use_container_width=True):
+                if st.button("📆 Weekly", width='stretch'):
                     with st.spinner("Generating..."):
                         st.markdown(generate_weekly_insights(worker_metrics, orders, retailers, breaks))
                     log_activity("OWNER", "AI_WEEKLY_REPORT")
             with c3:
-                if st.button("🗓 Monthly", use_container_width=True):
+                if st.button("🗓 Monthly", width='stretch'):
                     with st.spinner("Generating..."):
                         st.markdown(generate_monthly_report(worker_metrics, orders, retailers, breaks))
                     log_activity("OWNER", "AI_MONTHLY_REPORT")
             with c4:
-                if st.button("📊 Yearly", use_container_width=True):
+                if st.button("📊 Yearly", width='stretch'):
                     with st.spinner("Generating..."):
                         st.markdown(generate_yearly_report(worker_metrics, orders, retailers, breaks))
                     log_activity("OWNER", "AI_YEARLY_REPORT")
 
             st.markdown("---")
-            if st.button("🧠 Psychological Profile", use_container_width=True):
+            if st.button("🧠 Psychological Profile", width='stretch'):
                 with st.spinner("Analyzing worker patterns..."):
                     st.markdown(psychological_profile(worker_metrics, breaks))
                 log_activity("OWNER", "AI_PSYCH_PROFILE")
@@ -2221,7 +2463,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
         # --- STRATEGY ---
         with t5:
             st.markdown("#### Strategic Recommendations")
-            if st.button("🎯 Generate Strategic Advice", use_container_width=True):
+            if st.button("🎯 Generate Strategic Advice", width='stretch'):
                 with st.spinner("Analyzing business..."):
                     st.markdown(strategic_recommendations(worker_metrics, orders, retailers, breaks))
                 log_activity("OWNER", "AI_STRATEGY")
@@ -2249,20 +2491,20 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 orders_count = [worker_metrics[w]["orders_placed"] for w in workers]
                 fig = go.Figure(data=[go.Bar(x=workers, y=orders_count, marker_color="#00d4ff")])
                 fig.update_layout(title="Orders per Worker", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Chart 2: Session minutes
                 sessions = [worker_metrics[w]["session_minutes"] for w in workers]
                 fig2 = go.Figure(data=[go.Bar(x=workers, y=sessions, marker_color="#7b61ff")])
                 fig2.update_layout(title="Session Minutes per Worker", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width='stretch')
             else:
                 st.info("No data yet for charts.")
             
             # Chart 3: Retailer outstanding
             fig3 = go.Figure(data=[go.Pie(labels=[r["shop"] for r in retailers], values=[r["outstanding"] for r in retailers], hole=0.5)])
             fig3.update_layout(title="Outstanding by Retailer", paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e8eaf6"))
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width='stretch')
 
         # --- INDUSTRY ---
         with t8:
@@ -2290,7 +2532,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
             "Limit":f"₹{r['credit_limit']:,}","Outstanding":f"₹{r['outstanding']:,}",
             "Status":r["status"]
         } for r in retailers])
-        st.dataframe(rdf, use_container_width=True, hide_index=True)
+        st.dataframe(rdf, width='stretch', hide_index=True)
 
         with st.expander("➕ Add New Retailer"):
             with st.form("add_retailer"):
@@ -2451,7 +2693,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 xaxis=dict(showgrid=False, visible=False),
                 yaxis=dict(showgrid=False, autorange="reversed"),
             )
-            st.plotly_chart(_fig, use_container_width=True)
+            st.plotly_chart(_fig, width='stretch')
         else:
             st.info("No page views yet today.")
 
@@ -2551,7 +2793,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 xaxis=dict(title="Hour of Day", showgrid=False),
                 yaxis=dict(title="", showgrid=False),
             )
-            st.plotly_chart(_heat, use_container_width=True)
+            st.plotly_chart(_heat, width='stretch')
         except Exception as _e:
             st.caption(f"Heatmap unavailable: {_e}")
 
@@ -2588,7 +2830,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 xaxis=dict(showgrid=False),
                 yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
             )
-            st.plotly_chart(_trend, use_container_width=True)
+            st.plotly_chart(_trend, width='stretch')
         except Exception as _e:
             st.caption(f"Trend unavailable: {_e}")
 
@@ -2630,7 +2872,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     margin=dict(l=40, r=40, t=20, b=20),
                     showlegend=True,
                 )
-                st.plotly_chart(_radar, use_container_width=True)
+                st.plotly_chart(_radar, width='stretch')
             else:
                 st.caption("No user data yet for comparison.")
         except Exception as _e:
@@ -2690,7 +2932,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     "Action": e["action"],
                     "Page": e.get("page", ""),
                 })
-            st.dataframe(_pd.DataFrame(_rows), use_container_width=True, hide_index=True, height=300)
+            st.dataframe(_pd.DataFrame(_rows), width='stretch', hide_index=True, height=300)
         else:
             st.info("No events yet.")
 
@@ -2700,7 +2942,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
         st.markdown("#### 🛠 Owner Actions")
         _ac1, _ac2, _ac3 = st.columns(3)
         with _ac1:
-            if st.button("🔐 Verify Chain Integrity", use_container_width=True):
+            if st.button("🔐 Verify Chain Integrity", width='stretch'):
                 _v = verify_chain()
                 if _v["ok"]:
                     st.success(f"✅ Chain intact — {_v['total']} events")
@@ -2711,9 +2953,9 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 _csv = "ts_hms,ts_date,user,action,page,details\n"
                 for e in _all_events:
                     _csv += f"{e['ts_hms']},{e['ts_date']},{e['user']},{e['action']},{e.get('page','')},\"{e.get('details','')}\"\n"
-                st.download_button("📥 Export CSV", data=_csv, file_name=f"audit_{_today}.csv", mime="text/csv", use_container_width=True)
+                st.download_button("📥 Export CSV", data=_csv, file_name=f"audit_{_today}.csv", mime="text/csv", width='stretch')
             else:
-                st.button("📥 Export CSV (empty)", disabled=True, use_container_width=True)
+                st.button("📥 Export CSV (empty)", disabled=True, width='stretch')
         with _ac3:
             pass  # removed disabled button
 
@@ -2802,7 +3044,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
 
                 _note = st.text_input("Additional note (optional)", key="pay_note")
 
-                if st.button("💾 Save Payment", key="pay_save", use_container_width=True):
+                if st.button("💾 Save Payment", key="pay_save", width='stretch'):
                     # Validate mandatory reference for cheque/upi/neft/rtgs
                     needs_ref = _mode in ("cheque", "upi", "neft", "rtgs")
                     if needs_ref and not _ref.strip():
@@ -2829,13 +3071,13 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     import pandas as _pd_ph
                     _hdf = _pd_ph.DataFrame([{
                         "Date": h["date"][:16].replace("T", " "),
-                        "Amount": f"₹{h['amount']:,.0f}",
+                        "Amount": f"{inr(h['amount'])}",
                         "Mode": h.get("mode", "cash").upper(),
                         "Reference": h.get("reference", "—"),
                         "Bank": h.get("bank", "—"),
                         "Note": h.get("note", ""),
                     } for h in reversed(_history[-20:])])
-                    st.dataframe(_hdf, use_container_width=True, hide_index=True)
+                    st.dataframe(_hdf, width='stretch', hide_index=True)
 
                     # Summary
                     _total_paid = sum(h["amount"] for h in _history)
@@ -2844,10 +3086,10 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     _digital = _total_paid - _cash - _cheque
 
                     _sum_c1, _sum_c2, _sum_c3, _sum_c4 = st.columns(4)
-                    _sum_c1.metric("Total Paid", f"₹{_total_paid:,.0f}")
-                    _sum_c2.metric("💵 Cash", f"₹{_cash:,.0f}")
-                    _sum_c3.metric("📝 Cheque", f"₹{_cheque:,.0f}")
-                    _sum_c4.metric("📱 Digital", f"₹{_digital:,.0f}")
+                    _sum_c1.metric("Total Paid", f"{inr(_total_paid)}")
+                    _sum_c2.metric("💵 Cash", f"{inr(_cash)}")
+                    _sum_c3.metric("📝 Cheque", f"{inr(_cheque)}")
+                    _sum_c4.metric("📱 Digital", f"{inr(_digital)}")
 
         with op2:
             st.markdown("#### ❌ Cancel Order")
@@ -2855,11 +3097,11 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
             if not _open_orders:
                 st.info("No cancellable orders.")
             else:
-                _opts = [f"{o['order_id']} — {o['shop']} (₹{o['total']:,.0f}, {o['status']})" for o in _open_orders]
+                _opts = [f"{o['order_id']} — {o['shop']} ({inr(o['total'])}, {o['status']})" for o in _open_orders]
                 _picked_o = st.selectbox("Select order", _opts, key="cancel_o")
                 _oid = _picked_o.split(" — ")[0] if _picked_o else ""
                 _reason = st.text_input("Reason", key="cancel_r")
-                if st.button("❌ Cancel This Order", key="cancel_btn", use_container_width=True):
+                if st.button("❌ Cancel This Order", key="cancel_btn", width='stretch'):
                     res = cancel_order(_oid, _reason)
                     if res["ok"]:
                         st.success(res["msg"])
@@ -2912,13 +3154,13 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                         <tr><td style="padding:6px 0;color:#8892b0;">Quantity</td>
                             <td style="padding:6px 0;font-weight:700;color:#00d47a;font-size:1.1rem;">{_p['qty']} units</td></tr>
                         <tr><td style="padding:6px 0;color:#8892b0;">Cost price</td>
-                            <td style="padding:6px 0;color:#e8eaf6;">₹{_p['cost']:,.2f} / unit</td></tr>
+                            <td style="padding:6px 0;color:#e8eaf6;">{inr(_p['cost'], 2)} / unit</td></tr>
                         <tr><td style="padding:6px 0;color:#8892b0;">Total cost</td>
-                            <td style="padding:6px 0;font-weight:700;color:#00d4ff;">₹{_p['qty'] * _p['cost']:,.2f}</td></tr>
+                            <td style="padding:6px 0;font-weight:700;color:#00d4ff;">{inr(_p['qty'] * _p['cost'], 2)}</td></tr>
                         <tr><td style="padding:6px 0;color:#8892b0;">Supplier</td>
                             <td style="padding:6px 0;color:#e8eaf6;">{_p['supplier']}</td></tr>
                         <tr><td style="padding:6px 0;color:#8892b0;">Selling price</td>
-                            <td style="padding:6px 0;color:#e8eaf6;">₹{_p['cost'] * 1.25:,.2f} / unit (25% margin)</td></tr>
+                            <td style="padding:6px 0;color:#e8eaf6;">{inr(_p['cost'] * 1.25, 2)} / unit (25% margin)</td></tr>
                     </table>
                 </div>
                 """, unsafe_allow_html=True)
@@ -2928,7 +3170,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 with _cc1:
                     if st.button("✅ Confirm & Save to Inventory",
                                  key="stock_confirm",
-                                 use_container_width=True,
+                                 width='stretch',
                                  type="primary"):
                         res = add_stock(_p["medicine"], _p["batch"], _p["expiry"],
                                         int(_p["qty"]), float(_p["cost"]), _p["supplier"])
@@ -2945,7 +3187,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 with _cc2:
                     if st.button("❌ Cancel / Edit",
                                  key="stock_cancel",
-                                 use_container_width=True):
+                                 width='stretch'):
                         st.session_state.pending_stock = None
                         st.info("Cancelled. Fill the form again to re-enter.")
                         st.rerun()
@@ -2964,7 +3206,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                 _cost = st.number_input("Cost price (₹)", min_value=0.1, value=50.0, step=1.0, key="stock_cost")
                 _sup = st.text_input("Supplier", value="Sun Pharma", key="stock_sup")
 
-                if st.form_submit_button("🔍 Review Before Saving", use_container_width=True):
+                if st.form_submit_button("🔍 Review Before Saving", width='stretch'):
                     if not _med.strip():
                         st.error("⚠️ Medicine name is required")
                     elif not _batch.strip():
@@ -2995,10 +3237,10 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     import pandas as _pd_op
                     _df = _pd_op.DataFrame([{
                         "Order": o["order_id"], "Shop": o.get("shop", ""),
-                        "Total": f"₹{o['total']:,.0f}", "Status": o.get("status", ""),
+                        "Total": f"{inr(o['total'])}", "Status": o.get("status", ""),
                         "Placed": o.get("placed_at", ""),
                     } for o in _results])
-                    st.dataframe(_df, use_container_width=True, hide_index=True)
+                    st.dataframe(_df, width='stretch', hide_index=True)
                 else:
                     st.info("No matches.")
             else:
@@ -3007,7 +3249,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
         with op5:
             st.markdown("#### 📄 GST Invoice")
             st.caption("Generates a proper GST tax invoice. Open in browser → Print → Save as PDF.")
-            _inv_opts = [f"{o['order_id']} — {o['shop']} (₹{o['total']:,.0f})" for o in orders if o.get("status") in ("Approved", "Pending")]
+            _inv_opts = [f"{o['order_id']} — {o['shop']} ({inr(o['total'])})" for o in orders if o.get("status") in ("Approved", "Pending")]
             if not _inv_opts:
                 st.info("No billable orders yet. Approve an order first.")
             else:
@@ -3024,7 +3266,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                         data=_inv_html.encode("utf-8"),
                         file_name=f"invoice_{_inv_oid}.html",
                         mime="text/html",
-                        use_container_width=True,
+                        width='stretch',
                         key="inv_dl_html",
                     )
 
@@ -3033,7 +3275,7 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
                     st.text_area("Plain text preview", _inv_text, height=200, key="inv_preview")
                     st.download_button("📥 Download Plain Text", data=_inv_text,
                                        file_name=f"invoice_{_inv_oid}.txt",
-                                       mime="text/plain", use_container_width=True, key="inv_dl")
+                                       mime="text/plain", width='stretch', key="inv_dl")
 
         st.markdown("---")
 
@@ -3063,3 +3305,16 @@ Items expiring <30d: {len(df[df['status'].isin(['Expired','Critical'])])}"""
             import traceback
             st.code(traceback.format_exc(), language="python")
 
+# Final nuclear light-theme pass (runs last, wins over everything)
+
+
+    # ═══════════════════════════════════════════════════════
+    # JARVIS AI ASSISTANT
+    # ═══════════════════════════════════════════════════════
+    with tab14:
+        try:
+            jarvis_tab.render_jarvis_tab()
+        except Exception as _je:
+            st.error(f"JARVIS error: {_je}")
+
+    st.markdown("---")

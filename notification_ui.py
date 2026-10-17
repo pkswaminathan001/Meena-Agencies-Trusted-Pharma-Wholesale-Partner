@@ -67,7 +67,7 @@ def inject_css():
         50%     { box-shadow: 0 0 0 6px rgba(255,77,109,0); }
     }
     .ma-notif-panel {
-        position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
+         top: 0; right: 0; width: 400px; height: 100vh;
         background: linear-gradient(180deg, #0d1130, #0a0e27);
         border-left: 1px solid rgba(0,212,170,0.3);
         box-shadow: -12px 0 40px rgba(0,0,0,0.6);

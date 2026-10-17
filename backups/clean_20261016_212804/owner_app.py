@@ -1,0 +1,884 @@
+"""
+owner_app.py — Full Owner App for Meena Agencies
+Port: 8502
+Matches the rich retailer design (dark navy + gradients).
+"""
+import base64
+import hashlib
+import json
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+PARENT = Path(__file__).parent.parent
+sys.path.insert(0, str(PARENT))
+
+st.set_page_config(
+    page_title="Meena Agencies — Owner",
+    page_icon="👑",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ══════════════════════════════════════════════════════════
+#  DARK THEME (same as retailer app)
+# ══════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+:root{
+    --bg:#0a0e1a;--bg2:#111827;--card:#1a1f2e;--border:#2a3142;
+    --text:#e8eaf6;--muted:#8892b0;
+    --cyan:#00d4ff;--purple:#7b61ff;--green:#00d47a;
+    --orange:#ffb547;--red:#ff4d6d;--pink:#e91e63;
+}
+html,body,.stApp,[data-testid="stAppViewContainer"]{
+    background:var(--bg) !important;color:var(--text) !important;
+    font-family:'Inter','Source Sans',-apple-system,sans-serif !important;
+}
+[data-testid="stHeader"]{background:transparent !important;}
+#MainMenu,footer{visibility:hidden !important;}
+.main .block-container{padding:1.2rem 1.5rem 3rem !important;max-width:1500px !important;}
+@media (max-width:768px){.main .block-container{padding:.8rem .8rem 3rem !important;}}
+
+/* Sidebar */
+section[data-testid="stSidebar"]{background:#0d1220 !important;border-right:1px solid var(--border) !important;}
+section[data-testid="stSidebar"] *{color:var(--text) !important;}
+section[data-testid="stSidebar"] .stButton>button{
+    background:transparent !important;border:1px solid transparent !important;
+    color:var(--muted) !important;text-align:left !important;
+    justify-content:flex-start !important;font-weight:500 !important;
+    padding:.5rem .8rem !important;margin:2px 0 !important;
+}
+section[data-testid="stSidebar"] .stButton>button:hover{
+    background:rgba(0,212,255,.08) !important;color:var(--text) !important;
+    border-color:rgba(0,212,255,.25) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]{
+    background:linear-gradient(90deg,rgba(0,212,255,.15),rgba(123,97,255,.15)) !important;
+    color:var(--cyan) !important;border:1px solid rgba(0,212,255,.4) !important;
+    font-weight:700 !important;
+}
+
+/* Buttons */
+.stButton>button{
+    background:var(--card) !important;color:var(--text) !important;
+    border:1px solid var(--border) !important;border-radius:10px !important;
+    font-weight:600 !important;transition:all .15s ease !important;
+}
+.stButton>button:hover{
+    border-color:var(--cyan) !important;color:var(--cyan) !important;
+    box-shadow:0 0 12px rgba(0,212,255,.2) !important;transform:translateY(-1px);
+}
+[data-testid="stBaseButton-primary"]{
+    background:linear-gradient(90deg,var(--cyan),var(--purple)) !important;
+    color:#0a0e1a !important;border:none !important;font-weight:800 !important;
+}
+
+/* Inputs */
+.stTextInput input,.stNumberInput input,.stSelectbox select,
+[data-baseweb="select"]>div,[data-baseweb="input"]>div{
+    background:var(--card) !important;color:var(--text) !important;
+    border-color:var(--border) !important;border-radius:10px !important;
+}
+label{color:var(--muted) !important;}
+
+/* Headings */
+h1,h2,h3,h4{color:var(--text) !important;font-weight:700 !important;}
+h1{font-size:1.9rem !important;}h2{font-size:1.4rem !important;}h3{font-size:1.1rem !important;}
+@media (max-width:480px){h1{font-size:1.4rem !important;}h2{font-size:1.15rem !important;}}
+
+/* Hero */
+.hero{
+    background:linear-gradient(135deg,#0d3b66 0%,#4a3a8c 60%,#7b61ff 100%);
+    border-radius:18px;padding:1.8rem 2rem 1.6rem;margin-bottom:1.4rem;
+    position:relative;overflow:hidden;
+    box-shadow:0 8px 40px rgba(123,97,255,.25),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.hero::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 80% 20%,rgba(0,212,255,.25),transparent 55%);
+    pointer-events:none;
+}
+.hero-eyebrow{
+    display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:1.5px;
+    text-transform:uppercase;background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.18);border-radius:20px;
+    padding:4px 12px;margin-bottom:.8rem;color:#fff;
+}
+.hero h1{margin:0 !important;font-size:1.9rem !important;font-weight:800 !important;color:#fff !important;letter-spacing:-.5px;}
+.hero h1 .accent{
+    background:linear-gradient(90deg,#00d4ff,#a78bfa);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero p{margin:.5rem 0 1rem !important;color:rgba(255,255,255,.85) !important;font-size:.95rem;max-width:640px;}
+.hero-stats{display:flex;gap:1.8rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.15);padding-top:1rem;margin-top:.4rem;}
+.hero-stat-label{font-size:.7rem;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
+.hero-stat-value{font-size:1.05rem;color:#fff;font-weight:700;}
+@media (max-width:480px){
+    .hero{padding:1.2rem 1.1rem;border-radius:14px;}
+    .hero h1{font-size:1.3rem !important;}
+    .hero p{font-size:.82rem;}
+    .hero-stats{gap:1rem;}.hero-stat-value{font-size:.9rem;}
+}
+
+/* Metric tiles */
+.metric-tile{
+    background:var(--card);border:1px solid var(--border);
+    border-top:3px solid var(--cyan);border-radius:14px;
+    padding:.9rem 1rem;position:relative;overflow:hidden;height:100%;
+}
+.metric-tile.purple{border-top-color:var(--purple);}
+.metric-tile.green{border-top-color:var(--green);}
+.metric-tile.orange{border-top-color:var(--orange);}
+.metric-tile.red{border-top-color:var(--red);}
+.metric-tile .label{font-size:.7rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;}
+.metric-tile .value{font-size:1.6rem;font-weight:800;line-height:1;color:var(--cyan);}
+.metric-tile.purple .value{color:var(--purple);}
+.metric-tile.green .value{color:var(--green);}
+.metric-tile.orange .value{color:var(--orange);}
+.metric-tile.red .value{color:var(--red);}
+
+/* Section header */
+.section-head{
+    display:flex;align-items:center;gap:.5rem;
+    margin:1.5rem 0 .9rem;font-size:1.1rem;font-weight:700;color:var(--text);
+}
+.section-head::before{
+    content:"";display:inline-block;width:4px;height:20px;
+    border-radius:2px;background:linear-gradient(180deg,var(--cyan),var(--purple));
+}
+
+/* Order/bill cards */
+.bill-card{
+    background:var(--card);border:1px solid var(--border);
+    border-left:3px solid var(--cyan);border-radius:12px;
+    padding:.9rem 1.1rem;margin-bottom:.7rem;
+}
+.bill-card.pending{border-left-color:var(--orange);}
+.bill-card.cancelled{border-left-color:var(--red);}
+.bill-card.delivered{border-left-color:var(--green);}
+.bill-card.approved{border-left-color:var(--cyan);}
+.bill-card .row1{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.bill-card .oid{font-weight:700;color:var(--text);font-size:.9rem;}
+.bill-card .badge{font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+.badge.pending{background:rgba(255,181,71,.15);color:#ffb547;}
+.badge.cancelled{background:rgba(255,77,109,.15);color:#ff4d6d;}
+.badge.delivered{background:rgba(0,212,122,.15);color:#00d47a;}
+.badge.approved{background:rgba(0,212,255,.15);color:#00d4ff;}
+.bill-card .row2{font-size:.75rem;color:var(--muted);margin-top:.3rem;display:flex;gap:1.2rem;flex-wrap:wrap;}
+.bill-card .row3{display:flex;justify-content:space-between;align-items:center;margin-top:.6rem;padding-top:.6rem;border-top:1px dashed #2a3142;}
+.bill-card .total{color:var(--cyan);font-weight:800;font-size:1.05rem;}
+
+/* Activity feed */
+.activity-item{
+    padding:.5rem 0;border-bottom:1px solid #1a1f2e;
+    font-size:.82rem;color:#c5cae9;
+    display:flex;justify-content:space-between;gap:1rem;
+}
+.activity-item .time{color:#8892b0;font-size:.7rem;}
+.activity-item::before{content:"●";color:#00d4ff;margin-right:.5rem;}
+
+/* Tabs (owner use) */
+.stTabs [role="tablist"]{background:var(--card) !important;border-radius:10px !important;padding:.3rem !important;border:1px solid var(--border) !important;}
+.stTabs [role="tablist"] button{color:var(--muted) !important;border-radius:8px !important;font-size:.8rem !important;}
+.stTabs [role="tablist"] button[aria-selected="true"]{
+    background:linear-gradient(90deg,var(--cyan),var(--purple)) !important;
+    color:#0a0e1a !important;font-weight:700 !important;
+}
+
+/* Chat bubbles */
+.chat-user{background:linear-gradient(135deg,var(--cyan),var(--purple));color:#0a0e1a;
+    padding:.6rem 1rem;border-radius:14px 14px 4px 14px;margin:.4rem 0;
+    max-width:80%;margin-left:auto;font-weight:500;}
+.chat-bot{background:var(--card);color:var(--text);border:1px solid var(--border);
+    padding:.6rem 1rem;border-radius:14px 14px 14px 4px;margin:.4rem 0;
+    max-width:80%;font-size:.9rem;line-height:1.4;}
+
+/* Table */
+[data-testid="stDataFrame"]{background:var(--card) !important;border-radius:12px !important;border:1px solid var(--border) !important;}
+
+/* Sidebar brand */
+.sidebar-brand{padding:.8rem 0 .6rem;text-align:center;}
+.sidebar-brand .name{font-weight:800;color:#f59e0b;font-size:.9rem;letter-spacing:.5px;}
+.sidebar-brand .sub{font-size:.68rem;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+
+/* Mobile sidebar */
+@media (max-width:768px){
+    section[data-testid="stSidebar"]{
+        position:fixed !important;top:0 !important;left:0 !important;
+        height:100vh !important;width:82vw !important;max-width:320px !important;
+        z-index:999999 !important;transform:translateX(-100%) !important;
+        transition:transform .25s ease !important;overflow-y:auto !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="true"]{transform:translateX(0) !important;}
+}
+html,body,[data-testid="stAppViewContainer"]{overflow-x:hidden !important;max-width:100vw !important;}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════════
+def logo_html(h=44):
+    for p in (Path(__file__).parent/"static"/"logo.png", PARENT/"logo.png"):
+        if p.exists():
+            try:
+                b64 = base64.b64encode(p.read_bytes()).decode()
+                return f'<img src="data:image/png;base64,{b64}" style="height:{h}px;" alt="Meena">'
+            except Exception: pass
+    return "🦚"
+
+
+def money(v):
+    try: return f"₹{float(v):,.2f}"
+    except Exception: return "₹0.00"
+
+
+def find_col(df, *c):
+    if df is None or df.empty: return None
+    for cand in c:
+        if cand in df.columns: return cand
+    lower = {str(x).lower():x for x in df.columns}
+    for cand in c:
+        if cand.lower() in lower: return lower[cand.lower()]
+    return None
+
+
+@st.cache_data(ttl=15)
+def load_inventory():
+    for p in (PARENT/"inventory.csv", Path("inventory.csv")):
+        if p.exists():
+            try:
+                df = pd.read_csv(p); df.columns=[c.strip().lower() for c in df.columns]
+                return df
+            except Exception: pass
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=15)
+def load_retailers():
+    for p in (PARENT/"retailers.json", Path("retailers.json")):
+        if p.exists():
+            try:
+                d = json.loads(p.read_text())
+                if isinstance(d, dict): d = list(d.values())
+                return pd.DataFrame(d)
+            except Exception: pass
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=15)
+def load_orders():
+    for p in (PARENT/"orders.json", Path("orders.json")):
+        if p.exists():
+            try:
+                d = json.loads(p.read_text())
+                if isinstance(d, dict): d = list(d.values())
+                return d
+            except Exception: pass
+    return []
+
+
+def load_owner_pw_hash():
+    """Read owner hash from users.json."""
+    for p in (PARENT/"users.json", Path("users.json")):
+        if p.exists():
+            try:
+                users = json.loads(p.read_text())
+                for u in users:
+                    if u.get("id","").upper() == "OWNER":
+                        return u.get("pin_hash")
+            except Exception: pass
+    return None
+
+
+# ══════════════════════════════════════════════════════════
+#  LOGIN
+# ══════════════════════════════════════════════════════════
+def login_screen():
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        st.markdown(f'<div style="text-align:center;margin:2rem 0 1rem;">{logo_html(80)}</div>',
+                    unsafe_allow_html=True)
+        st.markdown('<h2 style="text-align:center;color:#f59e0b;margin-bottom:0;">MEENA AGENCIES</h2>',
+                    unsafe_allow_html=True)
+        st.markdown('<p style="text-align:center;color:#8892b0;margin-top:0;">Owner Login</p>',
+                    unsafe_allow_html=True)
+        st.markdown("---")
+        with st.form("owner_login"):
+            pw = st.text_input("Owner Password", type="password", placeholder="Password")
+            ok = st.form_submit_button("👑 Sign In", use_container_width=True)
+
+        if not ok: return
+        if not pw:
+            st.error("Enter password."); return
+
+        # ── Use the app's OWN auth module (rbac.py) ──
+        verified = False
+        owner_info = None
+
+        try:
+            import rbac
+            # Try the same function that already verifies owner2026
+            for uid in ("owner", "OWNER", "Owner"):
+                try:
+                    ok, user, err = rbac.verify_login(uid, "owner", pw)
+                    if ok:
+                        verified = True
+                        owner_info = user
+                        break
+                except Exception:
+                    continue
+        except Exception as e:
+            st.warning(f"Could not load rbac.py: {e}")
+            # Fallback: compare with users.json hash
+            stored = load_owner_pw_hash()
+            if stored:
+                candidates = {
+                    pw,
+                    hashlib.sha256(pw.encode()).hexdigest(),
+                    hashlib.sha256(pw.lower().encode()).hexdigest(),
+                    hashlib.md5(pw.encode()).hexdigest(),
+                }
+                if stored in candidates:
+                    verified = True
+                    owner_info = {"name": "Swaminathan", "id": "OWNER"}
+
+        if not verified:
+            st.error("❌ Wrong password.")
+            with st.expander("🔍 Debug"):
+                st.write("**Password tried:**", repr(pw))
+                try:
+                    import rbac
+                    st.write("**rbac module loaded:**", rbac.__file__)
+                    st.write("**rbac.verify_login:**", rbac.verify_login)
+                except Exception as e:
+                    st.write("**rbac import failed:**", str(e))
+                stored = load_owner_pw_hash()
+                st.write("**Stored hash (users.json):**", stored)
+            return
+
+        st.session_state.owner = True
+        st.session_state.owner_name = (owner_info or {}).get("name", "Swaminathan")
+        st.session_state.page = "home"
+        st.rerun()
+
+
+# ══════════════════════════════════════════════════════════
+#  HOME
+# ══════════════════════════════════════════════════════════
+def page_home():
+    orders = load_orders()
+    retailers_df = load_retailers()
+    inv = load_inventory()
+
+    pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+    approved = [o for o in orders if (o.get("status") or "").lower() == "approved"]
+    delivered = [o for o in orders if (o.get("status") or "").lower() == "delivered"]
+    pending_value = sum(float(o.get("total",0)) for o in pending)
+
+    name = st.session_state.get("owner_name","Swaminathan")
+    now = datetime.now()
+    hour = now.hour
+    greet = "Good morning" if hour<12 else ("Good afternoon" if hour<17 else "Good evening")
+
+    st.markdown(f"""
+    <div class="hero">
+        <div class="hero-eyebrow">👑 OWNER DASHBOARD</div>
+        <h1>{greet}, <span class="accent">{name}</span></h1>
+        <p>Control center for Meena Agencies — approvals, retailers, inventory, and analytics.</p>
+        <div class="hero-stats">
+            <div><div class="hero-stat-label">Pending Orders</div>
+                 <div class="hero-stat-value">{len(pending)}</div></div>
+            <div><div class="hero-stat-label">Total Orders</div>
+                 <div class="hero-stat-value">{len(orders)}</div></div>
+            <div><div class="hero-stat-label">Approved</div>
+                 <div class="hero-stat-value">{len(approved)}</div></div>
+            <div><div class="hero-stat-label">Pending Value</div>
+                 <div class="hero-stat-value">{money(pending_value)}</div></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    m1,m2,m3,m4 = st.columns(4)
+    tiles = [
+        (m1,"orange","Pending Orders",str(len(pending)),"awaiting action"),
+        (m2,"cyan",  "Total Orders",  str(len(orders)),"all time"),
+        (m3,"green", "Approved",      str(len(approved)),"this period"),
+        (m4,"purple","Pending Value", money(pending_value),"in queue"),
+    ]
+    for col,tone,label,val,sub in tiles:
+        with col:
+            st.markdown(f"""
+            <div class="metric-tile {tone}">
+                <div class="label">{label}</div>
+                <div class="value">{val}</div>
+                <div style="font-size:.68rem;color:#8892b0;margin-top:.3rem;">{sub}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="section-head">📢 Recent Activity</div>', unsafe_allow_html=True)
+    now_str = now.strftime("%I:%M %p")
+    events = [
+        (f"Owner logged in", now_str),
+        (f"{len(pending)} order(s) awaiting approval", "just now"),
+        (f"{len(retailers_df)} retailer(s) active", "5 min ago"),
+        (f"{len(inv) if not inv.empty else 0} inventory items", "10 min ago"),
+    ]
+    for txt, tm in events:
+        st.markdown(f'<div class="activity-item"><span>{txt}</span><span class="time">{tm}</span></div>',
+                    unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  APPROVALS
+# ══════════════════════════════════════════════════════════
+def page_approvals():
+    st.markdown("## ✅ Pending Approvals")
+    st.caption("Review and approve or reject pending orders")
+
+    orders = load_orders()
+    pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+
+    if not pending:
+        st.info("No pending approvals."); return
+
+    st.caption(f"**{len(pending)}** order(s) awaiting your decision")
+
+    for i, o in enumerate(pending):
+        oid = o.get("order_id","—")
+        rid = o.get("retailer_id","—")
+        shop = o.get("shop","—")
+        total = float(o.get("total",0))
+        items = o.get("items",[])
+        placed = o.get("placed_at","—")
+
+        st.markdown(f"""
+        <div class="bill-card pending">
+            <div class="row1">
+                <div class="oid">⚠️ {oid}</div>
+                <div class="badge pending">PENDING</div>
+            </div>
+            <div class="row2">
+                <span>🏪 {shop} · {rid}</span>
+                <span>📅 {placed}</span>
+                <span>📦 {len(items)} item(s)</span>
+            </div>
+            <div class="row3">
+                <span style="color:#8892b0;font-size:.75rem;">Total</span>
+                <span class="total">{money(total)}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        c1,c2 = st.columns(2)
+        if c1.button("✅ Approve", key=f"ap_{oid}", use_container_width=True, type="primary"):
+            st.success(f"Order {oid} approved (demo).")
+        if c2.button("❌ Reject", key=f"rj_{oid}", use_container_width=True):
+            st.warning(f"Order {oid} rejected (demo).")
+
+
+# ══════════════════════════════════════════════════════════
+#  RETAILERS
+# ══════════════════════════════════════════════════════════
+def page_retailers():
+    st.markdown("## 🏪 Retailers")
+    st.caption("All registered retailers and their credit status")
+
+    df = load_retailers()
+    if df.empty:
+        st.warning("No retailer data."); return
+
+    st.caption(f"**{len(df)}** retailer(s) registered")
+
+    id_col = find_col(df,"id","retailer_id","code")
+    shop_col = find_col(df,"shop","name","firm_name")
+    owner_col = find_col(df,"owner","name","contact")
+    limit_col = find_col(df,"credit_limit","limit")
+    out_col = find_col(df,"outstanding","dues","balance")
+
+    for _, row in df.iterrows():
+        rid = row.get(id_col,"—") if id_col else "—"
+        shop = row.get(shop_col,"—") if shop_col else "—"
+        owner = row.get(owner_col,"—") if owner_col else "—"
+        limit = float(row.get(limit_col,0) or 0) if limit_col else 0
+        out = float(row.get(out_col,0) or 0) if out_col else 0
+        avail = limit - out
+        pct = (out/limit*100) if limit else 0
+
+        with st.expander(f"🏪 {shop}  ·  {rid}  ·  {money(out)} outstanding"):
+            c1,c2,c3 = st.columns(3)
+            with c1:
+                st.markdown(f"""
+                <div class="metric-tile">
+                    <div class="label">Credit Limit</div>
+                    <div class="value">{money(limit)}</div>
+                </div>""", unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"""
+                <div class="metric-tile orange">
+                    <div class="label">Outstanding</div>
+                    <div class="value">{money(out)}</div>
+                    <div style="font-size:.68rem;color:#8892b0;margin-top:.3rem;">{pct:.0f}% used</div>
+                </div>""", unsafe_allow_html=True)
+            with c3:
+                st.markdown(f"""
+                <div class="metric-tile green">
+                    <div class="label">Available</div>
+                    <div class="value">{money(avail)}</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown(f"**Owner:** {owner}")
+            st.markdown(f"**Phone:** {row.get('phone','—')}")
+            st.markdown(f"**Address:** {row.get('address','—')}")
+            st.markdown(f"**Status:** {row.get('status','—')}")
+
+
+# ══════════════════════════════════════════════════════════
+#  ORDERS
+# ══════════════════════════════════════════════════════════
+def page_orders():
+    st.markdown("## 📦 All Orders")
+    st.caption("Complete order history with filters")
+
+    orders = load_orders()
+    if not orders:
+        st.info("No orders yet."); return
+
+    statuses = sorted({(o.get("status") or "pending").lower() for o in orders})
+    c1,c2 = st.columns([1,3])
+    with c1:
+        sel = st.selectbox("Filter by status", ["All"] + statuses)
+    with c2:
+        q = st.text_input("Search order ID or retailer", placeholder="Type to filter…",
+                          label_visibility="collapsed").strip().lower()
+
+    filtered = orders
+    if sel != "All":
+        filtered = [o for o in filtered if (o.get("status") or "").lower() == sel]
+    if q:
+        filtered = [o for o in filtered if q in str(o.get("order_id","")).lower()
+                                          or q in str(o.get("retailer_id","")).lower()
+                                          or q in str(o.get("shop","")).lower()]
+
+    st.caption(f"**{len(filtered)}** order(s)")
+
+    for o in filtered[:30]:
+        st.markdown(f"""
+        <div class="bill-card {(o.get('status') or 'pending').lower()}">
+            <div class="row1">
+                <div class="oid">🧾 {o.get('order_id','—')}</div>
+                <div class="badge {(o.get('status') or 'pending').lower()}">{(o.get('status') or 'PENDING').upper()}</div>
+            </div>
+            <div class="row2">
+                <span>🏪 {o.get('shop','—')} · {o.get('retailer_id','—')}</span>
+                <span>📅 {o.get('placed_at','—')}</span>
+            </div>
+            <div class="row3">
+                <span style="color:#8892b0;font-size:.75rem;">Total</span>
+                <span class="total">{money(o.get('total',0))}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  INVENTORY
+# ══════════════════════════════════════════════════════════
+def page_inventory():
+    st.markdown("## 📦 Inventory")
+    st.caption("Stock levels, low-stock alerts, and expiry tracking")
+
+    df = load_inventory()
+    if df.empty:
+        st.error("inventory.csv not found."); return
+
+    name_col = find_col(df,"medicine_name","medicine","name","product","item")
+    qty_col = find_col(df,"quantity","stock","qty","available")
+    price_col = find_col(df,"cost_price","price","rate","mrp")
+    exp_col = find_col(df,"expiry_date","expiry","exp")
+
+    total_units = int(pd.to_numeric(df[qty_col], errors="coerce").fillna(0).sum()) if qty_col else 0
+    total_value = (pd.to_numeric(df[qty_col], errors="coerce").fillna(0)
+                   * pd.to_numeric(df[price_col], errors="coerce").fillna(0)).sum() if qty_col and price_col else 0
+
+    m1,m2,m3 = st.columns(3)
+    with m1:
+        st.markdown(f"""
+        <div class="metric-tile">
+            <div class="label">Unique Medicines</div>
+            <div class="value">{df[name_col].nunique() if name_col else 0}</div>
+        </div>""", unsafe_allow_html=True)
+    with m2:
+        st.markdown(f"""
+        <div class="metric-tile green">
+            <div class="label">Total Units</div>
+            <div class="value">{total_units:,}</div>
+        </div>""", unsafe_allow_html=True)
+    with m3:
+        st.markdown(f"""
+        <div class="metric-tile orange">
+            <div class="label">Inventory Value</div>
+            <div class="value">{money(total_value)}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="section-head">📋 Full Inventory</div>', unsafe_allow_html=True)
+    st.dataframe(df, use_container_width=True, height=420)
+
+    if qty_col:
+        low = df[pd.to_numeric(df[qty_col], errors="coerce").fillna(0) < 100]
+        if not low.empty:
+            st.markdown('<div class="section-head">⚠️ Low Stock</div>', unsafe_allow_html=True)
+            st.dataframe(low[[name_col, qty_col] if name_col else [qty_col]],
+                         use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  LEDGER / ACCOUNTING
+# ══════════════════════════════════════════════════════════
+def page_ledger():
+    st.markdown("## 💰 Ledger / Accounting")
+    st.caption("Outstanding balances, credit utilization, collections")
+
+    df = load_retailers()
+    if df.empty:
+        st.warning("No retailer data."); return
+
+    limit_col = find_col(df,"credit_limit","limit")
+    out_col = find_col(df,"outstanding","dues")
+    shop_col = find_col(df,"shop","name")
+    id_col = find_col(df,"id","retailer_id")
+
+    total_limit = pd.to_numeric(df[limit_col], errors="coerce").fillna(0).sum() if limit_col else 0
+    total_out = pd.to_numeric(df[out_col], errors="coerce").fillna(0).sum() if out_col else 0
+
+    m1,m2,m3 = st.columns(3)
+    with m1:
+        st.markdown(f"""
+        <div class="metric-tile">
+            <div class="label">Total Credit Extended</div>
+            <div class="value">{money(total_limit)}</div>
+        </div>""", unsafe_allow_html=True)
+    with m2:
+        st.markdown(f"""
+        <div class="metric-tile orange">
+            <div class="label">Total Outstanding</div>
+            <div class="value">{money(total_out)}</div>
+        </div>""", unsafe_allow_html=True)
+    with m3:
+        pct = (total_out/total_limit*100) if total_limit else 0
+        st.markdown(f"""
+        <div class="metric-tile green">
+            <div class="label">Utilization</div>
+            <div class="value">{pct:.1f}%</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="section-head">📊 Retailer Balances</div>', unsafe_allow_html=True)
+
+    view = df.copy()
+    if limit_col and out_col:
+        view["_out"] = pd.to_numeric(view[out_col], errors="coerce").fillna(0)
+        view = view.sort_values("_out", ascending=False)
+        cols_show = [c for c in [id_col, shop_col, limit_col, out_col] if c]
+        st.dataframe(view[cols_show], use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  JARVIS
+# ══════════════════════════════════════════════════════════
+def page_jarvis():
+    st.markdown("## 🤖 JARVIS — AI Assistant")
+    st.caption("Ask about orders, retailers, stock — instant answers")
+
+    st.session_state.setdefault("jarvis_msgs", [
+        ("bot","Hi! I'm JARVIS 🤖 Ask me anything about your business.")
+    ])
+
+    for who, msg in st.session_state.jarvis_msgs:
+        st.markdown(f'<div class="chat-{who}">{msg}</div>', unsafe_allow_html=True)
+
+    st.markdown("**Quick questions:**")
+    q1,q2,q3,q4 = st.columns(4)
+    prompts = [
+        (q1,"How many pending orders?"),
+        (q2,"Top 3 retailers by outstanding"),
+        (q3,"Low stock medicines"),
+        (q4,"Total business this month"),
+    ]
+    for col, txt in prompts:
+        if col.button(txt, key=f"q_{txt}", use_container_width=True):
+            _handle_jarvis(txt)
+
+    user_q = st.text_input("Ask JARVIS…", placeholder="Type your question…", key="jarvis_in")
+    if user_q:
+        _handle_jarvis(user_q)
+
+
+def _handle_jarvis(question):
+    answer = _jarvis_answer(question)
+    st.session_state.jarvis_msgs.append(("user", question))
+    st.session_state.jarvis_msgs.append(("bot", answer))
+    st.rerun()
+
+
+def _jarvis_answer(q):
+    ql = q.lower()
+    orders = load_orders()
+    retailers_df = load_retailers()
+    inv = load_inventory()
+
+    if "pending" in ql:
+        n = len([o for o in orders if (o.get("status") or "").lower()=="pending"])
+        return f"📊 You have **{n}** pending order(s)."
+    if "top" in ql and "retailer" in ql:
+        if retailers_df.empty: return "No retailer data."
+        out_col = find_col(retailers_df,"outstanding","dues")
+        shop_col = find_col(retailers_df,"shop","name")
+        if out_col and shop_col:
+            top = retailers_df.copy()
+            top["_o"] = pd.to_numeric(top[out_col], errors="coerce").fillna(0)
+            top = top.sort_values("_o", ascending=False).head(3)
+            lines = [f"{i+1}. {r[shop_col]} — ₹{r['_o']:,.0f}" for i,r in top.iterrows()]
+            return "🏪 Top 3 by outstanding:\n\n" + "\n".join(lines)
+        return "Retailer data incomplete."
+    if "low" in ql and "stock" in ql:
+        if inv.empty: return "Inventory not found."
+        qty = find_col(inv,"quantity","stock","qty")
+        name = find_col(inv,"medicine_name","medicine","name")
+        if qty and name:
+            inv2 = inv.copy()
+            inv2["_q"] = pd.to_numeric(inv2[qty], errors="coerce").fillna(0)
+            low = inv2[inv2["_q"] < 100].head(5)
+            if low.empty: return "✅ No low-stock items right now."
+            return "⚠️ Low stock:\n\n" + "\n".join(
+                f"• {r[name]} — {int(r['_q'])} units" for _,r in low.iterrows())
+        return "Can't read stock."
+    if "total" in ql or "business" in ql or "revenue" in ql:
+        tot = sum(float(o.get("total",0)) for o in orders)
+        return f"💰 Total business: **₹{tot:,.2f}** across {len(orders)} orders."
+    if "order" in ql:
+        return f"📦 {len(orders)} total orders, {len([o for o in orders if (o.get('status') or '').lower()=='pending'])} pending."
+    if "hi" in ql or "hello" in ql:
+        return "Hi! Ask me about orders, retailers, or stock."
+    return "I can answer questions about *orders*, *retailers*, *stock*, or *revenue*. Try one of the quick buttons."
+
+
+# ══════════════════════════════════════════════════════════
+#  ANALYTICS
+# ══════════════════════════════════════════════════════════
+def page_analytics():
+    st.markdown("## 📊 Analytics & Intelligence")
+    st.caption("Business trends, forecasts, and insights")
+
+    orders = load_orders()
+    if not orders:
+        st.info("Not enough data yet."); return
+
+    df = pd.DataFrame(orders)
+    df["total"] = pd.to_numeric(df.get("total",0), errors="coerce").fillna(0)
+    df["placed_at"] = pd.to_datetime(df.get("placed_at"), errors="coerce", format="mixed")
+    df = df.dropna(subset=["placed_at"])
+
+    if df.empty:
+        st.info("No dated orders."); return
+
+    monthly = df.groupby(df["placed_at"].dt.to_period("M"))["total"].sum().reset_index()
+    monthly["placed_at"] = monthly["placed_at"].astype(str)
+
+    st.markdown('<div class="section-head">📈 Monthly Revenue</div>', unsafe_allow_html=True)
+    st.bar_chart(monthly.set_index("placed_at")["total"])
+
+    st.markdown('<div class="section-head">🥇 Top Retailers</div>', unsafe_allow_html=True)
+    by_ret = df.groupby("retailer_id")["total"].sum().sort_values(ascending=False).head(5)
+    st.dataframe(by_ret.reset_index().rename(columns={"retailer_id":"Retailer","total":"Revenue"}),
+                 use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════
+#  SETTINGS / PLACEHOLDER
+# ══════════════════════════════════════════════════════════
+def page_placeholder(label, icon="⏳"):
+    st.markdown(f"## {icon} {label}")
+    st.info("Coming soon.")
+
+
+# ══════════════════════════════════════════════════════════
+#  MENU
+# ══════════════════════════════════════════════════════════
+MENU = [
+    ("home",      "🏠", "Dashboard"),
+    ("approvals", "✅", "Approvals"),
+    ("orders",    "📦", "All Orders"),
+    ("retailers", "🏪", "Retailers"),
+    ("inventory", "📦", "Inventory"),
+    ("ledger",    "💰", "Ledger / Accounting"),
+    ("analytics", "📊", "Analytics"),
+    ("jarvis",    "🤖", "JARVIS AI"),
+    ("audit",     "🔍", "Audit Log"),
+    ("settings",  "⚙️", "Settings"),
+]
+
+
+def render_sidebar():
+    with st.sidebar:
+        st.markdown(f"""
+        <div class="sidebar-brand">
+            <div>{logo_html(52)}</div>
+            <div class="name">MEENA AGENCIES</div>
+            <div class="sub">OWNER · CONTROL CENTER</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div style="padding:.6rem .8rem;background:#1a1f2e;border:1px solid #2a3142;
+                    border-radius:10px;margin:.5rem 0 1rem;">
+            <div style="font-size:.75rem;color:#f59e0b;font-weight:700;">👑 {st.session_state.get('owner_name','Owner')}</div>
+            <div style="font-size:.68rem;color:#00d47a;margin-top:2px;">● All systems normal</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div style="font-size:.68rem;color:#8892b0;letter-spacing:1px;margin-bottom:.5rem;">MENU</div>',
+                    unsafe_allow_html=True)
+
+        cur = st.session_state.get("page","home")
+        for k, ic, lbl in MENU:
+            active = (k == cur)
+            if st.button(f"{ic}  {lbl}", key=f"nav_{k}",
+                         use_container_width=True,
+                         type="primary" if active else "secondary"):
+                st.session_state.page = k; st.rerun()
+
+        st.markdown("---")
+        if st.button("🚪  Sign Out", key="signout", use_container_width=True):
+            st.session_state.clear(); st.rerun()
+
+
+# ══════════════════════════════════════════════════════════
+#  MAIN
+# ══════════════════════════════════════════════════════════
+def main():
+    if not st.session_state.get("owner"):
+        login_screen(); return
+
+    st.session_state.setdefault("page","home")
+    render_sidebar()
+
+    p = st.session_state.page
+    if   p == "home":      page_home()
+    elif p == "approvals": page_approvals()
+    elif p == "orders":    page_orders()
+    elif p == "retailers": page_retailers()
+    elif p == "inventory": page_inventory()
+    elif p == "ledger":    page_ledger()
+    elif p == "analytics": page_analytics()
+    elif p == "jarvis":    page_jarvis()
+    else:
+        label = next((m[2] for m in MENU if m[0]==p), p.title())
+        icon  = next((m[1] for m in MENU if m[0]==p), "⏳")
+        page_placeholder(label, icon)
+
+
+main()

@@ -19,94 +19,9 @@ def _logo_b64():
 
 
 def _inject_css():
-    st.markdown("""
-    <style>
-    .login-wrap {
-        max-width: 480px;
-        margin: 40px auto;
-        background: linear-gradient(145deg, rgba(26,31,58,0.95), rgba(15,20,40,0.95));
-        border: 1px solid rgba(0,212,255,0.3);
-        border-radius: 20px;
-        padding: 32px 28px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
-        animation: slideUp 0.5s ease-out;
-    }
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    .login-logo {
-        width: 100px; height: 100px;
-        border-radius: 50%;
-        display: block;
-        margin: 0 auto 16px auto;
-        box-shadow: 0 0 30px rgba(0,212,255,0.4), 0 0 60px rgba(123,97,255,0.3);
-        border: 3px solid rgba(255,181,71,0.4);
-    }
-    .login-title {
-        text-align: center;
-        font-family: Georgia, serif;
-        font-size: 1.8rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #ffb547, #c41e3a, #ffb547);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        animation: shimmer 4s linear infinite;
-        margin-bottom: 4px;
-    }
-    @keyframes shimmer {
-        0%   { background-position: 0% center; }
-        100% { background-position: 200% center; }
-    }
-    .login-sub {
-        text-align: center;
-        color: #8892b0;
-        font-size: 0.8rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        margin-bottom: 24px;
-    }
-    .role-tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 20px;
-        background: rgba(15,20,40,0.6);
-        padding: 6px;
-        border-radius: 14px;
-    }
-    .role-pill {
-        flex: 1;
-        text-align: center;
-        padding: 10px 6px;
-        border-radius: 10px;
-        font-size: 0.78rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        color: #8892b0;
-    }
-    .role-pill:hover { background: rgba(0,212,255,0.08); color: #00d4ff; }
-    .role-pill.active {
-        background: linear-gradient(135deg, rgba(0,212,255,0.20), rgba(123,97,255,0.20));
-        color: #00d4ff;
-        box-shadow: 0 4px 14px rgba(0,212,255,0.25);
-    }
-    .security-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 10px;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 1px;
-        margin: 0 auto 12px auto;
-    }
-    .mode-normal   { background: rgba(0,212,122,0.15); color: #00d47a; border: 1px solid #00d47a; }
-    .mode-strict   { background: rgba(255,181,71,0.15); color: #ffb547; border: 1px solid #ffb547; }
-    .mode-lockdown { background: rgba(255,77,109,0.15); color: #ff4d6d; border: 1px solid #ff4d6d; }
-    </style>
-    """, unsafe_allow_html=True)
+    """Delegates to theme.py — no local CSS here."""
+    import theme
+    theme.apply()
 
 
 def _load_company():
@@ -123,7 +38,6 @@ def render_login_page():
     Returns True if login succeeded (session is set).
     """
     _inject_css()
-    st.image("logo.png", width=120)
 
 
     company = _load_company()
@@ -185,7 +99,6 @@ def render_login_page():
             st.session_state.login_role = "owner"
             st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
     role = st.session_state.login_role
 
     # ─── Check if login allowed under current mode ───
@@ -204,40 +117,37 @@ def render_login_page():
 
 
 def _render_login_form(role):
-    """Render the login form for a specific role."""
-    if role == "customer":
-        st.markdown("##### 🏪 Retailer Login")
-        st.caption("Enter your Retailer ID and 4-digit PIN")
-        with st.form("login_customer", clear_on_submit=False):
-            rid = st.text_input("Retailer ID", placeholder="RET001",
-                                 key="cust_rid")
-            pin = st.text_input("PIN (4 digits)", type="password",
-                                 max_chars=4, key="cust_pin")
-            if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
-                _attempt_login("customer", rid, pin)
+    """Uniform login form for all 3 roles — centered, same width."""
+    _l, _mid, _r = st.columns([1, 2, 1])
+    with _mid:
+        if role == "customer":
+            st.markdown("##### 🏪 Retailer Login")
+            st.caption("Enter your Retailer ID and 4-digit PIN")
+            with st.form("login_customer", clear_on_submit=False):
+                rid = st.text_input("Retailer ID", placeholder="RET001", key="cust_rid")
+                pin = st.text_input("PIN (4 digits)", type="password", max_chars=4, key="cust_pin")
+                if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
+                    _attempt_login("customer", rid, pin)
 
-    elif role == "staff":
-        st.markdown("##### 👨‍💼 Staff Login")
-        st.caption("Enter your Staff ID and PIN")
-        with st.form("login_staff", clear_on_submit=False):
-            sid = st.text_input("Staff ID", placeholder="STAFF001",
-                                 key="staff_sid")
-            pin = st.text_input("PIN (6 digits)", type="password",
-                                 max_chars=6, key="staff_pin")
-            if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
-                _attempt_login("staff", sid, pin)
+        elif role == "staff":
+            st.markdown("##### 👨\u200d💼 Staff Login")
+            st.caption("Enter your Staff ID and 6-digit PIN")
+            with st.form("login_staff", clear_on_submit=False):
+                sid = st.text_input("Staff ID", placeholder="STAFF001", key="staff_sid")
+                pin = st.text_input("PIN (6 digits)", type="password", max_chars=6, key="staff_pin")
+                if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
+                    _attempt_login("staff", sid, pin)
 
-    elif role == "owner":
-        st.markdown("##### 👔 Owner Login")
-        st.caption("Full access to all modules")
-        with st.form("login_owner", clear_on_submit=False):
-            pin = st.text_input("Owner Password", type="password",
-                                 key="owner_pin")
-            if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
-                _attempt_login("owner", "OWNER", pin)
+        elif role == "owner":
+            st.markdown("##### 👔 Owner Login")
+            st.caption("Full access to all modules")
+            with st.form("login_owner", clear_on_submit=False):
+                pin = st.text_input("Owner Password", type="password", key="owner_pin")
+                if st.form_submit_button("🔓 Login", use_container_width=True, type="primary"):
+                    _attempt_login("owner", "OWNER", pin)
 
-    st.markdown("---")
-    st.caption("🔒 All logins are logged with timestamp and IP.")
+        st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>', unsafe_allow_html=True)
+        st.caption("🔒 All logins are logged with timestamp and IP.")
 
 
 def _attempt_login(role, user_id, pin):

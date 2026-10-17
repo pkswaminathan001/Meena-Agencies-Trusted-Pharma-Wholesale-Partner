@@ -1,5 +1,31 @@
 """discounts_ui.py — Discount dashboard with 3D animations."""
 import streamlit as st
+
+
+# ─── Safe color helper (prevents "color: 0 / #function()" console errors) ───
+def _safe_color(v, fallback="#00d4ff"):
+    """Return a valid CSS color string. Never returns 0/None/function."""
+    if v is None:
+        return fallback
+    if callable(v):
+        try:
+            v = v()
+        except Exception:
+            return fallback
+    s = str(v).strip()
+    if not s or s.lower() in ("none", "null", "undefined", "0", "#0"):
+        return fallback
+    # Valid: #hex, rgb(), rgba(), hsl(), hsla(), or named color
+    if re.match(r'^#([0-9a-fA-F]{3,8})$', s):
+        return s
+    if re.match(r'^(rgb|rgba|hsl|hsla)\(', s):
+        return s
+    # Single word named colors (red, blue, etc.)
+    if re.match(r'^[a-zA-Z]+$', s):
+        return s
+    return fallback
+
+import re
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
@@ -132,7 +158,7 @@ def tier_badge_html(tier_name, pct, color):
                  background:linear-gradient(135deg, {color}33, {color}11);
                  border:1.5px solid {color};
                  border-radius:14px;padding:4px 12px;
-                 color:{color};font-weight:700;font-size:0.75rem;
+                 color:{_safe_color(color)};font-weight:700;font-size:0.75rem;
                  letter-spacing:1px;
                  animation:badgePulse 2s ease-in-out infinite;">
         ⭐ {tier_name} · {pct:.1f}%
@@ -273,13 +299,13 @@ def render_visual_tier_cards(summary, retailers=None, orders=None):
             f'border-left:6px solid {color};border-radius:14px;'
             f'padding:16px 20px;margin:10px 0;position:relative;overflow:hidden;">'
             f'<div style="position:absolute;top:-50%;right:-10%;width:250px;height:250px;'
-            f'background:radial-gradient(circle,{color}22,transparent 70%);pointer-events:none;"></div>'
+            f'background:radial-gradient(circle,{_safe_color(color)}22,transparent 70%);pointer-events:none;"></div>'
             f'<div style="display:flex;align-items:center;gap:20px;position:relative;">'
             f'<div style="font-size:2.8rem;filter:drop-shadow(0 4px 12px {color}99);">{icon}</div>'
             f'<div style="flex:1;">'
-            f'<div style="font-size:1.25rem;font-weight:800;color:{color};letter-spacing:0.5px;">{tier_name.upper()}</div>'
+            f'<div style="font-size:1.25rem;font-weight:800;color:{_safe_color(color)};letter-spacing:0.5px;">{tier_name.upper()}</div>'
             f'<div style="font-size:0.8rem;color:#e8eaf6;margin-top:2px;">'
-            f'<b style="color:{color};">{data["discount_pct"]:.0f}%</b> discount · min <b>{data["min_orders"]}</b> orders'
+            f'<b style="color:{_safe_color(color)};">{data["discount_pct"]:.0f}%</b> discount · min <b>{data["min_orders"]}</b> orders'
             f'</div>'
             f'<div style="background:rgba(255,255,255,0.08);border-radius:8px;height:8px;margin-top:10px;overflow:hidden;">'
             f'<div style="background:linear-gradient(90deg,{color},{color}aa);width:{bar_width}%;height:100%;border-radius:8px;box-shadow:0 0 12px {color}99;"></div>'
@@ -293,12 +319,12 @@ def render_visual_tier_cards(summary, retailers=None, orders=None):
             + cust_html +
             f'</div>'
             f'<div style="text-align:right;min-width:90px;">'
-            f'<div style="font-size:2.4rem;font-weight:900;color:{color};line-height:1;text-shadow:0 0 20px {color}66;">{count}</div>'
+            f'<div style="font-size:2.4rem;font-weight:900;color:{_safe_color(color)};line-height:1;text-shadow:0 0 20px {_safe_color(color)}66;">{count}</div>'
             f'<div style="font-size:0.65rem;color:#8892b0;letter-spacing:1px;">CUSTOMERS</div>'
-            f'<div style="font-size:0.8rem;color:{color};font-weight:600;margin-top:2px;">{pct_of_total:.0f}%</div>'
+            f'<div style="font-size:0.8rem;color:{_safe_color(color)};font-weight:600;margin-top:2px;">{pct_of_total:.0f}%</div>'
             f'</div>'
             f'</div>'
-            + (f'<div style="font-size:0.7rem;color:{color};margin-top:6px;font-style:italic;">🎯 {upgrade_txt}</div>' if upgrade_txt else "") +
+            + (f'<div style="font-size:0.7rem;color:{_safe_color(color)};margin-top:6px;font-style:italic;">🎯 {upgrade_txt}</div>' if upgrade_txt else "") +
             f'</div>'
         )
         st.markdown(html, unsafe_allow_html=True)
@@ -631,17 +657,17 @@ def render_customer_discount_badge(retailer):
     color = rules["tiers"].get(tier, {}).get("color", "#8892b0")
     _inject_badge_css()
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,{color}22,{color}08);
+    <div style="background:linear-gradient(135deg,{_safe_color(color)}22,{color}08);
                 border:1.5px solid {color};border-radius:12px;
                 padding:10px 14px;margin:8px 0;
                 animation:badgePulse 3s ease-in-out infinite;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
                 <div style="color:#8892b0;font-size:0.7rem;letter-spacing:1px;">YOUR DISCOUNT TIER</div>
-                <div style="color:{color};font-weight:800;font-size:1.4rem;">⭐ {tier}</div>
+                <div style="color:{_safe_color(color)};font-weight:800;font-size:1.4rem;">⭐ {tier}</div>
             </div>
             <div style="text-align:right;">
-                <div style="color:{color};font-size:2rem;font-weight:800;">{pct:.0f}%</div>
+                <div style="color:{_safe_color(color)};font-size:2rem;font-weight:800;">{pct:.0f}%</div>
                 <div style="color:#8892b0;font-size:0.7rem;">on every order</div>
             </div>
         </div>

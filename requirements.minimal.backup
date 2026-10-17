@@ -1,0 +1,13 @@
+# ── Meena Agencies — Production requirements ──
+# Only packages actually used by the app.
+
+streamlit==1.28.0
+pandas==2.3.3
+plotly==6.9.0
+numpy==1.26.4
+Pillow==10.2.0
+requests==2.31.0
+feedparser==6.0.14
+reportlab
+python-dotenv
+PyYAML

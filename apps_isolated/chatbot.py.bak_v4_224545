@@ -1,0 +1,922 @@
+"""
+chatbot.py — Meena Agencies Telegram Shop v4
+Full e-commerce: catalog buttons → cart → OTP → owner approval → confirmation.
+"""
+import json, os, sys, time, traceback, urllib.request, urllib.parse, re, csv, random, hashlib
+from datetime import datetime, timedelta
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+
+PARENT = Path(__file__).parent.parent
+ENV_FILE = Path.home() / ".config" / "meena" / ".env"
+LOG_FILE = PARENT / "chatbot.log"
+STATE_FILE = PARENT / "chatbot_state.json"
+CARTS_FILE = PARENT / "chatbot_carts.json"
+OTPS_FILE = PARENT / "chatbot_otps.json"
+INVENTORY_FILE = PARENT / "inventory.csv"
+
+POLL_TIMEOUT = 10
+AI_TIMEOUT = 15
+AI_MODEL = "openai/gpt-oss-20b"
+OTP_TTL_MIN = 5
+
+
+def log(msg):
+    try:
+        ts = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
+
+def load_env():
+    env = {}
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text().split("\n"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+def load_json(path, default):
+    if Path(path).exists():
+        try:
+            return json.loads(Path(path).read_text())
+        except Exception:
+            return default
+    return default
+
+
+def save_json(path, data):
+    try:
+        Path(path).write_text(json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+ENV = load_env()
+TOKEN = ENV.get("TELEGRAM_BOT_TOKEN", "")
+OWNER_CHAT_ID = str(ENV.get("OWNER_CHAT_ID", ""))
+COMPANY_NAME = ENV.get("COMPANY_NAME", "Meena Agencies")
+
+
+# ═══════════════════════════════════════════════════════
+# TELEGRAM
+# ═══════════════════════════════════════════════════════
+def tg_api(method, params=None, timeout=10):
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/{method}"
+        if params:
+            data = json.dumps(params).encode()
+            req = urllib.request.Request(url, data=data, method="POST",
+                                         headers={"Content-Type": "application/json"})
+        else:
+            req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        log(f"tg_api {method} error: {e}")
+        return None
+
+
+def tg_send(chat_id, text, keyboard=None):
+    params = {
+        "chat_id": str(chat_id),
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }
+    if keyboard:
+        params["reply_markup"] = keyboard
+    return tg_api("sendMessage", params)
+
+
+def tg_edit(chat_id, msg_id, text, keyboard=None):
+    params = {
+        "chat_id": str(chat_id),
+        "message_id": msg_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }
+    if keyboard is not None:
+        params["reply_markup"] = keyboard
+    return tg_api("editMessageText", params)
+
+
+def tg_answer_callback(cb_id, text=None):
+    params = {"callback_query_id": cb_id}
+    if text:
+        params["text"] = text
+    return tg_api("answerCallbackQuery", params)
+
+
+def tg_typing(chat_id):
+    tg_api("sendChatAction", {"chat_id": str(chat_id), "action": "typing"}, timeout=3)
+
+
+def kb(rows):
+    return {"inline_keyboard": rows}
+
+
+# ═══════════════════════════════════════════════════════
+# CATALOG
+# ═══════════════════════════════════════════════════════
+_CATALOG_CACHE = {"data": None, "ts": 0}
+
+
+def load_catalog():
+    now = time.time()
+    if _CATALOG_CACHE["data"] and (now - _CATALOG_CACHE["ts"]) < 60:
+        return _CATALOG_CACHE["data"]
+
+    products = {}
+    try:
+        if INVENTORY_FILE.exists():
+            with open(INVENTORY_FILE, newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = (row.get("medicine_name") or "").strip()
+                    if not name:
+                        continue
+                    qty = int(float(row.get("quantity") or 0))
+                    cost = float(row.get("cost_price") or 0)
+                    public_price = round(cost * 1.18, 2)
+                    if name in products:
+                        products[name]["stock"] += qty
+                        products[name]["batches"] += 1
+                    else:
+                        products[name] = {
+                            "name": name,
+                            "price": public_price,
+                            "stock": qty,
+                            "batches": 1,
+                            "category": _classify(name),
+                        }
+    except Exception as e:
+        log(f"catalog error: {e}")
+
+    _CATALOG_CACHE["data"] = products
+    _CATALOG_CACHE["ts"] = now
+    return products
+
+
+def _classify(name):
+    n = name.lower()
+    for kw, cat in [
+        ("amoxi", "Antibiotic"), ("azithro", "Antibiotic"), ("cef", "Antibiotic"),
+        ("paracet", "Pain Relief"), ("ibupro", "Pain Relief"), ("dolo", "Pain Relief"),
+        ("atorva", "Cardiac"), ("metfor", "Diabetes"), ("insulin", "Diabetes"),
+        ("cetiri", "Allergy"), ("omepra", "Gastro"), ("ors", "Hydration"),
+        ("cough", "Cough & Cold"), ("salbutamol", "Respiratory"),
+        ("vitamin", "Supplement"),
+    ]:
+        if kw in n:
+            return cat
+    return "General"
+
+
+def catalog_list():
+    """Return sorted list of product dicts with stable index."""
+    cat = load_catalog()
+    items = sorted(cat.values(), key=lambda x: x["name"])
+    for i, p in enumerate(items):
+        p["idx"] = i
+    return items
+
+
+def catalog_by_idx():
+    return {p["idx"]: p for p in catalog_list()}
+
+
+def catalog_summary():
+    groups = {}
+    for p in catalog_list():
+        groups.setdefault(p["category"], []).append(p)
+    return groups
+
+
+def search_products(query, limit=10):
+    if not query:
+        return []
+    q = query.lower().strip()
+    matches = [p for p in catalog_list() if q in p["name"].lower()]
+    matches.sort(key=lambda x: (0 if x["name"].lower().startswith(q) else 1, x["name"]))
+    return matches[:limit]
+
+
+# ═══════════════════════════════════════════════════════
+# CART
+# ═══════════════════════════════════════════════════════
+def get_cart(chat_id):
+    carts = load_json(CARTS_FILE, {})
+    return carts.get(str(chat_id), [])
+
+
+def save_cart(chat_id, cart):
+    carts = load_json(CARTS_FILE, {})
+    if cart:
+        carts[str(chat_id)] = cart
+    else:
+        carts.pop(str(chat_id), None)
+    save_json(CARTS_FILE, carts)
+
+
+def cart_add(chat_id, product):
+    cart = get_cart(chat_id)
+    for line in cart:
+        if line["name"] == product["name"]:
+            line["qty"] += 1
+            save_cart(chat_id, cart)
+            return
+    cart.append({"name": product["name"], "qty": 1, "price": product["price"]})
+    save_cart(chat_id, cart)
+
+
+def cart_remove(chat_id, name):
+    cart = get_cart(chat_id)
+    cart = [l for l in cart if l["name"] != name]
+    save_cart(chat_id, cart)
+    return cart
+
+
+def cart_clear(chat_id):
+    save_cart(chat_id, [])
+
+
+def cart_total(cart):
+    return sum(float(l["price"]) * int(l["qty"]) for l in cart)
+
+
+def cart_count(cart):
+    return sum(int(l["qty"]) for l in cart)
+
+
+# ═══════════════════════════════════════════════════════
+# USER ROLES
+# ═══════════════════════════════════════════════════════
+_ROLE_CACHE = {}
+
+
+def get_user_role(chat_id):
+    cid = str(chat_id)
+    if cid in _ROLE_CACHE:
+        return _ROLE_CACHE[cid]
+
+    if cid == OWNER_CHAT_ID:
+        result = ("owner", "Swaminathan", None)
+    else:
+        result = (None, None, None)
+        retailers = load_json(PARENT / "retailers.json", [])
+        if isinstance(retailers, dict):
+            retailers = list(retailers.values())
+        for r in retailers:
+            if isinstance(r, dict) and str(r.get("telegram_chat_id", "")).strip() == cid:
+                result = ("retailer", r.get("owner", r.get("shop", "Retailer")), r.get("id"))
+                break
+        else:
+            reps = load_json(PARENT / "salespeople.json", [])
+            if isinstance(reps, dict):
+                reps = list(reps.values())
+            for rep in reps:
+                if isinstance(rep, dict) and str(rep.get("telegram_chat_id", "")).strip() == cid:
+                    result = ("rep", rep.get("name", "Rep"), rep.get("id"))
+                    break
+
+    _ROLE_CACHE[cid] = result
+    return result
+
+
+# ═══════════════════════════════════════════════════════
+# OTP
+# ═══════════════════════════════════════════════════════
+def gen_otp():
+    return "".join(str(random.randint(0, 9)) for _ in range(6))
+
+
+def save_otp(chat_id, code, cart):
+    otps = load_json(OTPS_FILE, {})
+    otps[str(chat_id)] = {
+        "code": code,
+        "cart": cart,
+        "expires_at": (datetime.now() + timedelta(minutes=OTP_TTL_MIN)).isoformat(),
+        "attempts": 0,
+    }
+    save_json(OTPS_FILE, otps)
+
+
+def verify_otp(chat_id, entered):
+    otps = load_json(OTPS_FILE, {})
+    entry = otps.get(str(chat_id))
+    if not entry:
+        return False, "No pending OTP. Type 'cart' to start.", None
+    try:
+        expires = datetime.fromisoformat(entry["expires_at"])
+        if datetime.now() > expires:
+            del otps[str(chat_id)]
+            save_json(OTPS_FILE, otps)
+            return False, "OTP expired. Request a new one.", None
+    except Exception:
+        return False, "Invalid OTP.", None
+    if entry.get("attempts", 0) >= 5:
+        del otps[str(chat_id)]
+        save_json(OTPS_FILE, otps)
+        return False, "Too many wrong attempts.", None
+    if str(entered).strip() != str(entry["code"]):
+        entry["attempts"] = entry.get("attempts", 0) + 1
+        otps[str(chat_id)] = entry
+        save_json(OTPS_FILE, otps)
+        return False, f"Wrong OTP. {5 - entry['attempts']} tries left.", None
+    cart = entry["cart"]
+    del otps[str(chat_id)]
+    save_json(OTPS_FILE, otps)
+    return True, "OK", cart
+
+
+# ═══════════════════════════════════════════════════════
+# ORDER CREATION
+# ═══════════════════════════════════════════════════════
+def create_order(chat_id, cart):
+    """Create a pending order, send to owner for approval."""
+    role, name, rid = get_user_role(chat_id)
+    shop = "Telegram Customer"
+    retailer_id = f"TG-{chat_id}"
+
+    if role == "retailer":
+        retailer_id = rid or retailer_id
+        retailer_data = next(
+            (r for r in load_json(PARENT / "retailers.json", [])
+             if isinstance(r, dict) and str(r.get("id","")).upper() == str(rid).upper()),
+            {}
+        )
+        shop = retailer_data.get("shop", name or "Retailer")
+
+    order = {
+        "order_id": f"ORD-{datetime.now():%Y%m%d%H%M%S}-TG",
+        "retailer_id": retailer_id,
+        "shop": shop,
+        "placed_at": datetime.now().strftime("%d-%b-%Y %H:%M"),
+        "total": round(cart_total(cart), 2),
+        "items": [{
+            "medicine": l["name"],
+            "qty": int(l["qty"]),
+            "price": float(l["price"]),
+            "line_total": round(float(l["price"]) * int(l["qty"]), 2),
+        } for l in cart],
+        "status": "pending",
+        "source": "telegram",
+        "chat_id": str(chat_id),
+    }
+
+    orders = load_json(PARENT / "orders.json", [])
+    if isinstance(orders, dict):
+        orders = list(orders.values())
+    orders.append(order)
+    save_json(PARENT / "orders.json", orders)
+
+    # Notify owner with Approve/Reject buttons
+    lines = [
+        f"🔔 <b>New Order — Awaiting Your Approval</b>\n",
+        f"<b>Order ID:</b> {order['order_id']}",
+        f"<b>From:</b> {shop} ({retailer_id})",
+        f"<b>Time:</b> {order['placed_at']}",
+        f"<b>Items:</b> {len(order['items'])}\n",
+    ]
+    for i, it in enumerate(order["items"], 1):
+        lines.append(f"{i}. {it['medicine']} × {it['qty']} = Rs.{it['line_total']:,.2f}")
+    lines.append(f"\n<b>Total: Rs.{order['total']:,.2f}</b>")
+    body = "\n".join(lines)
+
+    keyboard = kb([
+        [
+            {"text": "✅ Approve", "callback_data": f"appr:{order['order_id']}"},
+            {"text": "❌ Reject", "callback_data": f"rej:{order['order_id']}"},
+        ]
+    ])
+    tg_send(OWNER_CHAT_ID, body, keyboard=keyboard)
+
+    return order
+
+
+def approve_order(order_id, owner_chat_id):
+    orders = load_json(PARENT / "orders.json", [])
+    if isinstance(orders, dict):
+        orders = list(orders.values())
+    for o in orders:
+        if o.get("order_id") == order_id:
+            o["status"] = "approved"
+            o["approved_by"] = "OWNER"
+            o["approved_at"] = datetime.now().strftime("%d-%b-%Y %H:%M")
+            save_json(PARENT / "orders.json", orders)
+
+            # Notify customer
+            cid = o.get("chat_id")
+            if cid:
+                tg_send(cid,
+                    f"✅ <b>Order Approved!</b>\n\n"
+                    f"<b>Order ID:</b> {o['order_id']}\n"
+                    f"<b>Total:</b> Rs.{o['total']:,.2f}\n\n"
+                    f"<i>We'll dispatch soon. You'll get another "
+                    f"message when it ships.</i>"
+                )
+            return o
+    return None
+
+
+def reject_order(order_id, owner_chat_id):
+    orders = load_json(PARENT / "orders.json", [])
+    if isinstance(orders, dict):
+        orders = list(orders.values())
+    for o in orders:
+        if o.get("order_id") == order_id:
+            o["status"] = "cancelled"
+            o["cancelled_by"] = "OWNER"
+            o["cancelled_at"] = datetime.now().strftime("%d-%b-%Y %H:%M")
+            save_json(PARENT / "orders.json", orders)
+
+            cid = o.get("chat_id")
+            if cid:
+                tg_send(cid,
+                    f"❌ <b>Order Rejected</b>\n\n"
+                    f"<b>Order ID:</b> {o['order_id']}\n\n"
+                    f"<i>Please contact us for details.</i>"
+                )
+            return o
+    return None
+
+
+# ═══════════════════════════════════════════════════════
+# UI BUILDERS
+# ═══════════════════════════════════════════════════════
+def money(v):
+    try:
+        return f"Rs.{float(v):,.2f}"
+    except Exception:
+        return "Rs.0.00"
+
+
+def welcome_kb():
+    return kb([
+        [{"text": "💊 Browse Products", "callback_data": "cat"}],
+        [{"text": "🛒 My Cart", "callback_data": "cart"}],
+        [{"text": "🎁 Offers", "callback_data": "offers"}],
+        [{"text": "ℹ️ About", "callback_data": "about"},
+         {"text": "📞 Contact", "callback_data": "contact"}],
+    ])
+
+
+def catalog_kb():
+    """One button per product — max 2 per row."""
+    items = catalog_list()
+    rows = []
+    for p in items:
+        label = f"➕ {p['name']}"
+        if len(label) > 30:
+            label = label[:28] + ".."
+        rows.append([{"text": label, "callback_data": f"add:{p['idx']}"}])
+    rows.append([{"text": "🛒 View Cart", "callback_data": "cart"}])
+    return kb(rows)
+
+
+def cart_kb(cart):
+    """Buttons: remove each item, checkout, clear."""
+    rows = []
+    for l in cart:
+        label = f"🗑️ {l['name']} × {l['qty']}"
+        if len(label) > 32:
+            label = label[:30] + ".."
+        rows.append([{"text": label, "callback_data": f"rm:{l['name'][:40]}"}])
+    rows.append([
+        {"text": "✅ Checkout", "callback_data": "checkout"},
+        {"text": "🗑️ Clear Cart", "callback_data": "clear"},
+    ])
+    return kb(rows)
+
+
+def build_catalog_text():
+    groups = catalog_summary()
+    if not groups:
+        return "⚠️ Catalog loading..."
+    total = sum(len(v) for v in groups.values())
+    lines = [f"💊 <b>Medicine Catalog</b> ({total} items)\n"]
+    for cat_name in sorted(groups.keys()):
+        items = groups[cat_name]
+        lines.append(f"<b>{cat_name}</b>")
+        for p in items:
+            lines.append(f"  • {p['name']} — {money(p['price'])}")
+        lines.append("")
+    lines.append("<i>Tap a product to add to cart.</i>")
+    return "\n".join(lines)
+
+
+def build_cart_text(cart):
+    if not cart:
+        return "🛒 Your cart is empty.\n\nTap Browse Products to add items."
+    lines = [f"🛒 <b>Your Cart</b> ({cart_count(cart)} items)\n"]
+    for l in cart:
+        lines.append(
+            f"• <b>{l['name']}</b>\n"
+            f"  {l['qty']} × {money(l['price'])} = "
+            f"<b>{money(float(l['price'])*int(l['qty']))}</b>"
+        )
+    lines.append(f"\n<b>Total: {money(cart_total(cart))}</b>")
+    lines.append("\n<i>Tap Checkout to receive OTP.</i>")
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════
+# HANDLERS
+# ═══════════════════════════════════════════════════════
+def show_welcome(chat_id):
+    role, name, _ = get_user_role(chat_id)
+    greeting = f"Vanakkam {name}!" if name else "Vanakkam! 🙏"
+    text = (
+        f"<b>🦚 MEENA AGENCIES</b>\n"
+        f"<i>Trusted Pharma Wholesale Partner</i>\n\n"
+        f"{greeting}\n\n"
+        f"Shop medicines 24/7 — no app needed.\n"
+        f"Tap below to start:"
+    )
+    tg_send(chat_id, text, keyboard=welcome_kb())
+
+
+def show_catalog(chat_id, message_id=None):
+    text = build_catalog_text()
+    keyboard = catalog_kb()
+    if message_id:
+        tg_edit(chat_id, message_id, text, keyboard=keyboard)
+    else:
+        tg_send(chat_id, text, keyboard=keyboard)
+
+
+def show_cart(chat_id, message_id=None):
+    cart = get_cart(chat_id)
+    text = build_cart_text(cart)
+    keyboard = cart_kb(cart) if cart else welcome_kb()
+    if message_id:
+        tg_edit(chat_id, message_id, text, keyboard=keyboard)
+    else:
+        tg_send(chat_id, text, keyboard=keyboard)
+
+
+def start_checkout(chat_id):
+    cart = get_cart(chat_id)
+    if not cart:
+        tg_send(chat_id, "🛒 Cart is empty. Browse products first.",
+                keyboard=welcome_kb())
+        return
+
+    code = gen_otp()
+    save_otp(chat_id, code, cart)
+
+    tg_send(chat_id,
+        f"🔐 <b>OTP for Order Confirmation</b>\n\n"
+        f"<b>Cart total:</b> {money(cart_total(cart))}\n"
+        f"<b>Items:</b> {cart_count(cart)}\n\n"
+        f"<b>Your OTP: <code>{code}</code></b>\n\n"
+        f"Valid for {OTP_TTL_MIN} minutes.\n"
+        f"Reply with the 6-digit OTP to confirm the order.",
+        keyboard=kb([[{"text": "❌ Cancel", "callback_data": "clear"}]])
+    )
+
+
+def search_and_reply(chat_id, query):
+    matches = search_products(query)
+    if not matches:
+        tg_send(chat_id,
+            f"❌ No medicine found for <b>{query}</b>\n\n"
+            f"Try 'products' to browse all.",
+            keyboard=welcome_kb())
+        return
+    lines = [f"🔍 <b>{len(matches)} result(s)</b>\n"]
+    rows = []
+    for p in matches:
+        lines.append(f"• <b>{p['name']}</b>\n  {money(p['price'])} · {p['stock']:,} in stock\n")
+        rows.append([{"text": f"➕ Add {p['name'][:25]}", "callback_data": f"add:{p['idx']}"}])
+    rows.append([{"text": "🛒 View Cart", "callback_data": "cart"}])
+    tg_send(chat_id, "\n".join(lines), keyboard=kb(rows))
+
+
+# ═══════════════════════════════════════════════════════
+# CALLBACK QUERY HANDLER
+# ═══════════════════════════════════════════════════════
+def handle_callback(cb):
+    """Handle inline button clicks."""
+    try:
+        cb_id = cb.get("id")
+        chat_id = cb.get("message", {}).get("chat", {}).get("id")
+        msg_id = cb.get("message", {}).get("message_id")
+        data = cb.get("data", "")
+
+        if not chat_id or not data:
+            tg_answer_callback(cb_id)
+            return
+
+        # Approve / Reject from owner
+        if data.startswith("appr:"):
+            oid = data[5:]
+            if str(chat_id) != OWNER_CHAT_ID:
+                tg_answer_callback(cb_id, "Not authorized")
+                return
+            o = approve_order(oid, chat_id)
+            if o:
+                tg_answer_callback(cb_id, "✅ Approved")
+                tg_edit(chat_id, msg_id,
+                    f"✅ <b>Approved</b>\n\n{oid}\n\nCustomer notified.",
+                    keyboard=None)
+            else:
+                tg_answer_callback(cb_id, "Order not found")
+            return
+
+        if data.startswith("rej:"):
+            oid = data[4:]
+            if str(chat_id) != OWNER_CHAT_ID:
+                tg_answer_callback(cb_id, "Not authorized")
+                return
+            o = reject_order(oid, chat_id)
+            if o:
+                tg_answer_callback(cb_id, "❌ Rejected")
+                tg_edit(chat_id, msg_id,
+                    f"❌ <b>Rejected</b>\n\n{oid}\n\nCustomer notified.",
+                    keyboard=None)
+            else:
+                tg_answer_callback(cb_id, "Order not found")
+            return
+
+        # Public actions
+        if data == "cat":
+            tg_answer_callback(cb_id, "Opening catalog...")
+            show_catalog(chat_id, msg_id)
+            return
+
+        if data == "cart":
+            tg_answer_callback(cb_id, "Opening cart...")
+            show_cart(chat_id, msg_id)
+            return
+
+        if data == "clear":
+            cart_clear(chat_id)
+            tg_answer_callback(cb_id, "Cleared")
+            show_cart(chat_id, msg_id)
+            return
+
+        if data == "checkout":
+            cart = get_cart(chat_id)
+            if not cart:
+                tg_answer_callback(cb_id, "Cart empty")
+                return
+            tg_answer_callback(cb_id, "Sending OTP...")
+            start_checkout(chat_id)
+            return
+
+        if data == "offers":
+            cat = load_catalog()
+            items = sorted(cat.values(), key=lambda x: -x["stock"])[:5]
+            lines = ["🎁 <b>Featured Today</b>\n"]
+            rows = []
+            for p in items:
+                lines.append(f"⭐ <b>{p['name']}</b> — {money(p['price'])}")
+                rows.append([{"text": f"➕ Add {p['name'][:25]}", "callback_data": f"add:{p['idx']}"}])
+            rows.append([{"text": "🛒 View Cart", "callback_data": "cart"}])
+            tg_answer_callback(cb_id)
+            tg_edit(chat_id, msg_id, "\n".join(lines), keyboard=kb(rows))
+            return
+
+        if data == "about":
+            tg_answer_callback(cb_id)
+            tg_edit(chat_id, msg_id,
+                f"<b>🦚 MEENA AGENCIES</b>\n"
+                f"<i>Trusted Pharma Wholesale Partner</i>\n\n"
+                f"📍 Thanjavur, Tamil Nadu\n"
+                f"💊 {len(load_catalog())} medicines\n"
+                f"⚡ Shop 24/7 right here\n\n"
+                f"<i>Tap below to browse.</i>",
+                keyboard=kb([[{"text": "💊 Browse Products", "callback_data": "cat"}]]))
+            return
+
+        if data == "contact":
+            tg_answer_callback(cb_id)
+            tg_edit(chat_id, msg_id,
+                f"📞 <b>Contact Meena Agencies</b>\n\n"
+                f"📱 Phone: +91 63821 30536\n"
+                f"📧 meena.agencies@gmail.com\n"
+                f"📍 Thanjavur, Tamil Nadu\n\n"
+                f"<i>Shop 24/7 right here in Telegram.</i>",
+                keyboard=kb([[{"text": "💊 Browse Products", "callback_data": "cat"}]]))
+            return
+
+        if data.startswith("add:"):
+            try:
+                idx = int(data[4:])
+                p = catalog_by_idx().get(idx)
+                if not p:
+                    tg_answer_callback(cb_id, "Product not found")
+                    return
+                cart_add(chat_id, p)
+                count = cart_count(get_cart(chat_id))
+                tg_answer_callback(cb_id, f"✅ Added. Cart: {count} item(s)")
+            except Exception as e:
+                log(f"add err: {e}")
+                tg_answer_callback(cb_id, "Error")
+            return
+
+        if data.startswith("rm:"):
+            name = data[3:]
+            cart = cart_remove(chat_id, name)
+            tg_answer_callback(cb_id, "Removed")
+            show_cart(chat_id, msg_id)
+            return
+
+        tg_answer_callback(cb_id)
+    except Exception as e:
+        log(f"callback error: {e}\n{traceback.format_exc()}")
+
+
+# ═══════════════════════════════════════════════════════
+# TEXT MESSAGE HANDLER
+# ═══════════════════════════════════════════════════════
+def handle_text(chat_id, text):
+    t = text.strip().lower()
+
+    # OTP check first (if user has pending OTP)
+    otps = load_json(OTPS_FILE, {})
+    if str(chat_id) in otps and re.match(r'^\d{6}$', t):
+        ok, msg, cart = verify_otp(chat_id, t)
+        if not ok:
+            tg_send(chat_id, f"❌ {msg}")
+            return
+        order = create_order(chat_id, cart)
+        cart_clear(chat_id)
+        tg_send(chat_id,
+            f"✅ <b>Order Placed Successfully!</b>\n\n"
+            f"<b>Order ID:</b> {order['order_id']}\n"
+            f"<b>Total:</b> Rs.{order['total']:,.2f}\n\n"
+            f"⏳ Waiting for owner approval.\n"
+            f"You'll get a notification once approved.",
+            keyboard=welcome_kb())
+        return
+
+    # Welcome
+    if t in ("hi", "hello", "start", "/start", "vanakkam", "hey"):
+        show_welcome(chat_id)
+        return
+
+    # Catalog
+    if t in ("products", "catalog", "medicines", "browse"):
+        show_catalog(chat_id)
+        return
+
+    # Cart
+    if t in ("cart", "my cart", "basket"):
+        show_cart(chat_id)
+        return
+
+    # Checkout
+    if t in ("checkout", "buy", "place order"):
+        start_checkout(chat_id)
+        return
+
+    # Clear
+    if t in ("clear", "empty"):
+        cart_clear(chat_id)
+        tg_send(chat_id, "🗑️ Cart cleared.", keyboard=welcome_kb())
+        return
+
+    # Search
+    m = re.match(r'^(?:search|find|price of|price)\s+(.+)$', text.strip(), re.IGNORECASE)
+    if m:
+        search_and_reply(chat_id, m.group(1).strip())
+        return
+
+    # Offers
+    if t in ("offers", "deals", "discounts"):
+        cb = {"id": "auto", "message": {"chat": {"id": chat_id}, "message_id": 0}, "data": "offers"}
+        # Simpler: send directly
+        cat = load_catalog()
+        items = sorted(cat.values(), key=lambda x: -x["stock"])[:5]
+        lines = ["🎁 <b>Featured Today</b>\n"]
+        rows = []
+        for p in items:
+            lines.append(f"⭐ <b>{p['name']}</b> — {money(p['price'])}")
+            rows.append([{"text": f"➕ Add {p['name'][:25]}", "callback_data": f"add:{p['idx']}"}])
+        rows.append([{"text": "🛒 View Cart", "callback_data": "cart"}])
+        tg_send(chat_id, "\n".join(lines), keyboard=kb(rows))
+        return
+
+    if t in ("about", "info"):
+        tg_send(chat_id,
+            f"<b>🦚 MEENA AGENCIES</b>\n"
+            f"<i>Trusted Pharma Wholesale Partner</i>\n\n"
+            f"📍 Thanjavur, Tamil Nadu\n"
+            f"💊 {len(load_catalog())} medicines\n"
+            f"⚡ Shop 24/7 right here",
+            keyboard=welcome_kb())
+        return
+
+    if t in ("contact", "phone", "call"):
+        tg_send(chat_id,
+            f"📞 <b>Contact Meena Agencies</b>\n\n"
+            f"📱 +91 63821 30536\n"
+            f"📧 meena.agencies@gmail.com\n"
+            f"📍 Thanjavur, Tamil Nadu",
+            keyboard=welcome_kb())
+        return
+
+    # Bare product name → search
+    if 2 <= len(text.strip()) <= 40:
+        if any(kw in t for kw in ("mg", "ml", "tablet", "capsule", "syrup",
+                                   "paracet", "dolo", "ors", "amoxi", "azithro",
+                                   "cetiri", "atorva", "metfor", "insulin", "omepra",
+                                   "ibupro", "cough", "salbutamol")):
+            search_and_reply(chat_id, text.strip())
+            return
+
+    # Fallback
+    tg_send(chat_id,
+        "I didn't catch that. Try:\n"
+        "• <b>products</b> — browse catalog\n"
+        "• <b>cart</b> — view your cart\n"
+        "• <b>search &lt;medicine&gt;</b>\n"
+        "• <b>offers</b> — today's deals",
+        keyboard=welcome_kb())
+
+
+# ═══════════════════════════════════════════════════════
+# MESSAGE PROCESSOR
+# ═══════════════════════════════════════════════════════
+def process_one(update):
+    try:
+        # Callback query (button click)
+        if "callback_query" in update:
+            handle_callback(update["callback_query"])
+            return
+
+        msg = update.get("message") or update.get("edited_message") or {}
+        chat = msg.get("chat", {})
+        chat_id = chat.get("id")
+        text = msg.get("text") or msg.get("caption") or ""
+        if not chat_id or not text:
+            return
+
+        tg_typing(chat_id)
+        handle_text(chat_id, text)
+        log(f"Handled {chat_id}: {text[:40]!r}")
+    except Exception as e:
+        log(f"process error: {e}\n{traceback.format_exc()}")
+
+
+# ═══════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════
+def main():
+    if not TOKEN:
+        print("❌ No token"); sys.exit(1)
+
+    print("═" * 50)
+    print("  Meena Agencies — Shop Chatbot v4")
+    print("═" * 50)
+    print(f"  Catalog: {len(load_catalog())} medicines")
+    print(f"  Log: {LOG_FILE}")
+    print("═" * 50)
+
+    state = load_json(STATE_FILE, {"offset": 0})
+    offset = state.get("offset", 0)
+
+    first = tg_api("getUpdates", {"timeout": 0})
+    if first and first.get("result"):
+        last = max(u.get("update_id", 0) for u in first["result"])
+        offset = last + 1
+        save_json(STATE_FILE, {"offset": offset})
+
+    print(f"  ✅ Listening from offset {offset}")
+    print("═" * 50)
+
+    executor = ThreadPoolExecutor(max_workers=4)
+    backoff = 1
+
+    while True:
+        try:
+            r = tg_api("getUpdates", {"offset": offset, "timeout": POLL_TIMEOUT},
+                       timeout=POLL_TIMEOUT + 10)
+            if not r or not r.get("ok"):
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 30)
+                continue
+            backoff = 1
+            for u in r.get("result", []):
+                executor.submit(process_one, u)
+                offset = u.get("update_id", offset) + 1
+                save_json(STATE_FILE, {"offset": offset})
+        except KeyboardInterrupt:
+            print("\n👋 Stopped"); break
+        except Exception as e:
+            log(f"Loop error: {e}")
+            time.sleep(min(30, backoff))
+            backoff = min(backoff * 2, 30)
+
+
+if __name__ == "__main__":
+    main()

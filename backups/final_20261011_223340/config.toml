@@ -1,0 +1,21 @@
+[server]
+headless = true
+port = 8501
+enableCORS = true
+corsAllowedOrigins = ["localhost:8501", "127.0.0.1:8501"]
+enableXsrfProtection = true
+maxUploadSize = 5
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#00d4ff"
+backgroundColor = "#0a0e1a"
+secondaryBackgroundColor = "#1a1f2e"
+textColor = "#e8eaf6"
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true

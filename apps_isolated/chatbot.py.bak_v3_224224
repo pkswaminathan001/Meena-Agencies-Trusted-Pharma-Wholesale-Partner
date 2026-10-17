@@ -1,0 +1,730 @@
+"""
+chatbot.py — Meena Agencies PUBLIC chatbot v3
+Works like Amazon chatbot: anyone can browse products, get prices, see offers.
+Roles: owner (full), retailer (own data + catalog), rep (forward to owner),
+       public customer (catalog only, no confidential data).
+"""
+import json, os, sys, time, traceback, urllib.request, urllib.parse, re, csv
+from datetime import datetime
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+
+PARENT = Path(__file__).parent.parent
+ENV_FILE = Path.home() / ".config" / "meena" / ".env"
+LOG_FILE = PARENT / "chatbot.log"
+STATE_FILE = PARENT / "chatbot_state.json"
+INVENTORY_FILE = PARENT / "inventory.csv"
+
+POLL_TIMEOUT = 10
+AI_TIMEOUT = 15
+AI_MODEL = "openai/gpt-oss-20b"
+
+
+def log(msg):
+    try:
+        ts = datetime.now().strftime("%d-%b-%Y %H:%M:%S")
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
+
+def load_env():
+    env = {}
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text().split("\n"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+def load_json(path, default):
+    if Path(path).exists():
+        try:
+            return json.loads(Path(path).read_text())
+        except Exception:
+            return default
+    return default
+
+
+def save_json(path, data):
+    try:
+        Path(path).write_text(json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+ENV = load_env()
+TOKEN = ENV.get("TELEGRAM_BOT_TOKEN", "")
+OWNER_CHAT_ID = str(ENV.get("OWNER_CHAT_ID", ""))
+COMPANY_NAME = ENV.get("COMPANY_NAME", "Meena Agencies")
+
+
+# ═══════════════════════════════════════════════════════
+# TELEGRAM
+# ═══════════════════════════════════════════════════════
+def tg_api(method, params=None, timeout=10):
+    try:
+        url = f"https://api.telegram.org/bot{TOKEN}/{method}"
+        data = urllib.parse.urlencode(params or {}).encode() if params else None
+        req = urllib.request.Request(url, data=data, method="POST" if data else "GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        log(f"tg_api {method} error: {e}")
+        return None
+
+
+def tg_send(chat_id, text):
+    return tg_api("sendMessage", {
+        "chat_id": str(chat_id),
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    })
+
+
+def tg_typing(chat_id):
+    tg_api("sendChatAction", {"chat_id": str(chat_id), "action": "typing"}, timeout=3)
+
+
+# ═══════════════════════════════════════════════════════
+# PUBLIC CATALOG (from inventory.csv)
+# ═══════════════════════════════════════════════════════
+_CATALOG_CACHE = {"data": None, "ts": 0}
+
+
+def load_catalog():
+    """Read inventory.csv → public product list (no cost prices)."""
+    now = time.time()
+    if _CATALOG_CACHE["data"] and (now - _CATALOG_CACHE["ts"]) < 60:
+        return _CATALOG_CACHE["data"]
+
+    products = {}
+    try:
+        if INVENTORY_FILE.exists():
+            with open(INVENTORY_FILE, newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = (row.get("medicine_name") or "").strip()
+                    if not name:
+                        continue
+                    qty = int(float(row.get("quantity") or 0))
+                    cost = float(row.get("cost_price") or 0)
+                    # Public price = cost × 1.18 (18% retail markup)
+                    public_price = round(cost * 1.18, 2)
+                    if name in products:
+                        products[name]["stock"] += qty
+                        products[name]["batches"] += 1
+                    else:
+                        products[name] = {
+                            "name": name,
+                            "price": public_price,
+                            "stock": qty,
+                            "batches": 1,
+                            "category": _classify(name),
+                        }
+    except Exception as e:
+        log(f"catalog load error: {e}")
+
+    _CATALOG_CACHE["data"] = products
+    _CATALOG_CACHE["ts"] = now
+    return products
+
+
+def _classify(name):
+    n = name.lower()
+    for kw, cat in [
+        ("amoxi", "Antibiotic"), ("azithro", "Antibiotic"), ("cef", "Antibiotic"),
+        ("paracet", "Pain Relief"), ("ibupro", "Pain Relief"), ("dolo", "Pain Relief"),
+        ("atorva", "Cardiac"), ("metfor", "Diabetes"), ("insulin", "Diabetes"),
+        ("cetiri", "Allergy"), ("omepra", "Gastro"), ("ors", "Hydration"),
+        ("cough", "Cough & Cold"), ("salbutamol", "Respiratory"),
+        ("vitamin", "Supplement"),
+    ]:
+        if kw in n:
+            return cat
+    return "General"
+
+
+def catalog_summary():
+    """Group catalog by category for a menu."""
+    cat = load_catalog()
+    if not cat:
+        return {}
+    groups = {}
+    for p in cat.values():
+        groups.setdefault(p["category"], []).append(p)
+    return groups
+
+
+def search_products(query, limit=10):
+    """Fuzzy search. Returns list of matches sorted by name."""
+    cat = load_catalog()
+    if not cat or not query:
+        return []
+    q = query.lower().strip()
+    matches = [p for p in cat.values() if q in p["name"].lower()]
+    matches.sort(key=lambda x: (0 if x["name"].lower().startswith(q) else 1, x["name"]))
+    return matches[:limit]
+
+
+# ═══════════════════════════════════════════════════════
+# USER ROLES (with cache)
+# ═══════════════════════════════════════════════════════
+_ROLE_CACHE = {}
+
+
+def get_user_role(chat_id):
+    cid = str(chat_id)
+    if cid in _ROLE_CACHE:
+        return _ROLE_CACHE[cid]
+
+    if cid == OWNER_CHAT_ID:
+        result = ("owner", "Swaminathan", None)
+    else:
+        result = (None, None, None)
+        retailers = load_json(PARENT / "retailers.json", [])
+        if isinstance(retailers, dict):
+            retailers = list(retailers.values())
+        for r in retailers:
+            if isinstance(r, dict) and str(r.get("telegram_chat_id", "")).strip() == cid:
+                result = ("retailer", r.get("owner", r.get("shop", "Retailer")), r.get("id"))
+                break
+        else:
+            reps = load_json(PARENT / "salespeople.json", [])
+            if isinstance(reps, dict):
+                reps = list(reps.values())
+            for rep in reps:
+                if isinstance(rep, dict) and str(rep.get("telegram_chat_id", "")).strip() == cid:
+                    result = ("rep", rep.get("name", "Rep"), rep.get("id"))
+                    break
+
+    _ROLE_CACHE[cid] = result
+    return result
+
+
+# ═══════════════════════════════════════════════════════
+# DATA
+# ═══════════════════════════════════════════════════════
+_CACHE = {}
+_CACHE_TTL = 30
+
+
+def _cached(key, loader):
+    now = time.time()
+    if key in _CACHE:
+        data, ts = _CACHE[key]
+        if now - ts < _CACHE_TTL:
+            return data
+    data = loader()
+    _CACHE[key] = (data, now)
+    return data
+
+
+def load_orders():
+    def _load():
+        o = load_json(PARENT / "orders.json", [])
+        return o if isinstance(o, list) else list(o.values())
+    return _cached("orders", _load)
+
+
+def load_retailers():
+    def _r():
+        r = load_json(PARENT / "retailers.json", [])
+        return r if isinstance(r, list) else list(r.values())
+    return _cached("retailers", _r)
+
+
+def money(v):
+    try:
+        return f"Rs.{float(v):,.2f}"
+    except Exception:
+        return "Rs.0.00"
+
+
+# ═══════════════════════════════════════════════════════
+# GROQ AI (owner only)
+# ═══════════════════════════════════════════════════════
+def groq_ask(question, context):
+    try:
+        key = (PARENT / ".groq_key").read_text().strip()
+        if not key:
+            return None
+        payload = {
+            "model": AI_MODEL,
+            "messages": [
+                {"role": "system", "content":
+                 "You are JARVIS for Meena Agencies pharma distributor. "
+                 "Answer SHORT. Max 120 words. Use Rs. for money."},
+                {"role": "system", "content": "DATA:\n" + context},
+                {"role": "user", "content": question},
+            ],
+            "temperature": 0.3,
+            "max_tokens": 300,
+        }
+        req = urllib.request.Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": "Bearer " + key,
+                "Content-Type": "application/json",
+                "User-Agent": "Meena-Chatbot/3.0",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as resp:
+            d = json.loads(resp.read())
+            return d["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        log(f"groq error: {e}")
+        return None
+
+
+def build_owner_context():
+    """SANITIZED — aggregates only, no individual retailer data."""
+    orders = load_orders()
+    rets = load_retailers()
+    cat = load_catalog()
+    pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+    total_out = sum(float(r.get("outstanding") or 0) for r in rets if isinstance(r, dict))
+    total_limit = sum(float(r.get("credit_limit") or 0) for r in rets if isinstance(r, dict))
+
+    lines = [
+        "=== AGGREGATE BUSINESS SNAPSHOT (NO individual retailer data) ===",
+        f"Total orders: {len(orders)}",
+        f"Pending orders: {len(pending)}",
+        f"Catalog: {len(cat)} unique medicines",
+        f"Number of retailers: {len(rets)}",
+        f"Total outstanding (all retailers): Rs.{total_out:,.0f}",
+        f"Total credit extended: Rs.{total_limit:,.0f}",
+        "",
+        "INSTRUCTION: Never mention individual retailer names, balances, or "
+        "credit limits. If asked about a specific retailer, reply: "
+        "'For retailer-specific details, please use the dashboard or ask via "
+        "command: pending / retailers'. Do NOT reveal sensitive financial data."
+    ]
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════
+# PUBLIC HANDLERS (anyone can use)
+# ═══════════════════════════════════════════════════════
+def public_welcome(name=None):
+    greeting = f"Vanakkam {name}!" if name else "Vanakkam! 🙏"
+    return (
+        f"<b>🦚 MEENA AGENCIES</b>\n"
+        f"<i>Trusted Pharma Wholesale Partner</i>\n\n"
+        f"{greeting}\n\n"
+        f"<b>What would you like to do?</b>\n"
+        f"• <b>products</b> — browse medicine catalog\n"
+        f"• <b>search &lt;name&gt;</b> — find a medicine\n"
+        f"• <b>offers</b> — today's deals\n"
+        f"• <b>about</b> — about our company\n"
+        f"• <b>contact</b> — reach us\n\n"
+        f"<i>I'm available 24/7 to help.</i>"
+    )
+
+
+def public_products():
+    groups = catalog_summary()
+    if not groups:
+        return "⚠️ Catalog is being updated. Please try again."
+
+    total = sum(len(v) for v in groups.values())
+    lines = [f"💊 <b>Medicine Catalog</b> ({total} medicines)\n"]
+
+    for cat_name in sorted(groups.keys()):
+        items = sorted(groups[cat_name], key=lambda x: x["name"])
+        lines.append(f"<b>{cat_name}</b>")
+        for p in items:
+            stock_marker = "✅" if p["stock"] > 100 else ("⚠️" if p["stock"] > 0 else "❌")
+            lines.append(
+                f"{stock_marker} <b>{p['name']}</b>\n"
+                f"   {money(p['price'])} · {p['stock']:,} in stock"
+            )
+        lines.append("")
+
+    lines.append("<i>Type 'search &lt;name&gt;' for details or 'order' to place an order.</i>")
+    return "\n".join(lines)
+
+
+def public_search(query):
+    if not query:
+        return "🔍 Please type: <b>search Paracetamol</b>"
+    matches = search_products(query)
+    if not matches:
+        return (
+            f"❌ No medicine found for <b>{query}</b>\n\n"
+            f"Try: <b>search Paracetamol</b> or <b>products</b>"
+        )
+
+    lines = [f"🔍 <b>{len(matches)} result(s) for '{query}':</b>\n"]
+    for p in matches:
+        stock_marker = "✅" if p["stock"] > 50 else ("⚠️" if p["stock"] > 0 else "❌")
+        lines.append(
+            f"{stock_marker} <b>{p['name']}</b>\n"
+            f"   {money(p['price'])} · {p['stock']} in stock"
+        )
+    lines.append("\n<i>Wholesale prices available for registered retailers.</i>")
+    return "\n".join(lines)
+
+
+def public_offers():
+    cat = load_catalog()
+    if not cat:
+        return "Offers loading..."
+    # Pick a few random high-stock items as "offers"
+    items = sorted(cat.values(), key=lambda x: -x["stock"])[:5]
+    lines = [f"🎁 <b>Today's Featured Products</b>\n"]
+    for p in items:
+        lines.append(
+            f"⭐ <b>{p['name']}</b>\n"
+            f"   {money(p['price'])} · {p['stock']} units available"
+        )
+    lines.append("\n<i>Bulk discounts available. Reply 'contact' to enquire.</i>")
+    return "\n".join(lines)
+
+
+def public_about():
+    cat = load_catalog()
+    return (
+        f"<b>🦚 MEENA AGENCIES</b>\n"
+        f"<i>Trusted Pharma Wholesale Partner</i>\n\n"
+        f"📍 Thanjavur, Tamil Nadu\n"
+        f"💊 {len(cat)} medicines in catalog\n"
+        f"🏪 Serving retail pharmacies\n"
+        f"⚡ Powered by AI\n\n"
+        f"<b>Why choose us:</b>\n"
+        f"• Genuine medicines only\n"
+        f"• Fast delivery\n"
+        f"• Wholesale pricing\n"
+        f"• 24/7 chatbot support\n\n"
+        f"<i>Reply 'products' to browse.</i>"
+    )
+
+
+def public_contact():
+    return (
+        f"📞 <b>Contact Meena Agencies</b>\n\n"
+        f"📱 Phone: +91 63821 30536\n"
+        f"📧 meena.agencies@gmail.com\n"
+        f"📍 Thanjavur, Tamil Nadu\n\n"
+        f"<b>Business hours:</b>\n"
+        f"Mon-Sat: 9 AM - 8 PM\n"
+        f"Sunday: Closed\n\n"
+        f"<i>Or browse our catalog right here — 24/7.</i>"
+    )
+
+
+# ═══════════════════════════════════════════════════════
+# INTENT MATCHING
+# ═══════════════════════════════════════════════════════
+def parse_public_intent(text):
+    """Return (intent, arg) for public commands."""
+    t = text.strip().lower()
+
+    if t in ("hi", "hello", "start", "/start", "vanakkam", "hey"):
+        return ("welcome", None)
+
+    if t in ("products", "catalog", "medicines", "catalogue", "browse"):
+        return ("products", None)
+
+    if t in ("offers", "deals", "discounts"):
+        return ("offers", None)
+
+    if t in ("about", "info", "who are you"):
+        return ("about", None)
+
+    if t in ("contact", "phone", "call", "reach"):
+        return ("contact", None)
+
+    m = re.match(r'^(?:search|find|price of|price)\s+(.+)$', text.strip(), re.IGNORECASE)
+    if m:
+        return ("search", m.group(1).strip())
+
+    # Bare medicine name (single word or phrase) — treat as search
+    if 2 <= len(t) <= 40 and not any(x in t for x in ("help", "?")):
+        # If it looks like a medicine name
+        if any(kw in t for kw in ("mg", "ml", "tablet", "capsule", "syrup", "injection", "powder",
+                                   "paracet", "dolo", "ors", "amoxi", "azithro", "cetiri",
+                                   "atorva", "metfor", "insulin", "omepra", "ibupro", "cough",
+                                   "salbutamol")):
+            return ("search", text.strip())
+
+    return (None, None)
+
+
+# ═══════════════════════════════════════════════════════
+# ROLE-BASED HANDLERS
+# ═══════════════════════════════════════════════════════
+def handle_public(chat_id, text, name=None):
+    """Anyone can use these commands."""
+    intent, arg = parse_public_intent(text)
+
+    if intent == "welcome":
+        return public_welcome(name)
+    if intent == "products":
+        return public_products()
+    if intent == "search":
+        return public_search(arg)
+    if intent == "offers":
+        return public_offers()
+    if intent == "about":
+        return public_about()
+    if intent == "contact":
+        return public_contact()
+
+    # Unknown intent → welcoming menu
+    return public_welcome(name)
+
+
+def handle_owner(chat_id, text):
+    """Owner gets everything, including business commands."""
+    t = text.strip().lower()
+
+    # Public command fallback
+    intent, arg = parse_public_intent(text)
+    if intent and intent != "welcome":
+        if intent == "products":
+            return public_products()
+        if intent == "search":
+            return public_search(arg)
+        if intent == "offers":
+            return public_offers()
+        if intent == "about":
+            return public_about()
+        if intent == "contact":
+            return public_contact()
+
+    # Owner-specific
+    if t in ("hi", "hello", "start", "/start", "vanakkam"):
+        return (
+            "🙏 <b>Vanakkam Swaminathan!</b>\n\n"
+            "<b>Business commands:</b>\n"
+            "• <b>pending</b> — pending orders\n"
+            "• <b>retailers</b> — retailer list\n"
+            "• <b>brief</b> — daily summary\n\n"
+            "<b>Public commands:</b>\n"
+            "• products · search &lt;name&gt; · offers\n\n"
+            "<i>Or ask anything in natural language.</i>"
+        )
+
+    if "pending" in t:
+        orders = load_orders()
+        pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+        if not pending:
+            return "✅ No pending orders."
+        lines = [f"⏳ <b>{len(pending)} pending:</b>\n"]
+        for o in pending[:8]:
+            lines.append(
+                f"• <b>{o.get('order_id','?')}</b>\n"
+                f"  {o.get('shop','?')} · {money(o.get('total',0))}"
+            )
+        return "\n".join(lines)
+
+    if t in ("retailers", "shops", "list"):
+        rets = load_retailers()
+        lines = [f"🏪 <b>{len(rets)} retailers:</b>\n"]
+        for r in rets:
+            if not isinstance(r, dict):
+                continue
+            out = float(r.get("outstanding") or 0)
+            lim = float(r.get("credit_limit") or 0)
+            pct = (out / lim * 100) if lim else 0
+            emoji = "🔴" if pct >= 90 else ("🟠" if pct >= 60 else "🟢")
+            lines.append(f"{emoji} <b>{r.get('shop','?')}</b>\n   {money(out)} ({pct:.0f}%)")
+        return "\n".join(lines)
+
+    if "brief" in t or "summary" in t:
+        orders = load_orders()
+        pending = [o for o in orders if (o.get("status") or "").lower() == "pending"]
+        rets = load_retailers()
+        total_out = sum(float(r.get("outstanding") or 0) for r in rets if isinstance(r, dict))
+        cat = load_catalog()
+        return (
+            f"📊 <b>Brief — {datetime.now().strftime('%d-%b')}</b>\n\n"
+            f"📦 {len(orders)} orders ({len(pending)} pending)\n"
+            f"💰 Outstanding: {money(total_out)}\n"
+            f"🏪 {len(rets)} retailers\n"
+            f"💊 {len(cat)} medicines"
+        )
+
+    # AI only if user explicitly prefixes with /ai
+    if t.startswith("/ai ") or t.startswith("ai:"):
+        question = t.split(" ", 1)[1] if " " in t else text[3:]
+        reply = groq_ask(question, build_owner_context())
+        return reply or "⚠️ AI unavailable. Try: pending, retailers, brief."
+
+    return (
+        "I can help with:\n"
+        "• <b>pending</b> — pending orders\n"
+        "• <b>retailers</b> — retailer list\n"
+        "• <b>brief</b> — daily summary\n"
+        "• <b>products</b> — public catalog\n"
+        "• <b>search &lt;name&gt;</b> — find medicine\n\n"
+        "For AI answers, prefix with <b>/ai</b>\n"
+        "Example: <b>/ai who should I call today?</b>"
+    )
+
+
+def handle_retailer(chat_id, text, name, retailer_id):
+    t = text.strip().lower()
+
+    # Public fallback
+    intent, arg = parse_public_intent(text)
+    if intent and intent not in ("welcome", None):
+        return handle_public(chat_id, text, name)
+
+    retailers = load_retailers()
+    me = next((r for r in retailers
+               if isinstance(r, dict) and str(r.get("id","")).upper() == str(retailer_id).upper()),
+              {})
+
+    if t in ("hi", "hello", "start", "/start", "vanakkam"):
+        out = float(me.get("outstanding") or 0)
+        lim = float(me.get("credit_limit") or 0)
+        return (
+            f"🙏 <b>Vanakkam {name}!</b>\n\n"
+            f"💰 Outstanding: <b>{money(out)}</b>\n"
+            f"💳 Available: <b>{money(lim - out)}</b>\n\n"
+            f"<b>Your commands:</b>\n"
+            f"• <b>bills</b> · <b>balance</b> · <b>order</b>\n\n"
+            f"<b>Public:</b>\n"
+            f"• products · search &lt;name&gt; · offers"
+        )
+
+    if t in ("bills", "orders", "my bills"):
+        mine = [o for o in load_orders()
+                if str(o.get("retailer_id","")).upper() == str(retailer_id).upper()]
+        if not mine:
+            return "No orders yet."
+        lines = [f"🧾 <b>Last {min(len(mine),5)} orders:</b>\n"]
+        for o in mine[-5:][::-1]:
+            s = (o.get("status") or "").lower()
+            e = {"pending":"⏳","approved":"✅","delivered":"🎉","cancelled":"❌"}.get(s,"•")
+            lines.append(f"{e} {o.get('order_id','?')} · {money(o.get('total',0))}")
+        return "\n".join(lines)
+
+    if t in ("balance", "ledger", "outstanding"):
+        out = float(me.get("outstanding") or 0)
+        lim = float(me.get("credit_limit") or 0)
+        return (
+            f"💰 <b>Your Ledger</b>\n\n"
+            f"Limit:      <b>{money(lim)}</b>\n"
+            f"Owed:       <b>{money(out)}</b>\n"
+            f"Available:  <b>{money(lim - out)}</b>"
+        )
+
+    if t in ("order", "place order", "new order"):
+        return (
+            "🛒 <b>Place order:</b>\n\n"
+            "1. Open: http://localhost:8501\n"
+            f"2. Login: {retailer_id}\n"
+            "3. Add items → Request OTP"
+        )
+
+    return public_welcome(name)
+
+
+def handle_rep(chat_id, text, name, rep_id):
+    fwd = (
+        f"👤 <b>Rep Message</b>\n\n"
+        f"<b>From:</b> {name} ({rep_id})\n"
+        f"<b>Time:</b> {datetime.now().strftime('%d-%b %H:%M')}\n"
+        f"<b>Text:</b> {text}"
+    )
+    tg_send(OWNER_CHAT_ID, fwd)
+    return "✅ Sent to owner."
+
+
+def route_message(chat_id, text):
+    role, name, rid = get_user_role(chat_id)
+    # Log every message with role for audit
+    log(f"ROUTE chat_id={chat_id} role={role or 'public'} text={text[:60]!r}")
+
+    if role == "owner":
+        return handle_owner(chat_id, text)
+    elif role == "retailer":
+        return handle_retailer(chat_id, text, name, rid)
+    elif role == "rep":
+        return handle_rep(chat_id, text, name, rid)
+    else:
+        # PUBLIC — NEVER calls AI, NEVER sees other retailer data
+        return handle_public(chat_id, text)
+
+
+# ═══════════════════════════════════════════════════════
+# MESSAGE PROCESSOR
+# ═══════════════════════════════════════════════════════
+def process_one(update):
+    try:
+        msg = update.get("message") or update.get("edited_message") or {}
+        chat = msg.get("chat", {})
+        chat_id = chat.get("id")
+        text = msg.get("text") or msg.get("caption") or ""
+        if not chat_id or not text:
+            return
+
+        tg_typing(chat_id)
+        reply = route_message(chat_id, text)
+        if reply:
+            tg_send(chat_id, reply)
+            log(f"Replied to {chat_id}: {text[:30]!r}")
+    except Exception as e:
+        log(f"process error: {e}\n{traceback.format_exc()}")
+
+
+# ═══════════════════════════════════════════════════════
+# MAIN LOOP
+# ═══════════════════════════════════════════════════════
+def main():
+    if not TOKEN:
+        print("❌ No token"); sys.exit(1)
+
+    print("═" * 50)
+    print("  Meena Agencies — PUBLIC Chatbot v3")
+    print("═" * 50)
+    print(f"  Catalog: {len(load_catalog())} medicines loaded")
+    print(f"  Log: {LOG_FILE}")
+    print("═" * 50)
+
+    state = load_json(STATE_FILE, {"offset": 0})
+    offset = state.get("offset", 0)
+
+    first = tg_api("getUpdates", {"timeout": 0})
+    if first and first.get("result"):
+        last = max(u.get("update_id", 0) for u in first["result"])
+        offset = last + 1
+        save_json(STATE_FILE, {"offset": offset})
+
+    print(f"  ✅ Listening from offset {offset}")
+    print("═" * 50)
+
+    executor = ThreadPoolExecutor(max_workers=4)
+    backoff = 1
+
+    while True:
+        try:
+            r = tg_api("getUpdates", {"offset": offset, "timeout": POLL_TIMEOUT},
+                       timeout=POLL_TIMEOUT + 10)
+            if not r or not r.get("ok"):
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 30)
+                continue
+            backoff = 1
+            for u in r.get("result", []):
+                executor.submit(process_one, u)
+                offset = u.get("update_id", offset) + 1
+                save_json(STATE_FILE, {"offset": offset})
+        except KeyboardInterrupt:
+            print("\n👋 Stopped"); break
+        except Exception as e:
+            log(f"Loop error: {e}")
+            time.sleep(min(30, backoff))
+            backoff = min(backoff * 2, 30)
+
+
+if __name__ == "__main__":
+    main()

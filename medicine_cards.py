@@ -4,6 +4,32 @@ Click a card → quantity slides in → add to cart with animation.
 """
 import streamlit as st
 
+
+# ─── Safe color helper (prevents "color: 0 / #function()" console errors) ───
+def _safe_color(v, fallback="#00d4ff"):
+    """Return a valid CSS color string. Never returns 0/None/function."""
+    if v is None:
+        return fallback
+    if callable(v):
+        try:
+            v = v()
+        except Exception:
+            return fallback
+    s = str(v).strip()
+    if not s or s.lower() in ("none", "null", "undefined", "0", "#0"):
+        return fallback
+    # Valid: #hex, rgb(), rgba(), hsl(), hsla(), or named color
+    if re.match(r'^#([0-9a-fA-F]{3,8})$', s):
+        return s
+    if re.match(r'^(rgb|rgba|hsl|hsla)\(', s):
+        return s
+    # Single word named colors (red, blue, etc.)
+    if re.match(r'^[a-zA-Z]+$', s):
+        return s
+    return fallback
+
+import re
+
 # ────────────────────────────────────────────────
 # MEDICINE EMOJI + COLOR MAP
 # ────────────────────────────────────────────────
@@ -209,18 +235,18 @@ def medicine_card_html(row, selected=False):
         stock_txt = f"{stock} in stock"
 
     return f"""
-    <div class="med-card {selected_cls}" style="--card-color: {info['color']};">
+    <div class="med-card {selected_cls}" style="--card-color: {_safe_color(info.get('color'))};">
         <div class="med-emoji">{info['emoji']}</div>
         <div style="font-weight: 700; margin-top: 0.5rem; font-size: 0.85rem; color: #e8eaf6; min-height: 2.2rem; line-height: 1.2;">
             {name[:32]}
         </div>
-        <div class="med-cat" style="background: {info['color']}22; color: {info['color']}; border: 1px solid {info['color']}55;">
+        <div class="med-cat" style="background: {_safe_color(info.get('color'))}22; color: {_safe_color(info.get('color'))}; border: 1px solid {_safe_color(info.get('color'))}55;">
             {info['category']}
         </div>
         <div style="margin-top: 0.6rem; color: #8892b0; font-size: 0.7rem;">
             Exp: {expiry}
         </div>
-        <div style="margin-top: 0.4rem; font-size: 0.95rem; font-weight: 700; color: {info['color']};">
+        <div style="margin-top: 0.4rem; font-size: 0.95rem; font-weight: 700; color: {_safe_color(info.get('color'))};">
             ₹{price:,.2f}
         </div>
         <div style="margin-top: 0.3rem; font-size: 0.7rem; color: {stock_color};">

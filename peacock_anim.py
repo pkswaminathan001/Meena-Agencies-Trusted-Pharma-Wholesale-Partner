@@ -49,7 +49,7 @@ def inject_login_animation():
     st.markdown(f"""
     <style>
     .peacock-login-layer {{
-        position: fixed;
+        
         top: 0; left: 0;
         width: 100vw; height: 100vh;
         pointer-events: none;
@@ -83,7 +83,7 @@ def inject_login_animation():
     
     /* Radial glow at top of page */
     .peacock-glow {{
-        position: fixed;
+        
         top: -20%; left: 50%;
         transform: translateX(-50%);
         width: 900px; height: 900px;
@@ -121,7 +121,7 @@ def show_logout_animation(user_name="User"):
     st.markdown(f"""
     <style>
     .peacock-logout-overlay {{
-        position: fixed;
+        
         top: 0; left: 0;
         width: 100vw; height: 100vh;
         background: linear-gradient(180deg, #0a0e27 0%, #1a1f3a 100%);

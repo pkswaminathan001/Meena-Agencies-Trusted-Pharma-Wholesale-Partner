@@ -1,0 +1,26 @@
+# ══════════════════════════════════════════════════════════
+# Streamlit config — locked to LIGHT theme
+# ══════════════════════════════════════════════════════════
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+showSidebarNavigation = true
+
+[theme]
+base = "light"
+primaryColor = "#4f46e5"
+backgroundColor = "#f5f7fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#111827"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+enableStaticServing = true
+
+[logger]
+level = "warning"

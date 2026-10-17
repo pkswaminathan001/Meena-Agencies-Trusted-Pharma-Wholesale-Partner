@@ -1,0 +1,259 @@
+"""
+retailer_app.py — Isolated Retailer App v2
+Runs on port 8501
+Full retailer experience: login, sidebar, place order, bills, etc.
+Isolated from owner_app.py and staff_app.py.
+"""
+import streamlit as st
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+# Add parent to path for shared modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+st.set_page_config(
+    page_title="Meena Agencies — Retailer",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ─── Clean light styling ───
+st.markdown("""
+<style>
+.stApp, [data-testid="stAppViewContainer"] { background: #f7f9fc !important; }
+h1, h2, h3, h4 { color: #1a1f36 !important; }
+p, span, div, label { color: #1a1f36 !important; }
+[data-testid="stMetric"] {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+[data-testid="stSidebar"] { background: #ffffff !important; }
+[data-testid="stSidebar"] * { color: #1a1f36 !important; }
+.stButton > button {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════
+# DATA HELPERS
+# ═══════════════════════════════════════════════════════════
+PARENT = Path(__file__).parent.parent
+
+def load_json(fname, default):
+    p = PARENT / fname
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return default
+    return default
+
+def load_retailers():
+    return load_json("retailers.json", [])
+
+def save_retailers(r):
+    (PARENT / "retailers.json").write_text(json.dumps(r, indent=2))
+
+def verify_pin(provided, stored_hash):
+    """Uses existing security.py if available; else fallback."""
+    try:
+        from security import verify_secret
+        return verify_secret(provided, stored_hash)
+    except Exception:
+        import hashlib
+        return hashlib.sha256(provided.encode()).hexdigest() == stored_hash
+
+
+# ═══════════════════════════════════════════════════════════
+# SESSION INIT
+# ═══════════════════════════════════════════════════════════
+if "retailer_user" not in st.session_state:
+    st.session_state.retailer_user = None
+if "retailer_page" not in st.session_state:
+    st.session_state.retailer_page = "home"
+
+
+# ═══════════════════════════════════════════════════════════
+# LOGIN SCREEN
+# ═══════════════════════════════════════════════════════════
+def render_login():
+    st.markdown("<h1 style='text-align:center;'>🛒 Meena Agencies</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:#64748b;'>Retailer Login</p>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("retailer_login"):
+            rid = st.text_input("Retailer ID", placeholder="RET001").strip().upper()
+            pin = st.text_input("PIN", type="password", max_chars=6)
+            submitted = st.form_submit_button("🔓 Login", use_container_width=True)
+
+            if submitted:
+                retailers = load_retailers()
+                r = next((x for x in retailers if x["id"] == rid), None)
+                if not r:
+                    st.error(f"❌ Retailer '{rid}' not found")
+                elif not verify_pin(pin, r.get("pin_hash", "")):
+                    st.error("❌ Wrong PIN")
+                else:
+                    st.session_state.retailer_user = rid
+                    st.session_state.retailer_page = "home"
+                    st.rerun()
+
+        st.caption(f"Demo: RET001 / 3210   ·   RET002 / 3211   ·   RET003 / 3212")
+
+
+# ═══════════════════════════════════════════════════════════
+# SIDEBAR (14-item rich menu)
+# ═══════════════════════════════════════════════════════════
+MENU_ITEMS = [
+    ("home",      "🏠", "Home",              "Dashboard at a glance"),
+    ("order",     "🛒", "Place Order",       "Browse & buy medicines"),
+    ("reorder",   "🔁", "Reorder Last",      "One-tap repeat of last order"),
+    ("bills",     "🧾", "Bill History",      "Date-range bill selector"),
+    ("track",     "🚚", "Track Deliveries",  "See where your orders are"),
+    ("cart",      "🛍️", "My Cart",           "Review before submitting"),
+    ("favorites", "⭐", "Frequently Ordered", "Your top medicines"),
+    ("stock",     "🔍", "Stock Check",       "Search any medicine"),
+    ("ledger",    "💰", "Ledger / Balance",  "Payments & dues"),
+    ("notify",    "🔔", "Notifications",     "Order updates"),
+    ("offers",    "🎁", "Offers & Schemes",  "Current deals"),
+    ("business",  "📊", "My Business",       "Your purchase history"),
+    ("contact",   "📞", "Contact Us",        "Reach Meena Agencies"),
+    ("profile",   "👤", "My Profile",        "Contact, PIN, settings"),
+]
+
+
+def render_sidebar(retailer):
+    with st.sidebar:
+        st.markdown("### 🛒 Meena Agencies")
+        st.caption(f"**{retailer.get('shop', '')}**")
+        st.caption(f"{retailer.get('owner', '')} · {retailer.get('id', '')}")
+        st.caption(f"₹{retailer.get('outstanding', 0):,.0f} outstanding")
+        st.markdown("---")
+
+        for key, icon, label, help_text in MENU_ITEMS:
+            active = st.session_state.retailer_page == key
+            prefix = "**▸ " if active else ""
+            suffix = "**" if active else ""
+            if st.button(f"{prefix}{icon} {label}{suffix}",
+                         key=f"nav_{key}",
+                         use_container_width=True,
+                         help=help_text):
+                st.session_state.retailer_page = key
+                st.rerun()
+
+        st.markdown("---")
+        if st.button("🚪 Sign Out", use_container_width=True):
+            st.session_state.retailer_user = None
+            st.session_state.retailer_page = "home"
+            st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# PAGE RENDERERS
+# ═══════════════════════════════════════════════════════════
+def page_home(retailer):
+    st.markdown(f"## Welcome back, {retailer.get('owner', '')}")
+    st.caption(f"{retailer.get('shop', '')} · {datetime.now().strftime('%d-%b-%Y %H:%M')}")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Credit Limit", f"₹{retailer.get('credit_limit', 0):,.0f}")
+    c2.metric("Outstanding", f"₹{retailer.get('outstanding', 0):,.0f}")
+    c3.metric("Available", f"₹{retailer.get('credit_limit', 0) - retailer.get('outstanding', 0):,.0f}")
+    c4.metric("Status", retailer.get("status", "Active"))
+
+    st.markdown("---")
+    st.markdown("### Quick Actions")
+    qc1, qc2, qc3, qc4 = st.columns(4)
+    with qc1:
+        if st.button("🛒 Place Order", use_container_width=True):
+            st.session_state.retailer_page = "order"; st.rerun()
+    with qc2:
+        if st.button("🧾 Bill History", use_container_width=True):
+            st.session_state.retailer_page = "bills"; st.rerun()
+    with qc3:
+        if st.button("💰 Ledger", use_container_width=True):
+            st.session_state.retailer_page = "ledger"; st.rerun()
+    with qc4:
+        if st.button("📞 Contact", use_container_width=True):
+            st.session_state.retailer_page = "contact"; st.rerun()
+
+
+def page_placeholder(retailer, page_key, title, description):
+    st.markdown(f"## {title}")
+    st.info(description)
+    st.caption(f"This page is under construction. Coming next: full {title.lower()} functionality.")
+    if st.button("← Back to Home"):
+        st.session_state.retailer_page = "home"; st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════
+if st.session_state.retailer_user is None:
+    render_login()
+else:
+    retailers = load_retailers()
+    retailer = next((r for r in retailers if r["id"] == st.session_state.retailer_user), None)
+
+    if not retailer:
+        st.error("Session expired. Please log in again.")
+        st.session_state.retailer_user = None
+        st.rerun()
+
+    render_sidebar(retailer)
+
+    page = st.session_state.retailer_page
+
+    if page == "home":
+        page_home(retailer)
+    elif page == "order":
+        page_placeholder(retailer, "order", "🛒 Place Order",
+                         "Browse catalog by category, add to cart, submit with OTP.")
+    elif page == "reorder":
+        page_placeholder(retailer, "reorder", "🔁 Reorder Last",
+                         "One-tap repeat of your previous order.")
+    elif page == "bills":
+        page_placeholder(retailer, "bills", "🧾 Bill History",
+                         "View past orders with date-range filter and PDF download.")
+    elif page == "track":
+        page_placeholder(retailer, "track", "🚚 Track Deliveries",
+                         "Live delivery tracking for your orders.")
+    elif page == "cart":
+        page_placeholder(retailer, "cart", "🛍️ My Cart",
+                         "Review items before submitting.")
+    elif page == "favorites":
+        page_placeholder(retailer, "favorites", "⭐ Frequently Ordered",
+                         "Your top medicines for quick reorder.")
+    elif page == "stock":
+        page_placeholder(retailer, "stock", "🔍 Stock Check",
+                         "Search any medicine in our catalog.")
+    elif page == "ledger":
+        page_placeholder(retailer, "ledger", "💰 Ledger / Balance",
+                         "All payments, outstanding, and due history.")
+    elif page == "notify":
+        page_placeholder(retailer, "notify", "🔔 Notifications",
+                         "Order updates and alerts.")
+    elif page == "offers":
+        page_placeholder(retailer, "offers", "🎁 Offers & Schemes",
+                         "Current deals and bulk discounts.")
+    elif page == "business":
+        page_placeholder(retailer, "business", "📊 My Business",
+                         "Your purchase history and analytics.")
+    elif page == "contact":
+        page_placeholder(retailer, "contact", "📞 Contact Us",
+                         "Reach Meena Agencies · Phone: 6382130536")
+    elif page == "profile":
+        page_placeholder(retailer, "profile", "👤 My Profile",
+                         "Update contact info, change PIN, manage preferences.")
+    else:
+        page_home(retailer)
