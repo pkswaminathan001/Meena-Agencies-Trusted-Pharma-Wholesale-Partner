@@ -5,6 +5,7 @@ One URL, two roles:
   - Retailer → read-only own data + place orders
 """
 import base64, hashlib, json, sys
+import random
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
