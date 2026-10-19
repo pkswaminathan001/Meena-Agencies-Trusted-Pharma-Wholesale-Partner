@@ -15,17 +15,14 @@ try:
 except Exception as e:
     st.error(f"Error reading secrets: {e}")
 
-st.write("**Direct access test:**")
+st.write("**Direct access:**")
 for key in ("TELEGRAM_BOT_TOKEN", "OWNER_CHAT_ID"):
-    try:
-        val = st.secrets.get(key)
-        if val:
-            masked = val[:5] + "..." + val[-5:] if len(val) > 15 else val
-            st.success(f"✅ `{key}` = `{masked}`")
-        else:
-            st.error(f"❌ `{key}` is EMPTY or MISSING")
-    except Exception as e:
-        st.error(f"❌ `{key}`: {e}")
+    val = st.secrets.get(key)
+    if val:
+        masked = val[:5] + "..." + val[-5:] if len(val) > 15 else val
+        st.success(f"✅ `{key}` = `{masked}` (len={len(val)})")
+    else:
+        st.error(f"❌ `{key}` is EMPTY or MISSING")
 
 st.write("**block15_otp._get_secret test:**")
 try:
@@ -34,7 +31,7 @@ try:
         val = block15_otp._get_secret(key)
         if val:
             masked = val[:5] + "..." + val[-5:] if len(val) > 15 else val
-            st.success(f"✅ `{key}` = `{masked}`")
+            st.success(f"✅ `{key}` = `{masked}` (len={len(val)})")
         else:
             st.error(f"❌ `{key}` returns EMPTY")
 except Exception as e:
@@ -49,7 +46,7 @@ if st.button("Send test OTP now"):
         )
         st.write(f"Result: `{result}`")
         if result and result[0]:
-            st.success("✅ Telegram API accepted the message. Check your phone.")
+            st.success("✅ Telegram accepted the message. Check your phone.")
         else:
             st.error(f"❌ {result}")
     except Exception as e:
