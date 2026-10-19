@@ -10,7 +10,14 @@ from pathlib import Path
 import pandas as pd
 
 import os, requests
-from order_success import show_amazon_success_page, show_shop_hours_banner
+# Import sibling module safely whether run as script or as package
+try:
+    from .order_success import show_amazon_success_page, show_shop_hours_banner
+except ImportError:
+    import sys as _sys, pathlib as _pathlib
+    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent))
+    from order_success import show_amazon_success_page, show_shop_hours_banner
+
 
 def direct_send_otp(chat_id, message_text):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
