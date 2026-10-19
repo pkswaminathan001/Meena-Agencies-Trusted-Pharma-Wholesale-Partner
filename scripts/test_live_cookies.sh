@@ -12,7 +12,12 @@ step() {
   out=$(curl -s -b "$JAR" -c "$JAR" -o /tmp/step_body -w "%{http_code} %{redirect_url}" "$url")
   code=${out%% *}
   local redirect=${out#* }
-  printf "  %-22s → %s%s\n" "$name" "$code" "${redirect:+  →$redirect}"
+  # Private app: accept 303 to share.streamlit.io as healthy
+  if [ "$code" = "303" ] && [[ "$redirect" == *"share.streamlit.io"* ]]; then
+    printf "  %-22s → %s  (private app, auth redirect — OK)\n" "$name" "$code"
+  else
+    printf "  %-22s → %s%s\n" "$name" "$code" "${redirect:+  →$redirect}"
+  fi
   STEP_CODE=$code
 }
 

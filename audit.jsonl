@@ -96,3 +96,7 @@
 {"ts": "2026-10-17T07:50:44", "user": "RET001", "action": "login", "target": "", "details": {"role": "retailer"}}
 {"ts": "2026-10-17T08:01:38", "user": "RET001", "action": "login", "target": "", "details": {"role": "retailer"}}
 {"ts": "2026-10-17T21:39:46", "user": "RET001", "action": "login", "target": "", "details": {"role": "retailer"}}
+{"ts": "2026-10-18T00:52:02", "user": "system", "action": "backup", "target": "", "details": {"files": 5, "target": "/home/swaminathan/Desktop/swami/AGI Pharma Application/pharma-agi/backups/20261018"}}
+{"ts": "2026-10-18T00:52:22", "user": "RET001", "action": "login", "target": "", "details": {"role": "retailer"}}
+{"ts": "2026-10-18T00:52:48", "user": "RET001", "action": "save_orders", "target": "", "details": {"count": 19}}
+{"ts": "2026-10-19T20:27:16", "user": "system", "action": "backup", "target": "", "details": {"files": 5, "target": "/home/swaminathan/Desktop/swami/AGI Pharma Application/pharma-agi/backups/20261019"}}

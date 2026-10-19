@@ -365,5 +365,25 @@
     "approval_reason": "Restricted category (Insulin)",
     "approved_by": null,
     "approved_at": null
+  },
+  {
+    "order_id": "ORD-20261018005248",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "placed_at": "18-Oct-2026 00:52",
+    "total": 146.65,
+    "items": [
+      {
+        "medicine": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33,
+        "line_total": 146.65
+      }
+    ],
+    "status": "approved",
+    "approval_decision": "auto",
+    "approval_reason": "Trusted customer (15 prior orders)",
+    "approved_by": "System",
+    "approved_at": "18-Oct-2026 00:52"
   }
 ]
