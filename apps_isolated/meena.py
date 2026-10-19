@@ -20,6 +20,10 @@ except ImportError:
 
 
 def direct_send_otp(chat_id, message_text):
+    # Hard guard: refuse to call Telegram without a token
+    _tok0 = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not _tok0:
+        return (False, "no-token")
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token:
         try:
