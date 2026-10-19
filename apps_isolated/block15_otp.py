@@ -32,11 +32,28 @@ def _load_env():
     return env
 
 
-def _tg_send(text, chat_id=None):
+def _get_secret(key):
+    """Read from Streamlit Secrets first, then os.environ, then .env file."""
+    # 1. Streamlit Secrets (this is where Cloud Secrets actually live)
+    try:
+        import streamlit as st
+        val = st.secrets.get(key)
+        if val:
+            return str(val)
+    except Exception:
+        pass
+    # 2. System environment (works for local dev + shell exports)
+    val = os.environ.get(key)
+    if val:
+        return str(val)
+    # 3. Fallback to .env file (only useful for local dev)
     env = _load_env()
-    # Prefer os.environ (Streamlit Secrets injects here) over .env file
-    token = os.environ.get("TELEGRAM_BOT_TOKEN") or env.get("TELEGRAM_BOT_TOKEN", "")
-    cid = chat_id or os.environ.get("OWNER_CHAT_ID") or env.get("OWNER_CHAT_ID", "")
+    return env.get(key, "")
+
+
+def _tg_send(text, chat_id=None):
+    token = _get_secret("TELEGRAM_BOT_TOKEN")
+    cid = chat_id or _get_secret("OWNER_CHAT_ID")
     if not token or not cid:
         return False, "Telegram not configured"
     try:
