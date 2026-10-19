@@ -45,3 +45,10 @@ backups/
 *.py.bak_*
 tests/run_tests.py.broken_*
 scripts/fix_all.sh
+
+# Ignore virtual environments and old backups
+venv/
+.venv/
+KNOWN_GOOD/
+_backups/
+*.bak_*
