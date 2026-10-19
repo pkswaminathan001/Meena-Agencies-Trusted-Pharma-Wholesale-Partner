@@ -3,3 +3,18 @@
 *.log
 __pycache__/
 .venv/
+venv/
+.venv/
+__pycache__/
+venv/
+.venv/
+__pycache__/
+
+# Testing / runtime artifacts
+apps_isolated/*.bak_*
+*.py.bak_*
+scripts/__pycache__/
+/tmp/
+orders.json
+audit.jsonl
+.env.before_notify_pro
