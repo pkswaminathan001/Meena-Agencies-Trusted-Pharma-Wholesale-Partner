@@ -19,3 +19,29 @@ orders.json
 audit.jsonl
 .env.before_notify_pro
 .streamlit/secrets.toml
+
+# Never track real secrets
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# ── Secrets ──
+.streamlit/secrets.toml
+.streamlit/secrets.toml.*
+.env
+.env.*
+.env.local
+!.env.example
+*_token.txt
+*_secret.txt
+
+# ── Historical corruption dumps ──
+KNOWN_GOOD/
+_backups/
+backups/
+*.bak
+*.bak_*
+*.py.bak_*
+tests/run_tests.py.broken_*
+scripts/fix_all.sh
