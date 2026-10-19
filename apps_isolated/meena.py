@@ -8,7 +8,28 @@ import base64, hashlib, json, sys
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
+
+import os, requests
+from order_success import show_amazon_success_page, show_shop_hours_banner
+
+def direct_send_otp(chat_id, message_text):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        try:
+            import streamlit as st
+            token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+        except Exception: pass
+    if not token: return False, "Missing token"
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message_text}
+    try:
+        r = requests.post(url, json=payload, timeout=10)
+        if r.status_code == 200: return True, "Sent"
+        else: return False, r.text
+    except Exception as e: return False, str(e)
+
 import streamlit as st
+
 from owner_enterprise import show_enterprise_dashboard
 
 # ─── Load environment from pharma-agi/.env ───
@@ -3572,21 +3593,31 @@ def _r_cart():
     else:
         if not st.session_state.get("otp_sent_for_cart"):
             b1col, b2col = st.columns(2)
-                        if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
-                import random
-                otp_code = str(random.randint(100000, 999999))
-                st.session_state.current_otp_code = otp_code
-                st.session_state.otp_sent_for_cart = True
-                owner_chat_id = "8205802064"
-                msg = f"🔐 New Order — OTP Confirmation\n\nRetailer: {_rtr.get('shop', 'RET001')}\nTotal: ₹{total:.2f}\nOTP: {otp_code}\n\nValid for 5 minutes."
-                ok, err = direct_send_otp(owner_chat_id, msg)
-                if ok:
-                    st.success(f"📱 OTP sent to Telegram! (Code: {otp_code})")
-                else:
-                    st.warning(f"Telegram failed: {err}. Your code is: {otp_code}")
-                if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
-                    swami_otp_entry_box()
-                st.rerun()
+            if b1col.button("🔐 Request OTP to Submit", type="primary", use_container_width=True):
+                if SHARED_OTP_LOADED:
+                    rid = st.session_state.get("retailer_id", "")
+                    shop = _rtr.get("shop", rid)
+                    # Build cart snapshot for shared store
+                    cart_snap = [
+                        {"name": l["name"], "qty": int(l["qty"]),
+                         "price": float(l["price"])}
+                        for l in st.session_state.cart
+                    ]
+                    oid, code = shared_otp.create_otp(rid, shop, cart_snap, total)
+                    # Send OTP via Telegram
+                    try:
+                        import block15_otp as _otp_mod  # for tg_send only
+                        _otp_mod.send_otp_telegram(rid, shop, code, total, count)
+                    except Exception:
+                        pass
+                    # Save which order this cart belongs to
+                    st.session_state.current_otp_id = oid
+                    st.session_state.otp_sent_for_cart = True; st.session_state.current_otp_code = str(random.randint(100000, 999999))
+
+                    if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
+                        swami_otp_entry_box()
+                    st.success(f"📱 OTP sent! Code: {st.session_state.current_otp_code}")
+                    st.rerun()
                 else:
                     st.error("OTP module not loaded.")
             if b2col.button("🗑️ Clear Cart", use_container_width=True):
