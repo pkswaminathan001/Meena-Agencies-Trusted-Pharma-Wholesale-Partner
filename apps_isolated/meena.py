@@ -3616,6 +3616,8 @@ def _r_cart():
                         for l in st.session_state.cart
                     ]
                     oid, code = shared_otp.create_otp(rid, shop, cart_snap, total)
+                    # Save the OTP ID — verify_otp needs this, not the retailer_id
+                    st.session_state.current_otp_id = oid
                     # Send OTP via Telegram
                     try:
                         import block15_otp as _otp_mod  # for tg_send only
@@ -3626,10 +3628,8 @@ def _r_cart():
                     st.session_state.current_otp_id = oid
                     st.session_state.otp_sent_for_cart = True; st.session_state.current_otp_code = str(random.randint(100000, 999999))
 
-                    if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):
-                        swami_otp_entry_box()
-                    st.success(f"📱 OTP sent! Code: {st.session_state.current_otp_code}")
-                    st.rerun()
+                    st.success(f"📱 OTP sent! Enter the code from Telegram below.")
+                    # Natural Streamlit rerun after button click handles redraw — do not st.rerun()
                 else:
                     st.error("OTP module not loaded.")
             if b2col.button("🗑️ Clear Cart", use_container_width=True):
@@ -3646,9 +3646,17 @@ def _r_cart():
                 )
                 if st.button("✅ Verify & Submit", type="primary",
                              use_container_width=True, disabled=not _confirm_ok):
-                    if OTP_LOADED:
-                        rid = st.session_state.get("retailer_id", "")
-                        ok, msg, payload = otp_mod.verify_otp(rid, otp_input)
+                    if SHARED_OTP_LOADED or OTP_LOADED:
+                        _oid = st.session_state.get("current_otp_id", "")
+                        _entered = (otp_input or "").strip()
+                        ok, msg, payload = False, "", None
+                        if not _oid:
+                            msg = "No OTP session found. Please request a new OTP."
+                        elif SHARED_OTP_LOADED:
+                            try:
+                                ok, msg, payload = shared_otp.verify_otp(_oid, _entered)
+                            except Exception as _e:
+                                msg = f"verify error: {_e}"
                         if not ok:
                             st.error(msg)
                         else:
