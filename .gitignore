@@ -18,3 +18,4 @@ scripts/__pycache__/
 orders.json
 audit.jsonl
 .env.before_notify_pro
+.streamlit/secrets.toml
