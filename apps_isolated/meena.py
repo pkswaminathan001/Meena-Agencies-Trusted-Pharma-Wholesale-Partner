@@ -3629,7 +3629,7 @@ def _r_cart():
                     st.session_state.otp_sent_for_cart = True; st.session_state.current_otp_code = str(random.randint(100000, 999999))
 
                     st.success(f"📱 OTP sent! Enter the code from Telegram below.")
-                    # Natural Streamlit rerun after button click handles redraw — do not st.rerun()
+                    st.rerun()
                 else:
                     st.error("OTP module not loaded.")
             if b2col.button("🗑️ Clear Cart", use_container_width=True):
