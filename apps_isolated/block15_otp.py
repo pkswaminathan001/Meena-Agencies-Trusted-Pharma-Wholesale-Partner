@@ -34,8 +34,9 @@ def _load_env():
 
 def _tg_send(text, chat_id=None):
     env = _load_env()
-    token = env.get("TELEGRAM_BOT_TOKEN", "")
-    cid = chat_id or env.get("OWNER_CHAT_ID", "")
+    # Prefer os.environ (Streamlit Secrets injects here) over .env file
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or env.get("TELEGRAM_BOT_TOKEN", "")
+    cid = chat_id or os.environ.get("OWNER_CHAT_ID") or env.get("OWNER_CHAT_ID", "")
     if not token or not cid:
         return False, "Telegram not configured"
     try:
