@@ -7,5 +7,6 @@ folium
 streamlit-folium
 requests
 PyJWT
-
 plotly
+altair
+pytest
