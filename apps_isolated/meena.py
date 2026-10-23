@@ -51,13 +51,19 @@ def load_retailers():
 # ─── TELEGRAM OTP FUNCTION ───
 def send_telegram_otp(chat_id, otp):
     if TELEGRAM_BOT_TOKEN == "YOUR_TOKEN_HERE":
+        st.error("❌ Token not found in Streamlit Secrets.")
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies Security\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}
     try:
-        requests.post(url, json=payload)
+        res = requests.post(url, json=payload)
+        if res.status_code != 200:
+            # Show the exact error from Telegram on the screen
+            st.error(f"Telegram Error: {res.text}")
+            return False
         return True
-    except:
+    except Exception as e:
+        st.error(f"Network Error: {e}")
         return False
 
 # ─── LOGIN ───
@@ -125,7 +131,7 @@ def page_cart():
         st.session_state.order_otp = otp
         
         # Use the Telegram chat ID from the user's profile (or a fallback for demo)
-        chat_id = st.session_state.user.get("telegram_chat_id", "123456789")
+        chat_id = st.session_state.user.get("telegram_chat_id", "YOUR_CHAT_ID_HERE")
         sent = send_telegram_otp(chat_id, otp)
         
         if sent:
@@ -152,7 +158,11 @@ def page_profile(u):
 # ─── SIDEBAR ───
 def render_sidebar():
     with st.sidebar:
-        st.title("🦚 Meena")
+        # Display the actual logo
+        try:
+            st.image("logo.png", use_container_width=True)
+        except:
+            st.title("🦚 Meena")
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         

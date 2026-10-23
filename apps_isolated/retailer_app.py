@@ -158,7 +158,11 @@ def page_profile(u):
 # ─── SIDEBAR ───
 def render_sidebar():
     with st.sidebar:
-        st.title("🦚 Meena")
+        # Display the actual logo
+        try:
+            st.image("logo.png", use_container_width=True)
+        except:
+            st.title("🦚 Meena")
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         

@@ -1,22 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
+import Image from 'next/image';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [error, setError] = useState("");
   
-  // UI State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAddStock, setShowAddStock] = useState(false);
   const [stockSku, setStockSku] = useState("");
   const [stockQty, setStockQty] = useState(1);
 
-  // ─── SECURE CHECKOUT STATE ───
   const [cart, setCart] = useState<any[]>([]);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState(1); // 1=Review, 2=OTP
+  const [checkoutStep, setCheckoutStep] = useState(1);
   const [otp, setOtp] = useState("");
   const [orderSuccess, setOrderSuccess] = useState("");
 
@@ -59,13 +58,12 @@ export default function Home() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  // ─── CHECKOUT FLOW ───
   const handleRequestOtp = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/request_order_otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_id: user.telegram_chat_id || "123456789" })
+        body: JSON.stringify({ telegram_id: user.telegram_chat_id || "8205802064" })
       });
       const data = await res.json();
       if (data.otp) alert(`DEMO MODE: Your Telegram OTP is ${data.otp}`);
@@ -81,7 +79,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          telegram_id: user.telegram_chat_id || "123456789",
+          telegram_id: user.telegram_chat_id || "8205802064",
           otp: otp,
           cart_items: cart
         })
@@ -106,7 +104,11 @@ export default function Home() {
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         <div className="h-screen flex items-center justify-center bg-gray-50">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-96 border-t-4 border-[#0B3C5D] text-center">
-            <h1 className="text-2xl font-bold text-[#0B3C5D] mb-2">🦚 Meena Agencies</h1>
+            
+            {/* LOGO ON LOGIN SCREEN */}
+            <Image src="/logo.png" alt="Meena Agencies Logo" width={100} height={100} className="mx-auto rounded-full mb-4 shadow-lg" />
+            
+            <h1 className="text-2xl font-bold text-[#0B3C5D] mb-2">Meena Agencies</h1>
             <p className="text-gray-500 text-sm mb-6">Fast B2B Pharma Ordering</p>
             {error && <p className="text-red-500 text-sm mb-4 font-bold">{error}</p>}
             <button onClick={() => handleTelegramLogin("mock_data_for_demo")} className="w-full bg-[#229ED9] text-white py-3 rounded-lg font-bold hover:bg-blue-600 transition">
@@ -122,8 +124,8 @@ export default function Home() {
     <div className="h-screen flex overflow-hidden bg-gray-50">
       <div className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-30 w-64 bg-[#0B3C5D] text-white flex flex-col`}>
         <div className="p-4 border-b border-blue-800">
-          <h2 className="text-xl font-bold">🦚 Meena</h2>
-          <p className="text-sm text-green-400 font-semibold">{user.role}</p>
+           <h2 className="text-xl font-bold">🦚 Meena</h2>
+           <p className="text-sm text-green-400 font-semibold">{user.role}</p>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <a href="#" className="block py-2 px-4 bg-blue-800 rounded-lg">📦 Dashboard</a>
@@ -170,7 +172,6 @@ export default function Home() {
         </main>
       </div>
 
-      {/* FLOATING CART BUTTON */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50">
           <button onClick={() => setShowCheckoutModal(true)} className="bg-[#1D8348] text-white px-6 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 hover:bg-green-700">
@@ -179,7 +180,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* CHECKOUT MODAL WITH TELEGRAM OTP */}
       {showCheckoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-2xl w-96">
@@ -214,7 +214,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ADD STOCK MODAL */}
       {showAddStock && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <form onSubmit={(e) => { e.preventDefault(); fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/add_stock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: stockSku, qty: stockQty }) }).then(() => { setShowAddStock(false); fetchProducts(); }) }} className="bg-white p-6 rounded-xl shadow-2xl w-96">
