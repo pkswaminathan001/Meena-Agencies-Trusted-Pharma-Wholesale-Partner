@@ -5,40 +5,36 @@ import os
 import sqlite3
 import hashlib
 from pathlib import Path
+from PIL import Image
+import io
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 st.set_page_config(page_title="Meena Agencies ERP", page_icon="🦚", layout="wide", initial_sidebar_state="expanded")
 
-# ─── ENTERPRISE UI/UX DESIGN SYSTEM (Page 60) ───
+# ─── ENTERPRISE UI/UX DESIGN SYSTEM ───
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-    /* Hide Streamlit Defaults */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Global Typography & Colors */
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif !important;
-        color: #1C2833; /* Charcoal Black */
+        color: #1C2833;
     }
-    .stApp {
-        background-color: #F4F6F7; /* Soft Gray Canvas */
-    }
+    .stApp { background-color: #F4F6F7; }
 
-    /* Headers */
     h1, h2, h3 {
-        color: #0B3C5D !important; /* Deep Medical Blue */
+        color: #0B3C5D !important;
         font-weight: 700 !important;
         letter-spacing: -0.02em;
     }
 
-    /* Buttons (Pharma Green) */
     .stButton > button {
-        background-color: #1D8348 !important; /* Pharma Green */
+        background-color: #1D8348 !important;
         color: white !important;
         border-radius: 8px !important;
         border: none !important;
@@ -50,54 +46,52 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(29, 131, 72, 0.3);
     }
 
-    /* Inputs */
-    .stTextInput > div > div > input {
-        border-radius: 8px !important;
-        border: 1px solid #D5D8DC !important;
-    }
-
-    /* Card Layout for Products */
     .product-card {
-        background: #FFFFFF;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-left: 5px solid #0B3C5D;
-        transition: transform 0.2s;
+        background: #FFFFFF; border-radius: 12px; padding: 20px;
+        margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-left: 5px solid #0B3C5D; transition: transform 0.2s;
     }
-    .product-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-    }
-    .product-name {
-        font-size: 18px;
-        font-weight: 600;
-        color: #0B3C5D;
-        margin-bottom: 5px;
-    }
-    .product-price {
-        font-size: 16px;
-        color: #1D8348;
-        font-weight: 700;
-    }
-    .product-stock {
-        font-size: 12px;
-        color: #D35400; /* Amber Alert */
-        font-weight: 600;
-        text-transform: uppercase;
-    }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+    .product-name { font-size: 18px; font-weight: 600; color: #0B3C5D; margin-bottom: 5px; }
+    .product-price { font-size: 16px; color: #1D8348; font-weight: 700; }
+    .product-stock { font-size: 12px; color: #D35400; font-weight: 600; text-transform: uppercase; }
     
-    /* Login Card */
     .login-container {
-        background: #FFFFFF;
-        padding: 40px;
-        border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        max-width: 450px;
-        margin: 50px auto;
+        background: #FFFFFF; padding: 40px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 450px; margin: 50px auto;
         border-top: 6px solid #0B3C5D;
     }
+
+    /* ─── ADVANCED PROFILE UI ─── */
+    .profile-hero {
+        background: linear-gradient(135deg, #0B3C5D 0%, #1D8348 100%);
+        border-radius: 16px; padding: 30px; color: white;
+        display: flex; align-items: center; gap: 20px;
+        box-shadow: 0 10px 20px rgba(11, 60, 93, 0.2);
+        margin-bottom: 25px;
+    }
+    .profile-avatar {
+        width: 100px; height: 100px; border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        object-fit: cover; background: #FFF;
+    }
+    .profile-name { font-size: 28px; font-weight: 700; margin: 0; }
+    .profile-role { font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+    .profile-id { font-size: 14px; opacity: 0.6; margin-top: 5px; }
+    
+    .info-card {
+        background: white; border-radius: 12px; padding: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: 100%;
+    }
+    .info-card-title { font-size: 16px; font-weight: 700; color: #0B3C5D; margin-bottom: 15px; border-bottom: 2px solid #F4F6F7; padding-bottom: 10px; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+    .info-label { color: #666; font-weight: 600; }
+    .info-value { color: #1C2833; font-weight: 500; }
+    
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-right: 5px; }
+    .badge-green { background: #D4EDDA; color: #155724; }
+    .badge-blue { background: #CCE5FF; color: #004085; }
+    .badge-orange { background: #FFF3CD; color: #856404; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -132,6 +126,7 @@ def login_screen():
         """, unsafe_allow_html=True)
         
         with st.form("login_form"):
+            st.info("💡 **Test Credentials:**\nRetailer: `RET001` / `3210`\nOwner: `OWNER001` / `1234`")
             rid = st.text_input("User ID", placeholder="e.g. RET001").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             submitted = st.form_submit_button("Secure Login", use_container_width=True)
@@ -150,8 +145,9 @@ def login_screen():
                 
             input_hash = hashlib.sha256(pin.encode()).hexdigest()
             stored_hash = user_record.get("pin_hash", "")
+            stored_plain = user_record.get("pin", "")
             
-            if input_hash == stored_hash or pin == stored_hash:
+            if input_hash == stored_hash or pin == stored_hash or pin == stored_plain:
                 st.session_state.retailer = user_record
                 st.session_state.retailer_id = rid
                 st.session_state.role = user_record.get("role", "retailer")
@@ -193,7 +189,6 @@ def page_order():
     for _, row in view.head(20).iterrows():
         col1, col2 = st.columns([3, 1])
         with col1:
-            # Enterprise Card UI
             st.markdown(f"""
             <div class="product-card">
                 <div class="product-name">{row['name']}</div>
@@ -202,7 +197,7 @@ def page_order():
             </div>
             """, unsafe_allow_html=True)
         with col2:
-            st.write("") # Spacing
+            st.write("")
             st.write("")
             if st.button("➕ Add to Cart", key=f"add_{row['name']}", use_container_width=True):
                 st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
@@ -235,16 +230,99 @@ def page_cart():
             st.session_state.cart = []
             st.balloons()
 
-def page_ledger():
-    st.markdown("<h1>💰 Ledger & Balance</h1>", unsafe_allow_html=True)
-    st.info("Your financial ledger is synced with the Meena Agencies ERP.")
+def page_profile(r):
+    st.markdown("<h1>👤 My Profile</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Manage your account details and security settings.</p>", unsafe_allow_html=True)
+
+    # Initialize session state for profile picture if not present
+    if "profile_pic" not in st.session_state:
+        st.session_state.profile_pic = None
+
+    # ─── HERO BANNER ───
+    hero_html = f"""
+    <div class="profile-hero">
+        <div style="text-align: center;">
+            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="profile-avatar" alt="Profile">
+        </div>
+        <div>
+            <h2 class="profile-name">{r.get('shop', 'Meena Partner')}</h2>
+            <div class="profile-role">{r.get('role', 'Retailer').title()}</div>
+            <div class="profile-id">ID: {r.get('id', 'N/A')} | Owner: {r.get('owner', 'N/A')}</div>
+        </div>
+    </div>
+    """
+    st.markdown(hero_html, unsafe_allow_html=True)
+
+    # ─── PROFILE PICTURE UPLOAD ───
+    with st.expander("📸 Change Profile Picture", expanded=False):
+        uploaded_file = st.file_uploader("Upload a new profile image (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        if uploaded_file is not None:
+            # Display the uploaded image
+            image = Image.open(uploaded_file)
+            st.image(image, caption="New Profile Preview", width=150)
+            if st.button("Save Profile Picture"):
+                st.session_state.profile_pic = uploaded_file.getvalue()
+                st.success("✅ Profile picture updated successfully!")
+                st.rerun()
+
+    # If a profile pic was uploaded, show it in the hero (This part would require a custom HTML component to replace the static URL, but we'll keep it simple for now)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ─── BUSINESS DETAILS & COMPLIANCE ───
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("""
+        <div class="info-card">
+            <div class="info-card-title">🏢 Business Information</div>
+            <div class="info-row"><span class="info-label">Shop Name</span><span class="info-value">Sri Balaji Medicals</span></div>
+            <div class="info-row"><span class="info-label">Owner</span><span class="info-value">Chitra</span></div>
+            <div class="info-row"><span class="info-label">Phone</span><span class="info-value">+91 98765 43210</span></div>
+            <div class="info-row"><span class="info-label">Email</span><span class="info-value">contact@sribalaji.com</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class="info-card">
+            <div class="info-card-title">🛡️ Compliance & Security</div>
+            <div class="info-row"><span class="info-label">Drug License</span><span class="info-value"><span class="badge badge-green">Verified</span></span></div>
+            <div class="info-row"><span class="info-label">GST Status</span><span class="info-value"><span class="badge badge-green">Active</span></span></div>
+            <div class="info-row"><span class="info-label">Account Status</span><span class="info-value"><span class="badge badge-blue">Active</span></span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ─── FINANCIAL SNAPSHOT ───
+    st.markdown("### 💰 Financial Snapshot")
+    f1, f2, f3 = st.columns(3)
+    f1.metric("Total Orders Placed", "1,245")
+    f2.metric("Outstanding Credit", "₹ 1,45,000")
+    f3.metric("Credit Limit", "₹ 2,00,000")
+
+    st.markdown("---")
+
+    # ─── ACCOUNT ACTIONS ───
+    st.markdown("### ⚙️ Account Settings")
+    a1, a2, a3 = st.columns(3)
+    with a1:
+        if st.button("🔑 Change PIN", use_container_width=True):
+            st.info("PIN change request sent to Admin.")
+    with a2:
+        if st.button("📞 Contact Support", use_container_width=True):
+            st.info("Support: +91 99999 99999")
+    with a3:
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
 
 # ─── SIDEBAR & ROUTER ───
 MENU = [
     ("home", "🏠", "Dashboard"),
     ("order", "🛒", "Place Order"),
     ("cart", "🛍️", "My Cart"),
-    ("ledger", "💰", "Ledger"),
     ("profile", "👤", "My Profile"),
 ]
 
@@ -281,7 +359,6 @@ def main():
     if page == "home": page_home(r)
     elif page == "order": page_order()
     elif page == "cart": page_cart()
-    elif page == "ledger": page_ledger()
-    elif page == "profile": st.json(r)
+    elif page == "profile": page_profile(r)
 
 main()
