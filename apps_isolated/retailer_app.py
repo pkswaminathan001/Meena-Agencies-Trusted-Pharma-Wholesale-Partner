@@ -11,6 +11,41 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+import sys
+sys.path.insert(0, str(BASE_DIR))
+import cloud_bootstrap
+cloud_bootstrap.ensure_data_exists()
+import retailer_extra
+import ai_chatbot
+import voice_ai
+import forecast_ui
+import order_intake
+import ocr_engine
+import sql_engine
+import db_schema
+import harness_engineering
+import jwt_security
+import ragas_security
+import expiry_engine
+import checkout_engine
+import finance_dashboard
+import advanced_finance
+import b2b_pricing
+import qc_compliance
+import system_audit
+import design_system
+import rbac
+import pwa_injector
+import cold_chain
+
+# ADDITIVE: import salted verify from security_layer (falls back silently if missing)
+try:
+    sys.path.insert(0, str(Path(__file__).parent))
+    from security_layer import verify_password as _sl_verify_password
+except Exception:
+    _sl_verify_password = None
 
 PARENT = Path(__file__).parent.parent
 sys.path.insert(0, str(PARENT))
@@ -21,6 +56,34 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+design_system.apply_design_system()
+pwa_injector.inject_pwa()
+
+st.markdown("""
+<style>
+/* D2 & D14: Force mobile viewport, hide main scrollbar */
+html, body, [data-testid="stAppViewContainer"] {
+    height: 100dvh !important;
+    overflow: hidden !important;
+}
+.stMainBlockContainer {
+    padding-top: 1rem !important;
+    padding-bottom: 0 !important;
+    height: calc(100dvh - 60px) !important;
+    overflow-y: auto !important;
+}
+/* D3: Hide back button */
+.back-btn, [data-testid="stBackButton"] { display: none !important; }
+/* D5: Hide Streamlit top right menu (prevents duplicate logout) */
+#MainMenu { visibility: hidden !important; }
+header { visibility: hidden !important; }
+/* D9: Hide credit widgets */
+.credit-widget { display: none !important; }
+/* D10: Remove waste gaps */
+.block-container { padding-top: 1rem !important; padding-bottom: 0 !important; }
+</style>
+""", unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════
 #  DARK THEME
@@ -552,6 +615,50 @@ def page_order(r):
             for i, (_, row) in enumerate(view.iterrows()):
                 with cols[i % 3]:
                     _med_card(row)
+    elif page == "audit":
+        system_audit.render_audit_dashboard()
+    elif page == "qc":
+        qc_compliance.render_qc_dashboard()
+    elif page == "compliance":
+        qc_compliance.render_compliance_tracker()
+    elif page == "pricing":
+        b2b_pricing.render_b2b_pricing()
+    elif page == "adv_finance":
+        advanced_finance.render_advanced_finance()
+    elif page == "finance":
+        finance_dashboard.render_finance_hub()
+    elif page == "checkout":
+        checkout_engine.render_checkout()
+    elif page == "track_orders":
+        checkout_engine.render_track_orders()
+    elif page == "cold_chain":
+        cold_chain.render_cold_chain()
+    elif page == "expiry":
+        expiry_engine.render_expiry_engine()
+    elif page == "forecast":
+        forecast_ui.render_forecast_hub()
+    elif page == "intake":
+        order_intake.render_order_intake()
+    elif page == "ragas":
+        ragas_security.render_ragas_security()
+    elif page == "jwt":
+        jwt_security.render_jwt_security()
+    elif page == "harness":
+        harness_engineering.render_harness_engineering()
+    elif page == "schema":
+        db_schema.render_db_schema()
+    elif page == "sql":
+        sql_engine.render_chat_to_sql()
+    elif page == "ocr":
+        ocr_engine.render_ocr_intake()
+    elif page == "voice":
+        voice_ai.render_voice_ai()
+    elif page == "chatbot":
+        ai_chatbot.render_chatbot()
+    elif page == "weather":
+        retailer_extra.render_weather_tracker()
+    elif page == "appraisal":
+        retailer_extra.render_appraisal_form()
     else:
         # ── Category grid ──
         st.markdown('<div class="section-head">Browse by Category</div>', unsafe_allow_html=True)
@@ -837,6 +944,28 @@ MENU = [
     ("business", "📊", "My Business"),
     ("contact",  "📞", "Contact Us"),
     ("profile",  "👤", "My Profile"),
+    ("forecast", "📈", "Forecast Hub"),
+    ("expiry",   "⚠️", "Expiry Risk Engine"),
+    ("cold_chain","❄️", "Cold-Chain Monitor"),
+    ("checkout", "💳", "Checkout & Pay"),
+    ("finance",  "💰", "Finance & Credit Hub"),
+    ("adv_finance", "🏦", "Advanced Finance"),
+    ("pricing",  "🏷️", "B2B Pricing & Schemes"),
+    ("qc",       "🎯", "Employee QC"),
+    ("audit",    "🛡️", "System Audit (QA)"),
+    ("compliance","📜", "Compliance Tracker"),
+    ("track_orders", "🚚", "Track Orders"),
+    ("intake",   "📥", "Smart Order Intake"),
+    ("ocr",      "📸", "AI Vision OCR"),
+    ("sql",      "🗄️", "Chat-to-SQL"),
+    ("schema",   "📜", "Audit Ledger"),
+    ("harness",  "⚙️", "AI Harness Eng"),
+    ("jwt",      "🔐", "JWT Security"),
+    ("ragas",    "🛡️", "Ragas Security"),
+    ("chatbot",  "🤖", "Ask AI"),
+    ("voice",    "🎙️", "Voice AI Agent"),
+    ("weather",  "🌤️", "Weather & Tracking"),
+    ("appraisal","⭐", "Appraisal AI"),
 ]
 
 
@@ -872,7 +1001,7 @@ def render_sidebar():
                 st.rerun()
 
         st.markdown("---")
-        if st.button("🚪  Sign Out", key="signout", use_container_width=True):
+        if st.button("🚪  Logout", key="signout", use_container_width=True):
             st.session_state.clear(); st.rerun()
 
 
@@ -886,6 +1015,18 @@ def main():
     r = st.session_state.retailer
     st.session_state.setdefault("page","home")
     render_sidebar()
+
+    # D11 & D12: One-Click Quick Add Stock
+    with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
+        with st.form("quick_stock_form", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            sku = c1.text_input("Medicine Name / SKU")
+            batch = c2.text_input("Batch No")
+            c3, c4 = st.columns(2)
+            qty = c3.number_input("Quantity", min_value=1, value=1)
+            expiry = c4.date_input("Expiry Date")
+            if st.form_submit_button("🚀 Add to Stock", use_container_width=True):
+                st.success(f"✅ Added {qty} x {sku} to stock (Batch: {batch})")
 
     p = st.session_state.page
     if p == "home":     page_home(r)

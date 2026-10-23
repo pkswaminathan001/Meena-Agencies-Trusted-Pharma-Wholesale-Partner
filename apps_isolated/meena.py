@@ -500,8 +500,7 @@ def _swami_render_monster_chat():
 
     vr = _s.session_state.get("_mon_voice_reply")
     if vr:
-        _s.audio(vr["bytes"], format="audio/mp3", autoplay=True,
-                 key="_mon_audio_" + vr["id"])
+        _s.audio(vr["bytes"], format="audio/mp3", autoplay=True)
 
     if _s.session_state.pop("_mon_autoplay_greet", False):
         mp3, _ = _swami_tts(g["greeting"], g["voice"], g["rate"], g["pitch"])

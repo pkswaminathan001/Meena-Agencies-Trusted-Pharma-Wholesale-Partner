@@ -1,0 +1,52 @@
+[1mdiff --git a/apps_isolated/meena.py b/apps_isolated/meena.py[m
+[1mindex 5c34b20..9e1d85e 100644[m
+[1m--- a/apps_isolated/meena.py[m
+[1m+++ b/apps_isolated/meena.py[m
+[36m@@ -3616,6 +3616,8 @@[m [mdef _r_cart():[m
+                         for l in st.session_state.cart[m
+                     ][m
+                     oid, code = shared_otp.create_otp(rid, shop, cart_snap, total)[m
+[32m+[m[32m                    # Save the OTP ID — verify_otp needs this, not the retailer_id[m
+[32m+[m[32m                    st.session_state.current_otp_id = oid[m
+                     # Send OTP via Telegram[m
+                     try:[m
+                         import block15_otp as _otp_mod  # for tg_send only[m
+[36m@@ -3626,10 +3628,8 @@[m [mdef _r_cart():[m
+                     st.session_state.current_otp_id = oid[m
+                     st.session_state.otp_sent_for_cart = True; st.session_state.current_otp_code = str(random.randint(100000, 999999))[m
+ [m
+[31m-                    if st.session_state.get('otp_sent_for_cart') and not st.session_state.get('otp_verified'):[m
+[31m-                        swami_otp_entry_box()[m
+[31m-                    st.success(f"📱 OTP sent! Code: {st.session_state.current_otp_code}")[m
+[31m-                    st.rerun()[m
+[32m+[m[32m                    st.success(f"📱 OTP sent! Enter the code from Telegram below.")[m
+[32m+[m[32m                    # Natural Streamlit rerun after button click handles redraw — do not st.rerun()[m
+                 else:[m
+                     st.error("OTP module not loaded.")[m
+             if b2col.button("🗑️ Clear Cart", use_container_width=True):[m
+[36m@@ -3646,9 +3646,23 @@[m [mdef _r_cart():[m
+                 )[m
+                 if st.button("✅ Verify & Submit", type="primary",[m
+                              use_container_width=True, disabled=not _confirm_ok):[m
+[31m-                    if OTP_LOADED:[m
+[32m+[m[32m                    if OTP_LOADED or SHARED_OTP_LOADED:[m
+                         rid = st.session_state.get("retailer_id", "")[m
+[31m-                        ok, msg, payload = otp_mod.verify_otp(rid, otp_input)[m
+[32m+[m[32m                        # Try the shared OTP store first (that's where create_otp writes)[m
+[32m+[m[32m                        ok, msg, payload = False, "", None[m
+[32m+[m[32m                        try:[m
+[32m+[m[32m                            if SHARED_OTP_LOADED:[m
+[32m+[m[32m                                _verify_fn = getattr(shared_otp, "verify_otp", None)[m
+[32m+[m[32m                                if _verify_fn:[m
+[32m+[m[32m                                    ok, msg, payload = _verify_fn(rid, otp_input)[m
+[32m+[m[32m                        except Exception as _e:[m
+[32m+[m[32m                            msg = f"shared_otp error: {_e}"[m
+[32m+[m[32m                        # Fallback to otp_mod if shared_otp didn't have the OTP[m
+[32m+[m[32m                        if not ok and OTP_LOADED:[m
+[32m+[m[32m                            try:[m
+[32m+[m[32m                                ok, msg, payload = otp_mod.verify_otp(rid, otp_input)[m
+[32m+[m[32m                            except Exception as _e:[m
+[32m+[m[32m                                msg = f"otp_mod error: {_e}"[m
+                         if not ok:[m
+                             st.error(msg)[m
+                         else:[m

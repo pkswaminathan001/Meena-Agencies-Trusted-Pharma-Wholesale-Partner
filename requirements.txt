@@ -1,8 +1,9 @@
 streamlit
-python-dotenv
-edge-tts
-requests
 pandas
-plotly
-python-telegram-bot
+numpy
+statsforecast
+openpyxl
+folium
+streamlit-folium
 requests
+PyJWT

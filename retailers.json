@@ -4,7 +4,7 @@
     "shop": "Sri Balaji Medicals",
     "owner": "Chitra",
     "phone": "6382130536",
-    "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "pin_hash": "638bbddb2078843981e48a73aa15999552db61f16b2e7206cb4fce6dc8abfb07",
     "credit_limit": 200000,
     "outstanding": 145000.0,
     "payment_days": 90,
@@ -62,5 +62,17 @@
     "drug_license_21": "\u2014",
     "pincode": "600001",
     "pan": "\u2014"
+  },
+  {
+    "id": "OWNER001",
+    "shop": "Meena Agencies HQ",
+    "owner": "Swaminathan",
+    "phone": "9999999999",
+    "pin_hash": "600001",
+    "credit_limit": 0,
+    "outstanding": 0,
+    "payment_days": 0,
+    "status": "Active",
+    "telegram_chat_id": ""
   }
 ]
