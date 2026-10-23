@@ -27,7 +27,6 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent.parent
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
-# In-memory storage for OTPs (Use Redis in production)
 active_otps = {}
 
 class TelegramAuthRequest(BaseModel):
@@ -41,9 +40,24 @@ class PlaceOrderRequest(BaseModel):
     otp: str
     cart_items: list
 
+class SaveOrderRequest(BaseModel):
+    telegram_id: str
+    cart_items: list
+    payment_id: str
+
 class StockRequest(BaseModel):
     sku: str
     qty: int
+
+def send_telegram_message(chat_id, text):
+    if not BOT_TOKEN:
+        return
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    try:
+        requests.post(url, json=payload)
+    except:
+        pass
 
 def verify_telegram_init_data(init_data: str) -> dict:
     try:
@@ -76,7 +90,7 @@ def verify_telegram_init_data(init_data: str) -> dict:
 @app.post("/api/telegram_login")
 def telegram_login(req: TelegramAuthRequest):
     if req.init_data == "mock_data_for_demo":
-        return {"id": "TG_DEMO_123", "shop": "Meena Agencies (Demo)", "role": "owner", "phone": "Telegram", "telegram_chat_id": "123456789"}
+        return {"id": "TG_DEMO_123", "shop": "Meena Agencies (Demo)", "role": "owner", "phone": "Telegram", "telegram_chat_id": "8205802064"}
     user = verify_telegram_init_data(req.init_data)
     if user: return user
     raise HTTPException(status_code=401, detail="Invalid Telegram Data")
@@ -92,56 +106,36 @@ def get_products():
     conn.close()
     return products
 
-# ─── NEW: SEND OTP VIA TELEGRAM ───
 @app.post("/api/request_order_otp")
 def request_otp(req: OTPRequest):
-    if not BOT_TOKEN or BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
-        # Fallback for demo
-        active_otps[req.telegram_id] = "123456"
-        return {"status": "demo_mode", "otp": "123456"}
-
-    # Generate 6-digit OTP
     otp = str(random.randint(100000, 999999))
     active_otps[req.telegram_id] = otp
+    send_telegram_message(req.telegram_id, f"🦚 *Meena Agencies*\nYour OTP for placing the order is: *{otp}*")
+    return {"status": "success", "otp": otp}
 
-    # Send via Telegram Bot API
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": req.telegram_id,
-        "text": f"🦚 *Meena Agencies Security*\n\nYour OTP for placing the order is: *{otp}*\n\nDo not share this code with anyone.",
-        "parse_mode": "Markdown"
-    }
-    
-    try:
-        res = requests.post(url, json=payload)
-        if res.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to send Telegram message")
-    except Exception as e:
-        print("Telegram API Error:", e)
-        # For local testing without a real chat ID, return the OTP in the response
-        return {"status": "error_but_bypassed", "otp": otp}
-        
+@app.post("/api/verify_otp_only")
+def verify_otp_only(req: OTPRequest):
+    stored_otp = active_otps.get(req.telegram_id)
+    if not stored_otp or stored_otp != req.otp:
+        raise HTTPException(status_code=401, detail="Invalid OTP")
     return {"status": "success"}
 
-# ─── NEW: VERIFY OTP & PLACE ORDER ───
-@app.post("/api/place_order")
-def place_order(req: PlaceOrderRequest):
-    # 1. Verify OTP
-    stored_otp = active_otps.get(req.telegram_id)
-    
-    if not stored_otp or stored_otp != req.otp:
-        raise HTTPException(status_code=401, detail="Invalid or Expired OTP")
-    
-    # Clear OTP after successful use
-    del active_otps[req.telegram_id]
-
-    # 2. Save Order to DB (Simulated here)
-    order_id = f"ORD-{random.randint(1000, 9999)}"
+@app.post("/api/save_order")
+def save_order(req: SaveOrderRequest):
     total = sum(item.get("price", 0) * item.get("qty", 1) for item in req.cart_items)
+    order_id = f"ORD-{random.randint(1000, 9999)}"
     
-    # In production, save to SQLite/Postgres `orders` table here
+    OWNER_CHAT_ID = "8205802064"
+    owner_msg = f"🔔 *NEW ORDER RECEIVED!*\n\n*Order ID:* {order_id}\n*Amount:* ₹{total:,.2f}\n*Payment ID:* {req.payment_id}\n\nPlease check the Admin Panel to dispatch."
+    send_telegram_message(OWNER_CHAT_ID, owner_msg)
 
-    return {"status": "success", "order_id": order_id, "total": total, "message": "Order Placed Securely!"}
+    retailer_msg = f"✅ *Order Confirmed!*\n\nThank you for your order.\n*Order ID:* {order_id}\n*Total Paid:* ₹{total:,.2f}\n\nYour medicines will be packed and shipped shortly."
+    send_telegram_message(req.telegram_id, retailer_msg)
+
+    if req.telegram_id in active_otps:
+        del active_otps[req.telegram_id]
+
+    return {"status": "success", "order_id": order_id, "total": total}
 
 @app.post("/api/add_stock")
 def add_stock(req: StockRequest):
