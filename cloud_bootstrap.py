@@ -7,6 +7,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+@st.cache_resource
 def ensure_data_exists():
 
     """Automatically generates 10k SKUs and DB if missing (Cloud Restart Fix)"""

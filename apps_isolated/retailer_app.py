@@ -415,9 +415,10 @@ def login_screen():
                 st.rerun()
                 
             if rid.strip().upper() == "RET001" and str(pin).strip() == "3210":
-                st.session_state.retailer = {"id": "RET001", "shop": "Sri Balaji Medicals", "owner": "Chitra", "status": "Active"}
-                st.session_state.retailer_id = "RET001"
-                st.session_state.page = "home"
+                with st.spinner("Loading Retailer Dashboard..."):
+                    st.session_state.retailer = {"id": "RET001", "shop": "Sri Balaji Medicals", "owner": "Chitra", "status": "Active"}
+                    st.session_state.retailer_id = "RET001"
+                    st.session_state.page = "home"
                 st.rerun()
             # ──────────────────────────────────────────
 
