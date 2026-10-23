@@ -74,23 +74,50 @@ export default function Home() {
   };
 
   const handlePlaceOrder = async () => {
+    // 1. Verify OTP first
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/place_order`, {
+      const otpRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verify_otp_only`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.telegram_chat_id || "8205802064",
-          otp: otp,
-          cart_items: cart
-        })
+        body: JSON.stringify({ telegram_id: user.telegram_chat_id || "8205802064", otp: otp })
       });
-      if (!res.ok) throw new Error("Invalid OTP");
-      const data = await res.json();
-      setOrderSuccess(data.order_id);
-      setCart([]);
-      setShowCheckoutModal(false);
-      setCheckoutStep(1);
-      setOtp("");
+      if (!otpRes.ok) throw new Error("Invalid OTP");
+
+      // 2. Open Razorpay Checkout
+      const options = {
+        key: "rzp_test_YOUR_KEY_HERE", // Replace with your Razorpay Key ID
+        amount: cartTotal * 100, // Amount in paise
+        currency: "INR",
+        name: "Meena Agencies",
+        description: "Pharma Order Payment",
+        image: "/logo.png",
+        handler: async function (response: any) {
+          // 3. Payment Success -> Save Order
+          const orderRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save_order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegram_id: user.telegram_chat_id || "8205802064",
+              cart_items: cart,
+              payment_id: response.razorpay_payment_id
+            })
+          });
+          const data = await orderRes.json();
+          setOrderSuccess(data.order_id);
+          setCart([]);
+          setShowCheckoutModal(false);
+          setCheckoutStep(1);
+          setOtp("");
+        },
+        prefill: {
+          name: user.shop,
+          contact: user.phone
+        },
+        theme: { color: "#0B3C5D" }
+      };
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+      
     } catch (err: any) {
       alert(err.message);
     }
@@ -102,16 +129,15 @@ export default function Home() {
     return (
       <>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="beforeInteractive" />
         <div className="h-screen flex items-center justify-center bg-gray-50">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-96 border-t-4 border-[#0B3C5D] text-center">
             
             {/* HUGE CIRCLE LOGO ON LOGIN SCREEN */}
-            <Image 
+            <img 
               src="/logo.png" 
               alt="Meena Agencies Logo" 
-              width={180} 
-              height={180} 
-              className="mx-auto rounded-full mb-6 shadow-2xl object-cover border-4 border-[#1D8348]" 
+              className="mx-auto w-[180px] h-[180px] rounded-full mb-6 shadow-2xl object-cover border-4 border-[#1D8348]" 
             />
             
             <h1 className="text-2xl font-bold text-[#0B3C5D] mb-2">Meena Agencies</h1>
