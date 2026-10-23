@@ -73,6 +73,7 @@
     "outstanding": 0,
     "payment_days": 0,
     "status": "Active",
-    "telegram_chat_id": ""
+    "telegram_chat_id": "",
+    "pin": "1234"
   }
 ]
