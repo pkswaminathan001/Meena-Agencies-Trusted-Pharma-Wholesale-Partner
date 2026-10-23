@@ -52,3 +52,5 @@ venv/
 KNOWN_GOOD/
 _backups/
 *.bak_*
+.env
+meena-frontend/node_modules
