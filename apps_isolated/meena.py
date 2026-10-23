@@ -1065,15 +1065,14 @@ def landing():
 # ═══════════════════════════════════════════════════════════
 #  OWNER LOGIN
 # ═══════════════════════════════════════════════════════════
-def owner_login():
-    # ─── PASSWORD REMOVED ───
+def owner_login():def owner_login():
     st.session_state.owner_logged_in = True
     st.session_state.is_owner = True
     st.session_state.role_pick = "owner"
     st.session_state.page = "home"
-    st.query_params.clear() # Clears the ?page=home URL
-    st.rerun()
-    # ────────────────────────
+    st.success("✅ Password bypassed successfully.")
+    if st.button("👉 Click Here to Enter Owner Dashboard", type="primary", use_container_width=True):
+        st.rerun()
 
 def retailer_login():
     _, mid, _ = st.columns([1,2,1])
