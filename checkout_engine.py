@@ -1,116 +1,75 @@
-from pathlib import Path
-BASE_DIR = Path(__file__).resolve().parent
 import streamlit as st
-import json
-import os
-import datetime
-import random
-from b2b_pricing import calculate_bulk_discount
-
-def load_orders():
-    if os.path.exists(str(BASE_DIR / "orders.json")):
-        with open(str(BASE_DIR / "orders.json"), "r") as f:
-            return json.load(f)
-    return []
-
-def save_orders(orders):
-    with open(str(BASE_DIR / "orders.json"), "w") as f:
-        json.dump(orders, f, indent=2)
+import pandas as pd
 
 def render_checkout():
-    st.markdown("## 💳 Checkout & Payment")
-    st.caption("Complete your order via UPI. Parcel charges are calculated from Thanjavur.")
+    st.title("💳 Secure B2B Checkout")
+    st.caption("Review your order and complete payment via UPI or Credit Line.")
+    st.divider()
 
-    if "cart" not in st.session_state or not st.session_state.cart:
-        st.info("🛒 Your cart is empty. Go to 'Place Order' to add items first.")
+    cart = st.session_state.get("cart", [])
+    if not cart:
+        st.warning("Your cart is empty. Please add items before checking out.")
+        if st.button("Return to Catalog", type="primary"):
+            st.session_state.page = "order"
+            st.rerun()
         return
 
-    # Calculate totals
-    total_amount = sum(item["price"] * item["qty"] for item in st.session_state.cart)
+    # ─── ORDER SUMMARY ───
+    col1, col2 = st.columns([2, 1])
     
-    # Mock Delivery Logic (Thanjavur to Chennai)
-    destination = st.text_input("Delivery Destination (City/Town)", value="Chennai")
-    if "chennai" in destination.lower():
-        delivery_charge = 150.00  # Base rate to Chennai
-    else:
-        delivery_charge = 80.00   # Local Tamil Nadu rate
-
-    # Apply B2B Discount
-    disc_pct, disc_msg = calculate_bulk_discount(total_amount)
-    discount_amount = total_amount * (disc_pct / 100)
-    discounted_subtotal = total_amount - discount_amount
-    
-    grand_total = discounted_subtotal + delivery_charge
-
-    st.markdown("### 🧾 Order Summary")
-    for item in st.session_state.cart:
-        st.write(f"- {item['name']} x {item['qty']} = ₹{item['price'] * item['qty']:.2f}")
-    
-    st.write(f"**Subtotal:** ₹{total_amount:.2f}")
-    if disc_pct > 0:
-        st.success(f"🎉 **{disc_msg}** (-₹{discount_amount:.2f})")
-    st.write(f"**Delivery Charge ({destination}):** ₹{delivery_charge:.2f}")
-    st.markdown(f"### 💰 Grand Total: ₹{grand_total:.2f}")
-
-    st.markdown("---")
-    st.markdown("### 📱 Pay via UPI")
-    st.info("Scan the QR code or click 'Simulate Payment' to complete.")
-    
-    # Mock UPI UI
-    st.text_input("UPI ID", value="meena@upi", disabled=True)
-    
-    if st.button("✅ Simulate Successful Payment", type="primary", use_container_width=True):
-        # Create the order
-        new_order = {
-            "order_id": f"ORD-{random.randint(10000, 99999)}",
-            "date": str(datetime.datetime.now()),
-            "retailer_id": st.session_state.get("retailer_id", "Unknown"),
-            "items": st.session_state.cart,
-            "delivery_charge": delivery_charge,
-            "total": grand_total,
-            "status": "Paid",
-            "destination": destination
-        }
+    with col1:
+        st.subheader("🧾 Order Details")
+        df = pd.DataFrame(cart)
+        df["Total"] = df["price"] * df["qty"]
         
-        orders = load_orders()
-        orders.append(new_order)
-        save_orders(orders)
+        # Format the dataframe for display
+        display_df = df[["name", "qty", "price", "Total"]].rename(columns={
+            "name": "Medicine", "qty": "Qty", "price": "Unit Price", "Total": "Total Price"
+        })
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # Clear cart
-        st.session_state.cart = []
+    with col2:
+        st.subheader("💰 Bill Summary")
+        subtotal = sum(item["price"] * item["qty"] for item in cart)
         
-        st.success(f"🎉 Payment Successful! Order {new_order['order_id']} has been recorded.")
-        st.balloons()
-        st.info("📦 The warehouse has been notified. Packaging will start shortly.")
+        # GST Logic (12% for Pharma formulations)
+        gst = subtotal * 0.12
+        delivery = 150.00 if subtotal < 10000 else 0.00
+        grand_total = subtotal + gst + delivery
         
-        # Auto-redirect to tracking after 2 seconds
-        import time
-        time.sleep(2)
-        st.session_state.page = "track_orders"
-        st.rerun()
-
-def render_track_orders():
-    st.markdown("## 🚚 Track Orders")
-    st.caption("Live status updates for your shipments.")
-
-    orders = load_orders()
-    if not orders:
-        st.info("No orders found yet.")
-        return
-
-    for order in reversed(orders):
-        if order.get("retailer_id") == st.session_state.get("retailer_id", "Unknown"):
-            with st.expander(f"Order {order['order_id']} - {order['date'][:10]} (₹{order['total']})"):
-                st.write(f"**Destination:** {order['destination']}")
-                st.write(f"**Status:** {order['status']}")
-                
-                # Show progress bar
-                if order['status'] == "Paid":
-                    st.progress(25, text="💳 Payment Received")
-                    st.info("⏳ Awaiting warehouse packaging.")
-                elif order['status'] == "Processing":
-                    st.progress(60, text="📦 Packaging & Checking")
-                    st.info("🏃‍♂️ Workers are counting and packing your items.")
-                elif order['status'] == "Shipped":
-                    st.progress(100, text="🚚 Dispatched")
-                    st.success("Your order has left the Thanjavur facility.")
+        st.write(f"**Subtotal:** ₹ {subtotal:,.2f}")
+        st.write(f"**GST (12%):** ₹ {gst:,.2f}")
+        st.write(f"**Delivery:** ₹ {delivery:,.2f}")
+        st.divider()
+        st.subheader(f"Total Payable: ₹ {grand_total:,.2f}")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ─── PAYMENT GATEWAY ───
+        st.subheader("🔒 Select Payment Method")
+        payment_method = st.radio("Choose method:", ["UPI (GPay / PhonePe)", "Credit Line (Net 30)", "NEFT / RTGS"])
+        
+        if payment_method == "UPI (GPay / PhonePe)":
+            st.info("Scan the QR code or enter your UPI ID to complete the payment.")
+            upi_id = st.text_input("Enter UPI ID", placeholder="yourname@okhdfcbank")
+            
+            if st.button(f"Pay ₹ {grand_total:,.2f} Securely", type="primary", use_container_width=True):
+                if not upi_id:
+                    st.error("Please enter a valid UPI ID.")
+                else:
+                    with st.spinner("Connecting to Payment Gateway..."):
+                        import time
+                        time.sleep(2) # Simulating Razorpay/Stripe delay
+                        st.success("🎉 Payment Successful! Order Confirmed.")
+                        st.balloons()
+                        st.session_state.cart = []
+                        st.session_state.page = "home"
+                        st.rerun()
+                        
+        elif payment_method == "Credit Line (Net 30)":
+            st.warning("⚠️ Placing this order will add to your outstanding balance.")
+            if st.button("Confirm Order on Credit", type="primary", use_container_width=True):
+                st.success("✅ Order Confirmed! Invoice sent to your email.")
+                st.session_state.cart = []
+                st.session_state.page = "home"
+                st.rerun()

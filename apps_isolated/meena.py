@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import hashlib
+import checkout_engine
 from datetime import datetime
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def page_home(r):
         st.write("Need the same items as last month?")
         if st.button("Reorder Last Order", type="primary", use_container_width=True):
             st.toast("✅ Items added to your cart!")
-            st.session_state.page = "cart"
+            st.session_state.page = "checkout"
             st.rerun()
             
     st.divider()
@@ -270,7 +271,8 @@ def render_sidebar():
         st.caption(role.upper())
         st.divider()
         
-        MENU = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("profile", "👤 My Profile")]
+        MENU = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"),
+            ("checkout", "💳 Checkout"), ("profile", "👤 My Profile")]
         
         if role == "owner":
             MENU = [
@@ -304,6 +306,7 @@ def main():
     if page == "home": page_home(r)
     elif page == "order": page_order()
     elif page == "cart": page_cart()
+    elif page == "checkout": checkout_engine.render_checkout()
     elif page == "profile": page_profile(r)
     elif page == "owner_dash" and role == "owner": page_owner_dashboard()
     elif page == "expiry" and role == "owner": page_expiry()
