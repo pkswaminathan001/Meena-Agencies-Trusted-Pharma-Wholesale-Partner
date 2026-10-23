@@ -154,8 +154,26 @@ def page_home(r):
     c1.metric("Total Orders Placed", "1,245", "+12%")
     c2.metric("Pending Deliveries", "3", "Active")
     c3.metric("Items in Catalog", "10,000", "Live")
+    
     st.markdown("---")
-    st.info("💡 **Quick Tip:** Navigate to 'Place Order' to browse the latest medicine stock.")
+    
+    st.markdown("### 🚚 Track Your Recent Order")
+    st.info("Your recent order **ORD-8942** is currently **Out for Delivery** and expected to arrive by 5:00 PM today.")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 🎁 Exclusive Offers")
+        st.success("Buy 10 boxes of Dolo 650 and get 1 box absolutely FREE. Offer valid till Sunday!")
+    with col2:
+        st.markdown("### 🔁 Quick Reorder")
+        st.write("Need the same items as last month?")
+        if st.button("Reorder Last Order", type="primary", use_container_width=True):
+            st.toast("✅ Items added to your cart!")
+            st.session_state.page = "cart"
+            st.rerun()
+
 
 def page_order():
     st.markdown("<h1>🛒 Place Order</h1>", unsafe_allow_html=True)
@@ -207,25 +225,71 @@ def page_cart():
 # ─── OWNER PAGES (Enterprise Features) ───
 def page_owner_dashboard():
     st.markdown("<h1>👑 Owner Command Center</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Real-time overview of Meena Agencies operations.</p>", unsafe_allow_html=True)
     
-    # Quick Add Stock (Dad's D11 Rule)
-    with st.expander("➕ One-Click Quick Add Stock", expanded=False):
-        with st.form("quick_stock_form"):
-            c1, c2 = st.columns(2)
-            sku = c1.text_input("Medicine Name")
-            batch = c2.text_input("Batch No")
-            c3, c4 = st.columns(2)
-            qty = c3.number_input("Quantity", min_value=1, value=1)
-            expiry = c4.date_input("Expiry Date")
-            if st.form_submit_button("🚀 Add to Stock"):
-                st.success(f"✅ Added {qty} x {sku} to ERP database.")
+    # ─── TOP KPIs ───
+    st.markdown("### 📊 Key Performance Indicators")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Revenue (Today)", "₹ 4,52,000", "+15%")
+    c2.metric("Total Orders", "1,245", "+12%")
+    c3.metric("Active Retailers", "142", "+2")
+    c4.metric("Pending Approvals", "5", "Needs Review", delta_color="inverse")
 
     st.markdown("---")
-    st.markdown("### 📊 Financial KPIs")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Sales Today", "₹ 4,50,000", "+15%")
-    c2.metric("Active Retailers", "142", "+2")
-    c3.metric("Pending Approvals", "5", "Needs Review")
+    
+    # ─── CHARTS & ALERTS ───
+    col_chart, col_alerts = st.columns([2, 1])
+    
+    with col_chart:
+        st.markdown("### 📈 Weekly Sales Trend")
+        # Chart data
+        import pandas as pd
+        import plotly.express as px
+        chart_data = pd.DataFrame({
+            "Day": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            "Sales (₹)": [45000, 52000, 48000, 61000, 58000, 75000, 68000]
+        })
+        fig = px.area(chart_data, x="Day", y="Sales (₹)", color_discrete_sequence=["#1D8348"])
+        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=300)
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col_alerts:
+        st.markdown("### 🚨 Action Alerts")
+        st.error("⚠️ **Low Stock:** Dolo 650 (Only 12 boxes left)")
+        st.warning("⚠️ **Expiry Risk:** 3 batches expire in <30 days")
+        st.info("ℹ️ **New Order:** Hospital Network East placed a ₹50k order.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📥 Go to Expiry Engine", use_container_width=True):
+            st.session_state.page = "expiry"
+            st.rerun()
+
+    st.markdown("---")
+
+    # ─── RECENT ORDERS & QUICK ACTIONS ───
+    col_orders, col_actions = st.columns([2, 1])
+    
+    with col_orders:
+        st.markdown("### 🧾 Recent Orders")
+        orders_data = pd.DataFrame({
+            "Order ID": ["ORD-8942", "ORD-8941", "ORD-8940", "ORD-8939"],
+            "Retailer": ["Sri Balaji Medicals", "Annai Pharmacy", "Vetri Medicals", "Muthu Medicals"],
+            "Amount": ["₹ 12,450", "₹ 8,200", "₹ 24,100", "₹ 5,600"],
+            "Status": ["Paid", "Pending", "Paid", "Shipped"]
+        })
+        st.dataframe(orders_data, use_container_width=True, hide_index=True)
+        
+    with col_actions:
+        st.markdown("### ⚡ Quick Actions")
+        
+        # Quick Add Stock Form (Dad's D11 Rule)
+        with st.expander("➕ Quick Add Stock", expanded=True):
+            with st.form("quick_stock_form"):
+                sku = st.text_input("Medicine Name")
+                qty = st.number_input("Quantity", min_value=1, value=1)
+                if st.form_submit_button("🚀 Add to Stock", use_container_width=True):
+                    st.success(f"✅ Added {qty} x {sku} to inventory.")
+
 
 def page_expiry_engine():
     st.markdown("<h1>⚠️ Expiry Risk Engine</h1>", unsafe_allow_html=True)
