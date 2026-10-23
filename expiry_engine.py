@@ -16,10 +16,15 @@ def render_expiry_engine():
         st.error("Database not found. Please run the cloud bootstrap script.")
         return
 
-    try:
+    @st.cache_data(ttl=300) # Caches data for 5 minutes
+    def load_db():
         conn = sqlite3.connect(db_path)
         df = pd.read_sql_query("SELECT sku as SKU, batch as Batch, qty as Qty, expiry as Expiry FROM products", conn)
         conn.close()
+        return df
+
+    try:
+        df = load_db()
     except Exception as e:
         st.error(f"Failed to load database: {e}")
         return

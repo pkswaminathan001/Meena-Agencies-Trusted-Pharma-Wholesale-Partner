@@ -13,6 +13,10 @@ def load_json(filepath):
             return []
     return []
 
+@st.cache_data(ttl=60)
+def load_data():
+    return load_json("retailers.json"), load_json("orders.json")
+
 def answer_query(query: str) -> str:
     q = query.lower()
     

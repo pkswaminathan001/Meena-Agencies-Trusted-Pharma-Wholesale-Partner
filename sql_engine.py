@@ -11,7 +11,7 @@ DB_FILE = str(BASE_DIR / "meena_enterprise.db")
 
 def init_db():
     """Converts JSON data to a SQLite database for real SQL querying."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
     
     # Create Retailers table
@@ -63,6 +63,10 @@ def is_safe_query(sql):
             return False, kw
     return True, None
 
+@st.cache_resource
+def get_db_connection():
+    return sqlite3.connect(DB_FILE)
+
 def render_chat_to_sql():
     st.markdown("## 🗄️ Chat-to-SQL (Advanced)")
     st.caption("Ask questions in plain English. The AI generates SQL, enforces security, and returns the data.")
@@ -96,7 +100,7 @@ def render_chat_to_sql():
         # Step 3: Execute
         st.markdown("### 📊 Results")
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_db_connection()
             df = pd.read_sql_query(generated_sql, conn)
             conn.close()
             
