@@ -1066,93 +1066,14 @@ def landing():
 #  OWNER LOGIN
 # ═══════════════════════════════════════════════════════════
 def owner_login():
-    # ─── NUCLEAR BYPASS ───
-    if st.session_state.get("force_owner"):
-        st.session_state.owner_logged_in = True
-        st.session_state.is_owner = True
-        st.session_state.role_pick = "owner"
-        st.session_state.page = "home"
-        st.session_state.force_owner = False
-        st.rerun()
-    # ──────────────────────
+    # ─── INSTANT LOGIN BYPASS ───
+    st.session_state.owner_logged_in = True
+    st.session_state.is_owner = True
+    st.session_state.role_pick = "owner"
+    st.session_state.page = "home"
+    st.rerun()
+    # ────────────────────────────
 
-    # ─── FINAL FORCED BYPASS ───
-    if st.session_state.get("force_owner_login"):
-        st.session_state.owner_logged_in = True
-        st.session_state.is_owner = True
-        st.session_state.role_pick = "owner"
-        st.session_state.page = "home"
-        st.session_state.force_owner_login = False
-        st.rerun()
-    # ──────────────────────────
-
-
-    _, mid, _ = st.columns([1,2,1])
-    with mid:
-        st.markdown(f'<div style="text-align:center;margin:1rem 0;">{logo_html(72)}</div>',
-                    unsafe_allow_html=True)
-        st.markdown('<h2 style="text-align:center;color:#f59e0b;">👑 Owner Login</h2>',
-                    unsafe_allow_html=True)
-        st.markdown("---")
-        pw = st.text_input("Owner Password", type="password", key="opw")
-        if SEC_LOADED:
-            _ok, _msg = sec.check_rate_limit("OWNER")
-            if not _ok:
-                st.error(_msg); st.stop()
-        c1, c2 = st.columns(2)
-        if c2.button("← Back", use_container_width=True):
-            st.session_state.clear(); st.rerun()
-        if c1.button("Sign In", use_container_width=True, type="primary"):
-            if not pw:
-                st.error("Enter password."); return
-            ok = False
-            if HAS_RBAC:
-                for args in [
-                    ("owner", "owner", pw),
-                    ("owner", "OWNER", pw),
-                    ("OWNER", "owner", pw),
-                    ("OWNER", "OWNER", pw),
-                    ("Owner", "owner", pw),
-                ]:
-                    try:
-                        v, u, e = rbac.verify_login(*args)
-                        if v:
-                            ok = True
-                            break
-                    except Exception:
-                        continue
-            if not ok:
-                # fallback: users.json hash
-                for p in (PARENT/"users.json", Path("users.json")):
-                    if p.exists():
-                        try:
-                            users = json.loads(p.read_text())
-                            for u in users:
-                                if u.get("id","").upper()=="OWNER":
-                                    stored = u.get("pin_hash","")
-                                    cands = {pw, hashlib.sha256(pw.encode()).hexdigest(),
-                                            hashlib.sha256(pw.lower().encode()).hexdigest()}
-                                    if stored in cands: ok=True
-                        except Exception: pass
-            try:
-                if SEC_LOADED: sec.record_attempt("OWNER", bool(ok))
-            except Exception: pass
-            if not ok:
-                st.error("❌ Wrong password."); return
-            try:
-                if SEC_LOADED:
-                    _tok = sec.create_session("OWNER", "owner")
-                    st.session_state["session_token"] = _tok
-            except Exception: pass
-            st.session_state.role = "owner"
-            st.session_state.user_name = "Swaminathan"
-            st.session_state.page = "home"
-            st.rerun()
-
-
-# ═══════════════════════════════════════════════════════════
-#  RETAILER LOGIN
-# ═══════════════════════════════════════════════════════════
 def retailer_login():
     _, mid, _ = st.columns([1,2,1])
     with mid:
