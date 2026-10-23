@@ -60,7 +60,22 @@ def render_checkout():
                     with st.spinner("Connecting to Payment Gateway..."):
                         import time
                         time.sleep(2) # Simulating Razorpay/Stripe delay
-                        st.success("🎉 Payment Successful! Order Confirmed.")
+                        # Save to Database
+                        import sqlite3, datetime
+                        db_path = Path(__file__).resolve().parent / "meena_enterprise.db"
+                        conn = sqlite3.connect(db_path)
+                        c = conn.cursor()
+                        c.execute("""CREATE TABLE IF NOT EXISTS orders (
+                            order_id TEXT PRIMARY KEY, retailer TEXT, amount REAL, status TEXT, date TEXT
+                        )""")
+                        order_id = f"ORD-{datetime.datetime.now().strftime('%M%S')}"
+                        retailer_name = st.session_state.get("retailer", {}).get("shop", "Unknown")
+                        c.execute("INSERT INTO orders VALUES (?, ?, ?, ?, ?)", 
+                                  (order_id, retailer_name, grand_total, "Paid", str(datetime.date.today())))
+                        conn.commit()
+                        conn.close()
+                        
+                        st.success(f"🎉 Payment Successful! Order {order_id} Confirmed.")
                         st.balloons()
                         st.session_state.cart = []
                         st.session_state.page = "home"
