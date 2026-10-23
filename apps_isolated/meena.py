@@ -1065,7 +1065,7 @@ def landing():
 # ═══════════════════════════════════════════════════════════
 #  OWNER LOGIN
 # ═══════════════════════════════════════════════════════════
-def owner_login():def owner_login():
+def owner_login():
     st.session_state.owner_logged_in = True
     st.session_state.is_owner = True
     st.session_state.role_pick = "owner"
