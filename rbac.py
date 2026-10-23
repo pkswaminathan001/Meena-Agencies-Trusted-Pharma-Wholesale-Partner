@@ -1,9 +1,6 @@
 import streamlit as st
 
 def get_user_role():
-    """Reads the role from the session state. Defaults to retailer for safety."""
-    # In your login logic, you set st.session_state.retailer
-    # We'll assume if the ID starts with 'OWNER', they are the owner.
     retailer = st.session_state.get("retailer", {})
     rid = st.session_state.get("retailer_id", "Unknown")
     
@@ -12,24 +9,27 @@ def get_user_role():
     return "retailer"
 
 def filter_menu(menu_items):
-    """Filters the sidebar menu based on the user's role."""
     role = get_user_role()
     
-    # Pages that ONLY the owner can see
-    owner_only_pages = [
-        "finance", "adv_finance", "schema", "harness", 
-        "jwt", "ragas", "qc", "audit", "pricing", "forecast"
+    # Owner sees EVERYTHING
+    if role == "owner":
+        return menu_items
+
+    # Retailer ONLY sees these specific pages
+    allowed_for_retailer = [
+        "home", 
+        "order", 
+        "cart", 
+        "track_orders", 
+        "stock", 
+        "ledger", 
+        "contact", 
+        "profile"
     ]
-    
+
     filtered_menu = []
     for item in menu_items:
-        page_key = item[0]
-        
-        if role == "owner":
+        if item[0] in allowed_for_retailer:
             filtered_menu.append(item)
-        else:
-            # If retailer, only add if it's NOT an owner-only page
-            if page_key not in owner_only_pages:
-                filtered_menu.append(item)
-                
+            
     return filtered_menu

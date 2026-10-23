@@ -1049,8 +1049,9 @@ def main():
     st.session_state.setdefault("page","home")
     render_sidebar()
 
-    # D11 & D12: One-Click Quick Add Stock
-    with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
+    # D11 & D12: One-Click Quick Add Stock (OWNER ONLY)
+    if rbac.get_user_role() == "owner":
+        with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
         with st.form("quick_stock_form", clear_on_submit=True):
             c1, c2 = st.columns(2)
             sku = c1.text_input("Medicine Name / SKU")
