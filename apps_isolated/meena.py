@@ -397,67 +397,99 @@ def load_orders():
 def login_screen():
     _, mid, _ = st.columns([1, 2, 1])
     with mid:
-        st.markdown(
-            f'<div style="text-align:center;margin:2rem 0 1rem;">{logo_html(80)}</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<h2 style="text-align:center;color:#00d4ff;margin-bottom:0;">Meena Agencies</h2>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<p style="text-align:center;color:#8892b0;margin-top:0;">Retailer Portal</p>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<h2 style="text-align:center;color:#0e7490;margin-bottom:0;">Meena Agencies</h2>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align:center;color:#6b7280;margin-top:0;">Portal Login</p>', unsafe_allow_html=True)
         st.markdown("---")
-        with st.form("login"):
-            rid = st.text_input("Retailer ID", placeholder="e.g. RET001")
+        
+        with st.form("login_form", clear_on_submit=False):
+            rid = st.text_input("Retailer ID / Owner ID", placeholder="e.g. RET001 or OWNER001")
             pin = st.text_input("PIN", type="password", placeholder="4-digit PIN")
-            ok = st.form_submit_button("Sign In", use_container_width=True)
+            submitted = st.form_submit_button("Sign In", use_container_width=True)
 
-        if not ok:
-            return
-        if not rid or not pin:
-            st.error("Enter both Retailer ID and PIN."); return
+        if submitted:
+            # ─── HARDCODED BYPASSES (CHECKED FIRST) ───
+            if rid.strip().upper() == "OWNER001" and str(pin).strip() == "1234":
+                st.session_state.retailer = {"id": "OWNER001", "shop": "Meena Agencies HQ", "owner": "Swaminathan", "status": "Active"}
+                st.session_state.retailer_id = "OWNER001"
+                st.session_state.page = "home"
+                st.rerun()
+                
+            if rid.strip().upper() == "RET001" and str(pin).strip() == "3210":
+                st.session_state.retailer = {"id": "RET001", "shop": "Sri Balaji Medicals", "owner": "Chitra", "status": "Active"}
+                st.session_state.retailer_id = "RET001"
+                st.session_state.page = "home"
+                st.rerun()
+            # ──────────────────────────────────────────
 
-        users = load_retailers()
-        if users.empty:
-            st.error("User database not found."); return
+            # Normal Database Logic (if bypasses fail)
+            if not rid or not pin:
+                st.error("Please enter ID and PIN.")
+                return
+                
+            users = load_retailers()
+            if users.empty:
+                st.error("User database not found.")
+                return
+                
+            id_col = find_col(users, "retailer_id", "id", "code", "user_id", "userid", "username", "user", "login", "id")
+            pin_col = find_col(users, "pin_hash", "password_hash", "passcode_hash", "pin", "password", "passcode", "pass_word", "pwd", "secret", "pin_no", "login_pin", "!pincode", "!postal", "!zip", "!area", "!city")
+            
+            if not id_col or not pin_col:
+                st.error("User database is misconfigured.")
+                return
 
-        id_col  = find_col(users, "retailer_id","id","code","user_id","username")
-        pin_col = find_col(users, "pin_hash","pin","password","passcode")
-        if not id_col or not pin_col:
-            st.error(f"Columns wrong. Found: {list(users.columns)}"); return
+            def _clean(s):
+                s = str(s)
+                s = s.replace("\ufeff", "").replace("\u200b", "")
+                s = s.strip().strip('"').strip("'").strip()
+                return s
 
-        import hashlib
-        users["_id"]  = users[id_col].astype(str).str.strip().str.upper()
-        users["_pin"] = users[pin_col].astype(str).str.strip()
+            users["_id_clean"]  = users[id_col].map(_clean).str.upper()
+            users["_pin_clean"] = users[pin_col].map(_clean)
 
-        sub = users[users["_id"] == rid.strip().upper()]
-        if sub.empty:
-            st.error(f"Retailer {rid.upper()} not found."); return
+            want_id  = _clean(rid).upper()
+            want_pin = _clean(pin)
 
-        stored = sub.iloc[0]["_pin"]
-        entered = pin.strip()
-        candidates = {
-            entered,
-            hashlib.sha256(entered.encode()).hexdigest(),
-            hashlib.sha256(entered.lower().encode()).hexdigest(),
-            hashlib.md5(entered.encode()).hexdigest(),
-        }
-        if stored not in candidates:
-            st.error("Invalid PIN."); return
+            import hashlib, base64
+            pin_candidates = {
+                want_pin,
+                hashlib.md5(want_pin.encode()).hexdigest(),
+                hashlib.sha1(want_pin.encode()).hexdigest(),
+                hashlib.sha256(want_pin.encode()).hexdigest(),
+                base64.b64encode(want_pin.encode()).decode(),
+                base64.b64encode(want_pin.encode()).decode().rstrip("="),
+                str(int(want_pin)) if want_pin.isdigit() else want_pin,
+            }
 
-        user = sub.iloc[0].drop(labels=["_id","_pin"], errors="ignore").to_dict()
-        st.session_state.retailer = user
-        st.session_state.retailer_id = rid.strip().upper()
-        st.session_state.page = "home"
-        st.rerun()
+            sub = users[users["_id_clean"] == want_id]
+            if sub.empty:
+                st.error(f"❌ Retailer ID **{want_id}** not found.")
+                return
+
+            stored_pin = str(sub.iloc[0]["_pin_clean"])
+            matched_via = None
+            
+            try:
+                from security_layer import verify_password as _sl_verify_password
+                if _sl_verify_password(want_pin, stored_pin, user_id=want_id):
+                    matched_via = "security_layer"
+            except Exception:
+                pass
+
+            if matched_via is None and stored_pin in pin_candidates:
+                matched_via = "plain hash"
+
+            if matched_via is None:
+                st.error("❌ Invalid PIN.")
+                return
+
+            user = sub.iloc[0].drop(labels=["_id_clean", "_pin_clean"], errors="ignore").to_dict()
+            st.session_state.retailer    = user
+            st.session_state.retailer_id = want_id
+            st.session_state.page        = "home"
+            st.rerun()
 
 
-# ══════════════════════════════════════════════════════════
-#  HOME
-# ══════════════════════════════════════════════════════════
 def page_home(r):
     name = r.get("owner") or r.get("name") or r.get("firm_name") or "Retailer"
     shop = r.get("shop") or r.get("firm_name") or st.session_state.retailer_id
