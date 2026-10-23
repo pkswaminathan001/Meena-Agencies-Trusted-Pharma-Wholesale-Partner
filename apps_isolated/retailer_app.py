@@ -5,15 +5,29 @@ import sqlite3
 import hashlib
 import requests
 import random
-import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Securely load token (In Streamlit Cloud, add this to your Secrets)
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TOKEN_HERE")
+# Securely read token from Streamlit Cloud Secrets
+try:
+    TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+except:
+    TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE"
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
+
+# ─── DAD'S CSS FIXES (No Scrolling, Hide Menus) ───
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .block-container {padding-top: 1rem; padding-bottom: 0rem;}
+    .stButton>button { width: 100%; background-color: #1D8348; color: white; border-radius: 8px; }
+    .stButton>button:hover { background-color: #145c32; color: white; }
+</style>
+""", unsafe_allow_html=True)
 
 # ─── DATA LOADERS ───
 @st.cache_data(ttl=60)
@@ -37,9 +51,9 @@ def load_retailers():
 # ─── TELEGRAM OTP FUNCTION ───
 def send_telegram_otp(chat_id, otp):
     if TELEGRAM_BOT_TOKEN == "YOUR_TOKEN_HERE":
-        return False # Fails silently if token not set
+        return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies Security\nYour OTP is: {otp}"}
+    payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies Security\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}
     try:
         requests.post(url, json=payload)
         return True
@@ -106,20 +120,18 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    # ─── TELEGRAM OTP CHECKOUT ───
     if st.button("💳 Checkout Securely", type="primary"):
-        # Generate OTP
         otp = str(random.randint(100000, 999999))
         st.session_state.order_otp = otp
         
-        # Try to send via Telegram
+        # Use the Telegram chat ID from the user's profile (or a fallback for demo)
         chat_id = st.session_state.user.get("telegram_chat_id", "123456789")
         sent = send_telegram_otp(chat_id, otp)
         
         if sent:
             st.success("✅ OTP sent to your Telegram app!")
         else:
-            st.warning(f"⚠️ Demo Mode (No Token configured). Your OTP is: **{otp}**")
+            st.warning(f"⚠️ Demo Mode. Your OTP is: **{otp}**")
             
         st.session_state.show_otp_input = True
 
@@ -127,7 +139,7 @@ def page_cart():
         input_otp = st.text_input("Enter OTP", max_chars=6)
         if st.button("Verify & Place Order"):
             if input_otp == st.session_state.get("order_otp"):
-                st.success("🎉 Order Placed Successfully! Invoice sent to Telegram.")
+                st.success("🎉 Order Placed Successfully!")
                 st.session_state.cart = []
                 st.session_state.show_otp_input = False
             else:
