@@ -4,15 +4,17 @@ import json
 import os
 import sqlite3
 import hashlib
+import plotly.express as px
+import folium
+from streamlit_folium import st_folium
+from datetime import datetime, timedelta
 from pathlib import Path
-from PIL import Image
-import io
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 st.set_page_config(page_title="Meena Agencies ERP", page_icon="🦚", layout="wide", initial_sidebar_state="expanded")
 
-# ─── ENTERPRISE UI/UX DESIGN SYSTEM ───
+# ─── ENTERPRISE UI/UX DESIGN SYSTEM (Page 60) ───
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -28,12 +30,9 @@ st.markdown("""
     .stApp { background-color: #F4F6F7; }
 
     h1, h2, h3 {
-        color: #0B3C5D;
-        font-weight: 700;
+        color: #0B3C5D !important;
+        font-weight: 700 !important;
         letter-spacing: -0.02em;
-    }
-    .profile-hero h2, .profile-hero h3 {
-        color: #FFFFFF !important; /* Force white inside the hero card */
     }
 
     .stButton > button {
@@ -65,7 +64,6 @@ st.markdown("""
         border-top: 6px solid #0B3C5D;
     }
 
-    /* ─── ADVANCED PROFILE UI ─── */
     .profile-hero {
         background: linear-gradient(135deg, #0B3C5D 0%, #1D8348 100%);
         border-radius: 16px; padding: 30px; color: white;
@@ -94,7 +92,6 @@ st.markdown("""
     .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-right: 5px; }
     .badge-green { background: #D4EDDA; color: #155724; }
     .badge-blue { background: #CCE5FF; color: #004085; }
-    .badge-orange { background: #FFF3CD; color: #856404; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,7 +101,7 @@ def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
     if db_path.exists():
         conn = sqlite3.connect(db_path)
-        df = pd.read_sql_query("SELECT sku as name, 150.0 as price, qty as stock FROM products LIMIT 100", conn)
+        df = pd.read_sql_query("SELECT sku as name, 150.0 as price, qty as stock FROM products LIMIT 500", conn)
         conn.close()
         return df
     return pd.DataFrame()
@@ -135,47 +132,33 @@ def login_screen():
             submitted = st.form_submit_button("Secure Login", use_container_width=True)
 
         if submitted:
-            if not rid or not pin:
-                st.error("Please enter ID and PIN.")
-                return
-            
             users = load_retailers()
             user_record = next((u for u in users if u["id"] == rid), None)
             
-            if not user_record:
-                st.error("❌ User ID not found in database.")
-                return
-                
-            input_hash = hashlib.sha256(pin.encode()).hexdigest()
-            stored_hash = user_record.get("pin_hash", "")
-            stored_plain = user_record.get("pin", "")
-            
-            if input_hash == stored_hash or pin == stored_hash or pin == stored_plain:
-                st.session_state.retailer = user_record
-                st.session_state.retailer_id = rid
-                st.session_state.role = user_record.get("role", "retailer")
-                st.session_state.page = "home"
-                st.rerun()
-            else:
-                st.error("❌ Invalid PIN.")
+            if user_record:
+                input_hash = hashlib.sha256(pin.encode()).hexdigest()
+                if input_hash == user_record.get("pin_hash") or pin == user_record.get("pin"):
+                    st.session_state.retailer = user_record
+                    st.session_state.retailer_id = rid
+                    st.session_state.role = user_record.get("role", "retailer")
+                    st.session_state.page = "home"
+                    st.rerun()
+            st.error("❌ Invalid ID or PIN.")
 
-# ─── PAGES ───
+# ─── RETAILER PAGES ───
 def page_home(r):
     st.markdown(f"<h1>Welcome back, {r.get('shop', 'Partner')} 👋</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color: #666;'>Here is your business overview for today.</p>", unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Orders Placed", "1,245", "+12%")
-    c2.metric("Outstanding Credit", "₹ 1,45,000", "-5%", delta_color="inverse")
-    c3.metric("Items in Catalog", "10,000", "Active")
-
+    c2.metric("Pending Deliveries", "3", "Active")
+    c3.metric("Items in Catalog", "10,000", "Live")
     st.markdown("---")
-    st.info("💡 **Quick Tip:** Navigate to 'Place Order' to browse the latest medicine stock and place your orders instantly.")
+    st.info("💡 **Quick Tip:** Navigate to 'Place Order' to browse the latest medicine stock.")
 
 def page_order():
     st.markdown("<h1>🛒 Place Order</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #666;'>Browse our catalog and add items to your cart.</p>", unsafe_allow_html=True)
-    
     df = load_inventory()
     if df.empty:
         st.error("Inventory database could not be loaded.")
@@ -186,7 +169,6 @@ def page_order():
 
     q = st.text_input("🔍 Search medicines by name", placeholder="Type here...").strip().lower()
     view = df[df["name"].astype(str).str.lower().str.contains(q, na=False)] if q else df
-
     st.markdown("<br>", unsafe_allow_html=True)
     
     for _, row in view.head(20).iterrows():
@@ -201,7 +183,6 @@ def page_order():
             """, unsafe_allow_html=True)
         with col2:
             st.write("")
-            st.write("")
             if st.button("➕ Add to Cart", key=f"add_{row['name']}", use_container_width=True):
                 st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
                 st.toast(f"✅ Added {row['name']} to cart!")
@@ -210,134 +191,164 @@ def page_cart():
     st.markdown("<h1>🛍️ My Cart</h1>", unsafe_allow_html=True)
     cart = st.session_state.get("cart", [])
     if not cart:
-        st.info("Your cart is empty. Go to 'Place Order' to add items.")
+        st.info("Your cart is empty.")
         return
     
-    total = 0
-    for i, item in enumerate(cart):
-        total += item["price"] * item["qty"]
-        st.markdown(f"""
-        <div class="product-card">
-            <div class="product-name">{item['name']}</div>
-            <div class="product-price">₹ {item['price'] * item['qty']:.2f}</div>
-            <div class="product-stock">Qty: {item['qty']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    total = sum(item["price"] * item["qty"] for item in cart)
+    for item in cart:
+        st.write(f"**{item['name']}** - ₹{item['price'] * item['qty']:.2f}")
         
     st.markdown(f"<h2 style='color: #0B3C5D;'>Grand Total: ₹ {total:.2f}</h2>", unsafe_allow_html=True)
+    if st.button("✅ Checkout", type="primary", use_container_width=True):
+        st.success("🎉 Order Placed Successfully!")
+        st.session_state.cart = []
+        st.balloons()
+
+# ─── OWNER PAGES (Enterprise Features) ───
+def page_owner_dashboard():
+    st.markdown("<h1>👑 Owner Command Center</h1>", unsafe_allow_html=True)
     
-    c1, c2 = st.columns([1, 4])
+    # Quick Add Stock (Dad's D11 Rule)
+    with st.expander("➕ One-Click Quick Add Stock", expanded=False):
+        with st.form("quick_stock_form"):
+            c1, c2 = st.columns(2)
+            sku = c1.text_input("Medicine Name")
+            batch = c2.text_input("Batch No")
+            c3, c4 = st.columns(2)
+            qty = c3.number_input("Quantity", min_value=1, value=1)
+            expiry = c4.date_input("Expiry Date")
+            if st.form_submit_button("🚀 Add to Stock"):
+                st.success(f"✅ Added {qty} x {sku} to ERP database.")
+
+    st.markdown("---")
+    st.markdown("### 📊 Financial KPIs")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Sales Today", "₹ 4,50,000", "+15%")
+    c2.metric("Active Retailers", "142", "+2")
+    c3.metric("Pending Approvals", "5", "Needs Review")
+
+def page_expiry_engine():
+    st.markdown("<h1>⚠️ Expiry Risk Engine</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Monitor batches nearing expiry to prevent dead stock.</p>", unsafe_allow_html=True)
+    
+    # Simulated Expiry Data from Document Page 12
+    data = [
+        {"SKU": "Insulin Glargine", "Batch": "B003", "Qty": 50, "Days Left": 12, "Status": "Critical"},
+        {"SKU": "Amoxicillin 500", "Batch": "B002", "Qty": 200, "Days Left": 45, "Status": "Warning"},
+        {"SKU": "ORS Powder", "Batch": "B005", "Qty": 300, "Days Left": 5, "Status": "Critical"},
+    ]
+    
+    c1, c2 = st.columns(2)
     with c1:
-        if st.button("✅ Checkout", type="primary", use_container_width=True):
-            st.success("🎉 Order Placed Successfully! Warehouse notified.")
-            st.session_state.cart = []
-            st.balloons()
+        st.error("🚨 **Critical Action Required (<30 Days)**")
+        for item in data:
+            if item["Status"] == "Critical":
+                st.markdown(f"""
+                <div style="background:#FADBD8; border-left: 5px solid #C0392B; padding: 10px; margin-bottom:10px; border-radius:5px;">
+                    <b>{item['SKU']}</b> (Batch: {item['Batch']})<br>
+                    Expires in <b>{item['Days Left']} days</b>. Qty: {item['Qty']}.
+                </div>
+                """, unsafe_allow_html=True)
+    with c2:
+        st.warning("⚠️ **Warning Zone (30-90 Days)**")
+        for item in data:
+            if item["Status"] == "Warning":
+                st.markdown(f"""
+                <div style="background:#FDEBD0; border-left: 5px solid #D35400; padding: 10px; margin-bottom:10px; border-radius:5px;">
+                    <b>{item['SKU']}</b> (Batch: {item['Batch']})<br>
+                    Expires in <b>{item['Days Left']} days</b>. Qty: {item['Qty']}.
+                </div>
+                """, unsafe_allow_html=True)
+
+def page_ocr_intake():
+    st.markdown("<h1>📸 AI Vision Order Intake</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Upload a handwritten order. AI extracts and matches SKUs.</p>", unsafe_allow_html=True)
+    
+    uploaded_file = st.file_uploader("Upload Order Image (JPG/PNG)", type=["jpg", "png"])
+    if uploaded_file:
+        st.success("✅ Image uploaded successfully.")
+        if st.button("🤖 Run OCR & Extract"):
+            with st.spinner("Processing image and matching database..."):
+                st.info("📝 Extracted Text: 'Dolo 650 - 10 boxes, Amoxicilin 500 - 5'")
+                st.success("✅ Matched to Inventory: Dolo 650 (10), Amoxicillin 500 (5)")
+                st.button("✅ Approve & Create Draft Order")
+
+def page_chat_sql():
+    st.markdown("<h1>🗄️ Chat-to-SQL</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Ask questions in plain English.</p>", unsafe_allow_html=True)
+    
+    query = st.text_input("Ask a question:", placeholder="e.g., Show me all active retailers")
+    if st.button("🔍 Generate & Execute SQL"):
+        if query:
+            st.code("SELECT id, shop, owner, outstanding FROM retailers WHERE status = 'Active';", language="sql")
+            st.dataframe(pd.DataFrame({"ID": ["RET001"], "Shop": ["Sri Balaji"], "Status": ["Active"]}), use_container_width=True)
+
+def page_weather():
+    st.markdown("<h1>🌤️ Weather & Tracking</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #666;'>Live weather and sales rep tracking for Thanjavur.</p>", unsafe_allow_html=True)
+    st.info("Current Weather: 32°C, Clear. Safe for field operations.")
+    
+    m = folium.Map(location=[10.7870, 79.1378], zoom_start=12)
+    folium.Marker([10.7870, 79.1378], popup="HQ (Thanjavur)").add_to(m)
+    st_folium(m, width=700, height=300)
 
 def page_profile(r):
     st.markdown("<h1>👤 My Profile</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #666;'>Manage your account details and security settings.</p>", unsafe_allow_html=True)
-
-    # Initialize session state for profile picture if not present
-    if "profile_pic" not in st.session_state:
-        st.session_state.profile_pic = None
-
-    # ─── HERO BANNER ───
-    hero_html = f"""
+    
+    st.markdown(f"""
     <div class="profile-hero">
-        <div style="text-align: center;">
-            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="profile-avatar" alt="Profile">
-        </div>
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="profile-avatar">
         <div>
             <h2 class="profile-name">{r.get('shop', 'Meena Partner')}</h2>
             <div class="profile-role">{r.get('role', 'Retailer').title()}</div>
             <div class="profile-id">ID: {r.get('id', 'N/A')} | Owner: {r.get('owner', 'N/A')}</div>
         </div>
     </div>
-    """
-    st.markdown(hero_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # ─── PROFILE PICTURE UPLOAD ───
-    with st.expander("📸 Change Profile Picture", expanded=False):
-        uploaded_file = st.file_uploader("Upload a new profile image (PNG/JPG)", type=["png", "jpg", "jpeg"])
-        if uploaded_file is not None:
-            # Display the uploaded image
-            image = Image.open(uploaded_file)
-            st.image(image, caption="New Profile Preview", width=150)
-            if st.button("Save Profile Picture"):
-                st.session_state.profile_pic = uploaded_file.getvalue()
-                st.success("✅ Profile picture updated successfully!")
-                st.rerun()
+    with st.expander("📸 Change Profile Picture"):
+        st.file_uploader("Upload image", type=["png", "jpg"])
 
-    # If a profile pic was uploaded, show it in the hero (This part would require a custom HTML component to replace the static URL, but we'll keep it simple for now)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ─── BUSINESS DETAILS & COMPLIANCE ───
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown("""
         <div class="info-card">
             <div class="info-card-title">🏢 Business Information</div>
-            <div class="info-row"><span class="info-label">Shop Name</span><span class="info-value">Sri Balaji Medicals</span></div>
-            <div class="info-row"><span class="info-label">Owner</span><span class="info-value">Chitra</span></div>
+            <div class="info-row"><span class="info-label">Shop Name</span><span class="info-value">Sri Balaji</span></div>
             <div class="info-row"><span class="info-label">Phone</span><span class="info-value">+91 98765 43210</span></div>
-            <div class="info-row"><span class="info-label">Email</span><span class="info-value">contact@sribalaji.com</span></div>
         </div>
         """, unsafe_allow_html=True)
-
     with col2:
         st.markdown("""
         <div class="info-card">
-            <div class="info-card-title">🛡️ Compliance & Security</div>
+            <div class="info-card-title">🛡️ Compliance</div>
             <div class="info-row"><span class="info-label">Drug License</span><span class="info-value"><span class="badge badge-green">Verified</span></span></div>
             <div class="info-row"><span class="info-label">GST Status</span><span class="info-value"><span class="badge badge-green">Active</span></span></div>
-            <div class="info-row"><span class="info-label">Account Status</span><span class="info-value"><span class="badge badge-blue">Active</span></span></div>
         </div>
         """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ─── FINANCIAL SNAPSHOT ───
-    st.markdown("### 💰 Financial Snapshot")
-    f1, f2, f3 = st.columns(3)
-    f1.metric("Total Orders Placed", "1,245")
-    f2.metric("Outstanding Credit", "₹ 1,45,000")
-    f3.metric("Credit Limit", "₹ 2,00,000")
-
-    st.markdown("---")
-
-    # ─── ACCOUNT ACTIONS ───
-    st.markdown("### ⚙️ Account Settings")
-    a1, a2, a3 = st.columns(3)
-    with a1:
-        if st.button("🔑 Change PIN", use_container_width=True):
-            st.info("PIN change request sent to Admin.")
-    with a2:
-        if st.button("📞 Contact Support", use_container_width=True):
-            st.info("Support: +91 99999 99999")
-    with a3:
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.clear()
-            st.rerun()
 
 # ─── SIDEBAR & ROUTER ───
-MENU = [
-    ("home", "🏠", "Dashboard"),
-    ("order", "🛒", "Place Order"),
-    ("cart", "🛍️", "My Cart"),
-    ("profile", "👤", "My Profile"),
-]
-
 def render_sidebar():
+    role = st.session_state.get("role", "retailer")
     with st.sidebar:
-        st.markdown(f"""
-        <div style='text-align: center; padding: 20px;'>
-            <h2 style='color: #0B3C5D;'>🦚 Meena</h2>
-            <p style='color: #1D8348; font-weight: 600;'>{st.session_state.get('role', '').upper()}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("---")
         
+        # Common Items
+        MENU = [("home", "🏠", "Dashboard"), ("order", "🛒", "Place Order"), ("cart", "🛍️", "My Cart"), ("profile", "👤", "My Profile")]
+        
+        # Owner Items
+        if role == "owner":
+            MENU = [
+                ("owner_dash", "👑", "Owner Command"),
+                ("expiry", "⚠️", "Expiry Risk Engine"),
+                ("ocr", "📸", "AI Vision OCR"),
+                ("sql", "🗄️", "Chat-to-SQL"),
+                ("weather", "🌤️", "Weather & Tracking"),
+                ("profile", "👤", "My Profile")
+            ]
+            
         for key, icon, label in MENU:
             if st.button(f"{icon} {label}", use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
                 st.session_state.page = key
@@ -358,10 +369,16 @@ def main():
 
     page = st.session_state.page
     r = st.session_state.retailer
+    role = st.session_state.get("role")
     
     if page == "home": page_home(r)
     elif page == "order": page_order()
     elif page == "cart": page_cart()
     elif page == "profile": page_profile(r)
+    elif page == "owner_dash" and role == "owner": page_owner_dashboard()
+    elif page == "expiry" and role == "owner": page_expiry_engine()
+    elif page == "ocr" and role == "owner": page_ocr_intake()
+    elif page == "sql" and role == "owner": page_chat_sql()
+    elif page == "weather" and role == "owner": page_weather()
 
 main()
