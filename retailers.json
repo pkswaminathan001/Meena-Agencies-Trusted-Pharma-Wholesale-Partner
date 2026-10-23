@@ -6,7 +6,8 @@
     "pin": "1234",
     "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
     "role": "owner",
-    "status": "Active"
+    "status": "Active",
+    "telegram_chat_id": "8205802064"
   },
   {
     "id": "RET001",
@@ -15,6 +16,7 @@
     "pin": "3210",
     "pin_hash": "a7a057f8baea8970e940cec1bfc35ca3fc9a4f934570157178ef3aed98b7ad6a",
     "role": "retailer",
-    "status": "Active"
+    "status": "Active",
+    "telegram_chat_id": "8205802064"
   }
 ]
