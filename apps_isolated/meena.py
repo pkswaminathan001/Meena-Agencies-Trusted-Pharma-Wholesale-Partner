@@ -409,15 +409,17 @@ def login_screen():
         if submitted:
             # ─── HARDCODED BYPASSES (CHECKED FIRST) ───
             if rid.strip().upper() == "OWNER001" and str(pin).strip() == "1234":
-                st.session_state.retailer = {"id": "OWNER001", "shop": "Meena Agencies HQ", "owner": "Swaminathan", "status": "Active"}
+                st.session_state.retailer = {"id": "OWNER001", "shop": "Meena Agencies HQ", "owner": "Swaminathan", "status": "Active", "role": "owner"}
                 st.session_state.retailer_id = "OWNER001"
+                st.session_state.role = "owner"
                 st.session_state.page = "home"
                 st.rerun()
                 
             if rid.strip().upper() == "RET001" and str(pin).strip() == "3210":
-                st.session_state.retailer = {"id": "RET001", "shop": "Sri Balaji Medicals", "owner": "Chitra", "status": "Active"}
-                st.session_state.retailer_id = "RET001"
-                st.session_state.page = "home"
+                with st.spinner("Loading Retailer Dashboard..."):
+                    st.session_state.retailer = {"id": "RET001", "shop": "Sri Balaji Medicals", "owner": "Chitra", "status": "Active"}
+                    st.session_state.retailer_id = "RET001"
+                    st.session_state.page = "home"
                 st.rerun()
             # ──────────────────────────────────────────
 
@@ -1003,43 +1005,31 @@ MENU = [
 
 def render_sidebar():
     with st.sidebar:
-        st.markdown(f"""
-        <div class="sidebar-brand">
-            <div>{logo_html(52)}</div>
-            <div class="name">MEENA AGENCIES</div>
-            <div class="sub">WHOLESALE PARTNER</div>
-        </div>
-        """, unsafe_allow_html=True)
-        rid = st.session_state.get("retailer_id","—")
-        r = st.session_state.get("retailer", {})
-        shop = r.get("shop") or "Sri Balaji Medicals"
-        st.markdown(f"""
-        <div style="padding:.6rem .8rem;background:#1a1f2e;border:1px solid #2a3142;
-                    border-radius:10px;margin:.5rem 0 1rem;">
-            <div style="font-size:.72rem;color:#8892b0;">Sri Balaji Medicals</div>
-            <div style="font-size:.68rem;color:#00d47a;margin-top:2px;">{rid} · ₹55,000 available</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('<div style="font-size:.68rem;color:#8892b0;letter-spacing:1px;margin-bottom:.5rem;">MENU</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="padding:0.8rem 0;">{logo_html(52)}</div>', unsafe_allow_html=True)
+        st.markdown("**Meena Agencies**")
+        st.caption(st.session_state.get("retailer_id", ""))
+        st.markdown("---")
 
-        cur = st.session_state.get("page","home")
-        for k, ic, lbl in MENU:
-            active = (k == cur)
-            if st.button(f"{ic}  {lbl}", key=f"nav_{k}",
-                         use_container_width=True,
-                         type="primary" if active else "secondary"):
-                st.session_state.page = k
-                st.session_state.order_cat_open = None
-                st.rerun()
+        current = st.session_state.get("page", "home")
+        role = st.session_state.get("role", "retailer") # Default to retailer for safety
+
+        # RETAILER WHITELIST
+        allowed_retailer = ["home", "order", "cart", "track_orders", "stock", "ledger", "contact", "profile"]
+
+        for key, icon, label in MENU:
+            # If owner, show everything. If retailer, only show whitelisted.
+            if role == "owner" or key in allowed_retailer:
+                active = key == current
+                if st.button(f"{icon}  {label}", key=f"nav_{key}", use_container_width=True, type="primary" if active else "secondary"):
+                    st.session_state.page = key
+                    st.rerun()
 
         st.markdown("---")
-        if st.button("🚪  Logout", key="signout", use_container_width=True):
-            st.session_state.clear(); st.rerun()
+        if st.button("🚪  Logout", key="nav_signout", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
 
 
-# ══════════════════════════════════════════════════════════
-#  MAIN
-# ══════════════════════════════════════════════════════════
 def main():
     if "retailer" not in st.session_state:
         login_screen(); return
@@ -1048,8 +1038,9 @@ def main():
     st.session_state.setdefault("page","home")
     render_sidebar()
 
-    # D11 & D12: One-Click Quick Add Stock
-    with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
+    # D11 & D12: One-Click Quick Add Stock (OWNER ONLY)
+    if rbac.get_user_role() == "owner":
+        with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
         with st.form("quick_stock_form", clear_on_submit=True):
             c1, c2 = st.columns(2)
             sku = c1.text_input("Medicine Name / SKU")
