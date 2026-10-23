@@ -56,6 +56,6 @@ def ensure_data_exists():
     import json
     rj_path = BASE_DIR / "retailers.json"
     if not rj_path.exists():
-        rj = [{"id": "OWNER001", "shop": "Meena HQ", "owner": "Swaminathan", "pin_hash": "600001", "status": "Active", "outstanding": 0}, 
+        rj = [{"id": "OWNER001", "shop": "Meena HQ", "owner": "Swaminathan", "pin_hash": "1234", "status": "Active", "outstanding": 0}, 
               {"id": "RET001", "shop": "Sri Balaji", "pin_hash": "3210", "status": "Active", "outstanding": 145000}]
         rj_path.write_text(json.dumps(rj, indent=2))
