@@ -4,7 +4,6 @@ import json
 import os
 import sqlite3
 import hashlib
-import checkout_engine
 from datetime import datetime
 from pathlib import Path
 
@@ -17,6 +16,9 @@ st.set_page_config(
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+import sys
+sys.path.insert(0, str(BASE_DIR))
+import checkout_engine
 
 # ─── MINIMAL, STABLE CSS (No complex HTML) ───
 st.markdown("""
