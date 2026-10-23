@@ -132,6 +132,7 @@ def login_screen():
         """, unsafe_allow_html=True)
         
         with st.form("login_form"):
+            st.info("💡 **Test Credentials:**\nRetailer: `RET001` / `3210`\nOwner: `OWNER001` / `1234`")
             rid = st.text_input("User ID", placeholder="e.g. RET001").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             submitted = st.form_submit_button("Secure Login", use_container_width=True)
@@ -150,8 +151,9 @@ def login_screen():
                 
             input_hash = hashlib.sha256(pin.encode()).hexdigest()
             stored_hash = user_record.get("pin_hash", "")
+            stored_plain = user_record.get("pin", "")
             
-            if input_hash == stored_hash or pin == stored_hash:
+            if input_hash == stored_hash or pin == stored_hash or pin == stored_plain:
                 st.session_state.retailer = user_record
                 st.session_state.retailer_id = rid
                 st.session_state.role = user_record.get("role", "retailer")
