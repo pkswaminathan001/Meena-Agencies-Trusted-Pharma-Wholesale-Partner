@@ -28,9 +28,12 @@ st.markdown("""
     .stApp { background-color: #F4F6F7; }
 
     h1, h2, h3 {
-        color: #0B3C5D !important;
-        font-weight: 700 !important;
+        color: #0B3C5D;
+        font-weight: 700;
         letter-spacing: -0.02em;
+    }
+    .profile-hero h2, .profile-hero h3 {
+        color: #FFFFFF !important; /* Force white inside the hero card */
     }
 
     .stButton > button {
@@ -75,9 +78,9 @@ st.markdown("""
         border: 4px solid rgba(255, 255, 255, 0.3);
         object-fit: cover; background: #FFF;
     }
-    .profile-name { font-size: 28px; font-weight: 700; margin: 0; }
-    .profile-role { font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
-    .profile-id { font-size: 14px; opacity: 0.6; margin-top: 5px; }
+    .profile-hero .profile-name { color: #FFFFFF !important; font-size: 32px; font-weight: 700; margin: 0; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
+    .profile-hero .profile-role { color: #E0E0E0 !important; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; }
+    .profile-hero .profile-id { color: #E0E0E0 !important; font-size: 14px; margin-top: 5px; }
     
     .info-card {
         background: white; border-radius: 12px; padding: 20px;
