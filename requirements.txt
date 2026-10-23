@@ -10,3 +10,4 @@ PyJWT
 plotly
 altair
 pytest
+starlette<0.47.0
