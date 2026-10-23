@@ -1066,6 +1066,16 @@ def landing():
 #  OWNER LOGIN
 # ═══════════════════════════════════════════════════════════
 def owner_login():
+    # ─── NUCLEAR BYPASS ───
+    if st.session_state.get("force_owner"):
+        st.session_state.owner_logged_in = True
+        st.session_state.is_owner = True
+        st.session_state.role_pick = "owner"
+        st.session_state.page = "home"
+        st.session_state.force_owner = False
+        st.rerun()
+    # ──────────────────────
+
     # ─── FINAL FORCED BYPASS ───
     if st.session_state.get("force_owner_login"):
         st.session_state.owner_logged_in = True
