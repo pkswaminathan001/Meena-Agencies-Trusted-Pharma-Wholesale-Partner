@@ -1041,15 +1041,15 @@ def main():
     # D11 & D12: One-Click Quick Add Stock (OWNER ONLY)
     if rbac.get_user_role() == "owner":
         with st.expander("➕ Quick Add Stock (One-Click)", expanded=False):
-        with st.form("quick_stock_form", clear_on_submit=True):
-            c1, c2 = st.columns(2)
-            sku = c1.text_input("Medicine Name / SKU")
-            batch = c2.text_input("Batch No")
-            c3, c4 = st.columns(2)
-            qty = c3.number_input("Quantity", min_value=1, value=1)
-            expiry = c4.date_input("Expiry Date")
-            if st.form_submit_button("🚀 Add to Stock", use_container_width=True):
-                st.success(f"✅ Added {qty} x {sku} to stock (Batch: {batch})")
+            with st.form("quick_stock_form", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                sku = c1.text_input("Medicine Name / SKU")
+                batch = c2.text_input("Batch No")
+                c3, c4 = st.columns(2)
+                qty = c3.number_input("Quantity", min_value=1, value=1)
+                expiry = c4.date_input("Expiry Date")
+                if st.form_submit_button("🚀 Add to Stock", use_container_width=True):
+                    st.success(f"✅ Added {qty} x {sku} to stock (Batch: {batch})")
 
     p = st.session_state.page
     if p == "home":     page_home(r)
