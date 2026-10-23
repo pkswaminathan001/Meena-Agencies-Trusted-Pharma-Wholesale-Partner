@@ -54,8 +54,8 @@ except Exception:
     pass
 
 try:
-    import folium
-    from streamlit_folium import st_folium
+    # import folium (Lazy loaded for speed)
+    # from streamlit_folium import st_folium (Lazy loaded for speed)
     HAS_MAP = True
 except Exception:
     HAS_MAP = False

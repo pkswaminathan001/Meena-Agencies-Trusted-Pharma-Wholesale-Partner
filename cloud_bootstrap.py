@@ -8,6 +8,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 def ensure_data_exists():
+    import streamlit as st
+    if st.session_state.get("db_checked"):
+        return
+    st.session_state.db_checked = True
+
     """Automatically generates 10k SKUs and DB if missing (Cloud Restart Fix)"""
     db_path = BASE_DIR / "meena_enterprise.db"
     csv_path = BASE_DIR / "inventory.csv"
