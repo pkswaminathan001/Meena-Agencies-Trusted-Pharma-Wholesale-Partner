@@ -1066,13 +1066,14 @@ def landing():
 #  OWNER LOGIN
 # ═══════════════════════════════════════════════════════════
 def owner_login():
-    # ─── INSTANT LOGIN BYPASS ───
+    # ─── PASSWORD REMOVED ───
     st.session_state.owner_logged_in = True
     st.session_state.is_owner = True
     st.session_state.role_pick = "owner"
     st.session_state.page = "home"
+    st.query_params.clear() # Clears the ?page=home URL
     st.rerun()
-    # ────────────────────────────
+    # ────────────────────────
 
 def retailer_login():
     _, mid, _ = st.columns([1,2,1])
