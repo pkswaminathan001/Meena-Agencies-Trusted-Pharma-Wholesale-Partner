@@ -4,6 +4,15 @@ import json
 import sqlite3
 import hashlib
 import requests
+
+import base64
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except:
+        return ""
+
 import random
 from pathlib import Path
 
@@ -158,11 +167,21 @@ def page_profile(u):
 # ─── SIDEBAR ───
 def render_sidebar():
     with st.sidebar:
-        # Display the actual logo
-        try:
-            st.image("logo.png", use_container_width=True)
-        except:
+        # Display the BIG CIRCLE logo
+        logo_b64 = get_base64_image("logo.png")
+        if logo_b64:
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
+                    <img src="data:image/png;base64,{logo_b64}" 
+                         style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 4px solid #1D8348;">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
             st.title("🦚 Meena")
+            
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         

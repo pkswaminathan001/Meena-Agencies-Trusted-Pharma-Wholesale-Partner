@@ -17,11 +17,17 @@ export default function Navbar() {
 
   return (
     <nav className="bg-[#0B3C5D] text-white shadow-xl sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-4 py-2 flex justify-between items-center">
         
-        {/* LOGO AND NAME */}
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Meena Agencies Logo" width={45} height={45} className="rounded-full shadow-md" />
+        {/* BIG CIRCLE LOGO */}
+        <div className="flex items-center gap-4">
+          <Image 
+            src="/logo.png" 
+            alt="Meena Agencies Logo" 
+            width={70} 
+            height={70} 
+            className="rounded-full shadow-lg object-cover border-4 border-white bg-white" 
+          />
           <h1 className="text-2xl font-bold hidden md:block">Meena Agencies</h1>
         </div>
         

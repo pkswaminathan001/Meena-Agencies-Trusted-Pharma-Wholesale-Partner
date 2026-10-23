@@ -105,8 +105,14 @@ export default function Home() {
         <div className="h-screen flex items-center justify-center bg-gray-50">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-96 border-t-4 border-[#0B3C5D] text-center">
             
-            {/* LOGO ON LOGIN SCREEN */}
-            <Image src="/logo.png" alt="Meena Agencies Logo" width={100} height={100} className="mx-auto rounded-full mb-4 shadow-lg" />
+            {/* HUGE CIRCLE LOGO ON LOGIN SCREEN */}
+            <Image 
+              src="/logo.png" 
+              alt="Meena Agencies Logo" 
+              width={180} 
+              height={180} 
+              className="mx-auto rounded-full mb-6 shadow-2xl object-cover border-4 border-[#1D8348]" 
+            />
             
             <h1 className="text-2xl font-bold text-[#0B3C5D] mb-2">Meena Agencies</h1>
             <p className="text-gray-500 text-sm mb-6">Fast B2B Pharma Ordering</p>
