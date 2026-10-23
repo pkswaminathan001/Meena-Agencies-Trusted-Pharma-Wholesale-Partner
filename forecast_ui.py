@@ -3,6 +3,7 @@ import pandas as pd
 import os
 
 def render_forecast_hub():
+    import plotly.express as px
     st.markdown("## 📈 AI Forecasting Hub")
     st.caption("AutoARIMA (Seasonal) & Croston (Erratic) predictions based on local data.")
 

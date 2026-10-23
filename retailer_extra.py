@@ -1,12 +1,14 @@
 import streamlit as st
-import folium
-from streamlit_folium import st_folium
+
+
 import requests
 
 # Replace with your actual OpenWeather API key later
 WEATHER_API_KEY = "YOUR_OPENWEATHER_API_KEY" 
 
 def render_weather_tracker():
+    import folium
+    from streamlit_folium import st_folium
     st.markdown("### 🌤️ Weather & Route Planner (Thanjavur)")
     
     city = "Thanjavur"
