@@ -70,18 +70,27 @@ st.markdown("""
 # ─── 3D ICONS ───
 def get_icon(name):
     name = str(name).lower()
+    
+    # 1. Check if you have a local image for this specific medicine
+    # Example: if the medicine is "Dolo 650", it looks for "images/dolo_650.png"
+    import os
+    safe_name = name.replace(" ", "_").replace("/", "_")
+    for ext in [".png", ".jpg", ".jpeg"]:
+        local_path = f"images/{safe_name}{ext}"
+        if os.path.exists(local_path):
+            return local_path
+            
+    # 2. If no local image, use high-quality Real Stock Photos from Unsplash
     if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/pill.png"
-    elif any(k for k in ["syrup", "liquid", "suspension", "cough", "ors"] if k in name):
-        return "https://img.icons8.com/3d-fluent/100/000000/syrup.png"
+        return "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=150&h=150&fit=crop"
+    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
+        return "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=150&h=150&fit=crop"
     elif any(k in name for k in ["injection", "insulin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/syringe.png"
+        return "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=150&h=150&fit=crop"
     elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/ointment.png"
-    elif any(k in name for k in ["vitamin", "zinc", "c", "multivitamin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/vitamins.png"
+        return "https://images.unsplash.com/photo-1550572017-edb387ba6ad7?w=150&h=150&fit=crop"
     else:
-        return "https://img.icons8.com/3d-fluent/100/000000/medical-packaging.png"
+        return "https://images.unsplash.com/photo-1585435557343-3b092031a831?w=150&h=150&fit=crop"
 
 # ─── DATA LOADERS ───
 @st.cache_data(ttl=60)
