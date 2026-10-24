@@ -42,17 +42,32 @@ st.markdown("""
     .stApp { background-color: #eaeded !important; }
     .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
     
-    /* Hide Streamlit Chrome */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {background: transparent !important;}
+    /* ─── LOCK DOWN STREAMLIT UI ─── */
+    /* Hide Hamburger Menu & Footer */
+    #MainMenu { visibility: hidden !important; display: none !important; }
+    footer { visibility: hidden !important; display: none !important; }
+    
+    /* Hide Top Header background */
+    header { background: transparent !important; visibility: hidden !important; }
+    
+    /* Hide the top toolbar (Share, Star, Edit, GitHub) */
+    [data-testid="stToolbar"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0px !important;
+    }
+    
+    /* Hide the Deploy Button */
+    .stDeployButton, .stAppDeployButton {
+        display: none !important;
+    }
 
     /* 2-Column Mobile Grid */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 0.5rem !important; }
         div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { flex: 1 1 48% !important; min-width: 48% !important; max-width: 48% !important; }
     }
-
+    
     /* ─── AMAZON CARDS: EQUAL HEIGHT & ALIGNMENT FIX ─── */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #ffffff !important; padding: 12px !important;
@@ -94,7 +109,8 @@ st.markdown("""
     .amz-order-header { background: #f0f2f2; border-radius: 8px 8px 0 0; padding: 12px; display: flex; justify-content: space-between; color: #565959; font-size: 12px; border-bottom: 1px solid #d5d9d9; margin: -12px -12px 12px -12px; }
     .amz-order-header b { color: #0F1111; font-weight: 500; display: block; font-size: 13px;}
 </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True )
+
 
 def get_icon(name):
     import urllib.parse
@@ -136,15 +152,11 @@ def save_order_history(user_id, cart, total):
     return new_order
 
 # ─── LOGIN ───
+# ─── LOGIN ───
 def login_screen():
-    # 1. Inject CSS to force centering and hide the top Streamlit toolbar
+    # 1. Inject CSS to force centering
     st.markdown("""
     <style>
-        /* Hide the Streamlit top toolbar (Share, Star, Edit, GitHub) */
-        [data-testid="stToolbar"] {
-            display: none !important;
-        }
-
         /* Force the main container to center its content perfectly */
         .block-container {
             display: flex !important;
