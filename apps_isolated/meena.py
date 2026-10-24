@@ -341,11 +341,13 @@ def page_order():
     view = view.head(40).reset_index(drop=True)
 
     def add_to_cart(name, price_paise):
-        st.session_state.setdefault("cart", []).append({
-            "name": name,
-            "price": round(price_paise / 100, 2),
-            "qty": 1,
-        })
+        cart = st.session_state.setdefault("cart", [])
+        price = round(price_paise / 100, 2)
+        for it in cart:
+            if it["name"] == name:
+                it["qty"] += 1
+                return
+        cart.append({"name": name, "price": price, "qty": 1})
 
     items = [{
         "name": row["name"],
@@ -358,15 +360,41 @@ def page_order():
 
 def page_cart(u):
     st.title("🛍️ My Cart")
+    # ── TEST MODE TOGGLE ──────────────────────────────────────────
+    st.session_state.setdefault("test_mode", True)
+    st.session_state.test_mode = st.toggle(
+        "🧪 Test Mode — skip UTR & OTP (no real payment)",
+        value=st.session_state.test_mode,
+    )
     cart = st.session_state.get("cart", [])
     if not cart:
         st.info("Cart is empty.")
         return
 
     total = sum(item["price"] * item["qty"] for item in cart)
-    for item in cart:
-        st.write(f"{item['name']} — ₹{item['price'] * item['qty']}")
-    st.markdown(f"### Total: ₹{total}")
+    for i, item in enumerate(list(cart)):
+        c1, c2, c3, c4, c5 = st.columns([5, 1, 1, 1, 1])
+        c1.markdown(
+            f"**{item['name']}**  \n₹{item['price']:.2f} each  "
+            f"→ **₹{item['price'] * item['qty']:.2f}**"
+        )
+        if c2.button("➖", key=f"q_minus_{i}"):
+            if st.session_state.cart[i]["qty"] > 1:
+                st.session_state.cart[i]["qty"] -= 1
+            else:
+                st.session_state.cart.pop(i)
+            st.rerun()
+        c3.markdown(
+            f"<h3 style='text-align:center;margin:0'>{item['qty']}</h3>",
+            unsafe_allow_html=True,
+        )
+        if c4.button("➕", key=f"q_plus_{i}"):
+            st.session_state.cart[i]["qty"] += 1
+            st.rerun()
+        if c5.button("🗑️", key=f"q_rm_{i}"):
+            st.session_state.cart.pop(i)
+            st.rerun()
+    st.markdown(f"### Total: ₹{total:.2f}")
 
     st.session_state.setdefault("show_otp_input", False)
     st.session_state.setdefault("order_otp", None)
@@ -374,6 +402,27 @@ def page_cart(u):
     if not st.session_state.show_otp_input:
         if st.button("💳 Checkout Securely", type="primary",
                      use_container_width=True):
+            # 🧪 TEST MODE: skip everything, save order, done
+            if st.session_state.get("test_mode", True):
+                cart_now = st.session_state.get("cart", [])
+                total_now = sum(i["price"] * i["qty"] for i in cart_now)
+                saved = save_order_history(u.get("id"), cart_now, total_now)
+                saved["status"] = "PAID (TEST)"
+                # rewrite status in orders.json
+                import json as _json
+                of = BASE_DIR / "orders.json"
+                orders = _json.loads(of.read_text())
+                for o in orders:
+                    if o["order_id"] == saved["order_id"]:
+                        o["status"] = "PAID (TEST)"
+                of.write_text(_json.dumps(orders, indent=2))
+                st.success(f"🧪 TEST MODE — Order {saved['order_id']} placed. No real payment.")
+                st.session_state.cart = []
+                st.balloons()
+                import time; time.sleep(1.5)
+                st.session_state.page = "home"
+                st.rerun()
+            # ── REAL FLOW ─────────────────────────────────────────
             otp = str(random.randint(100000, 999999))
             st.session_state.order_otp = otp
             chat_id = u.get("telegram_chat_id", "8205802064")
