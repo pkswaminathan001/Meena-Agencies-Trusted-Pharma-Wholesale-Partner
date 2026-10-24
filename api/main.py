@@ -15,11 +15,13 @@ from datetime import datetime
 
 load_dotenv()
 
-app = FastAPI(title="Meena Agencies Enterprise API")
+import os
+ENV = os.getenv("ENV", "development")
+app = FastAPI(title="Meena Agencies Enterprise API", docs_url="/docs" if ENV != "production" else None, redoc_url="/redoc" if ENV != "production" else None)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "*")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

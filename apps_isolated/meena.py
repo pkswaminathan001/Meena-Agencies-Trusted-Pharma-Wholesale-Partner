@@ -1,5 +1,10 @@
+import sys
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
 import os
 import streamlit as st
+from meena_modules.owner_verification import render_owner_verification
 try:
     for k, v in st.secrets.items():
         os.environ[k] = str(v)
@@ -101,7 +106,6 @@ def send_telegram_otp(chat_id, otp):
 
 import datetime
 
-from meena_modules.pricing_ai import render_pricing_sandbox
 
 try:
     from meena_modules.apple_tesla_ui import render_apple_tesla_view
