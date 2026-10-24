@@ -352,6 +352,18 @@ def page_profile(u):
     st.json(u)
 
 
+
+def load_locations():
+    """Loads sales rep locations from a local JSON file."""
+    import json, os
+    if os.path.exists("sales_rep_locations.json"):
+        try:
+            with open("sales_rep_locations.json", "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
 def page_owner_map():
     st.title("🗺️ Live Sales Rep Tracking")
     st.caption("Monitor your sales representatives' locations in real-time.")
