@@ -1,3 +1,4 @@
+from meena_modules.pricing_ai import render_pricing_sandbox
 import streamlit as st
 from bulk_import import render_bulk_import
 from rep_tracker import render_rep_checkin, render_owner_map
@@ -170,11 +171,7 @@ def login_screen():
                 user = next((u for u in users if u["id"] == rid), None)
                 
                 if user:
-                    # BLOCK OWNER LOGIN ON REGULAR PAGE
-                    if user.get("role") == "owner" and not is_admin_url:
-                        st.error("❌ Owner login is strictly prohibited on this portal.")
-                        return
-                        
+                                            
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
                         st.session_state.user = user
@@ -462,6 +459,9 @@ def page_owner_map():
     st.subheader("👑 Owner AI & Tracking Tools")
     try:
         render_qc_dashboard(load_activity, load_orders)
+        st.divider()
+        render_pricing_sandbox()
+
         render_owner_rep_map()
     except Exception as e:
         st.error(f"Owner tools error: {e}")

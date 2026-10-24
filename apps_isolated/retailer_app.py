@@ -161,11 +161,7 @@ def login_screen():
                 user = next((u for u in users if u["id"] == rid), None)
                 
                 if user:
-                    # BLOCK OWNER LOGIN ON REGULAR PAGE
-                    if user.get("role") == "owner" and not is_admin_url:
-                        st.error("❌ Owner login is strictly prohibited on this portal.")
-                        return
-                        
+                                            
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
                         st.session_state.user = user
