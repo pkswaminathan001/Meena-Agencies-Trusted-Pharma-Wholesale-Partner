@@ -143,51 +143,35 @@ def login_screen():
     with mid:
         st.title("🦚 Meena Agencies")
         st.caption("Trusted Pharma Wholesale Partner")
+        
+        # Check if Owner is using the secret admin URL
+        is_admin_url = st.query_params.get("admin") == "true"
+        
         with st.form("login"):
-            st.info("Owner: `OWNER001` / `1234` | Retailer: `RET001` / `3210`")
+            if is_admin_url:
+                st.info("🔐 Admin Portal Login")
+            else:
+                st.info("Retailer Login: Please enter your Retailer ID and PIN.")
+                
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
+            
             if st.form_submit_button("Login", use_container_width=True):
-                # Rate Limiting Logic
-                if "failed_attempts" not in st.session_state:
-                    st.session_state.failed_attempts = 0
-
-                if st.session_state.failed_attempts >= 5:
-                    st.error("🚨 SECURITY LOCK: Too many failed attempts. Please wait 15 minutes.")
-                    return
-
                 users = load_retailers()
                 user = next((u for u in users if u["id"] == rid), None)
+                
                 if user:
+                    # BLOCK OWNER LOGIN ON REGULAR PAGE
+                    if user.get("role") == "owner" and not is_admin_url:
+                        st.error("❌ Owner login is strictly prohibited on this portal.")
+                        return
+                        
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
-                        st.session_state.failed_attempts = 0 # Reset on success
-                        
-                        # 🛡️ AUTO-LINK TELEGRAM ID
-                        # If the user doesn't have a Telegram ID saved, try to get it from the URL (if opened inside Telegram)
-                        if not user.get("telegram_chat_id"):
-                            # In a real Telegram Mini App, you would parse the initData here
-                            # For now, we will assign a mock ID for testing
-                            user["telegram_chat_id"] = "8205802064" # Replace with dynamic extraction logic
-                            
-                            # Update the JSON file with the new Telegram ID
-                            rj_path = BASE_DIR / "retailers.json"
-                            if rj_path.exists():
-                                with open(rj_path, "r") as f:
-                                    all_users = json.load(f)
-                                for u in all_users:
-                                    if u["id"] == user["id"]:
-                                        u["telegram_chat_id"] = user["telegram_chat_id"]
-                                with open(rj_path, "w") as f:
-                                    json.dump(all_users, f, indent=2)
-                        
                         st.session_state.user = user
                         st.session_state.page = "home"
                         st.rerun()
-                
-                # Increment failed attempts
-                st.session_state.failed_attempts += 1
-                st.error(f"❌ Invalid ID or PIN (Attempt {st.session_state.failed_attempts}/5)")
+                st.error("❌ Invalid ID or PIN")
 
 def page_home(u):
     st.title(f"Welcome back, {u.get('shop', 'Partner')} 👋")
