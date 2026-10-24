@@ -223,39 +223,37 @@ def save_order_history(user_id, cart, total):
 # ── pages ─────────────────────────────────────────────────────────────
 def login_screen():
     import yaml
+    import bcrypt
     from yaml.loader import SafeLoader
-    import streamlit_authenticator as stauth
 
-    with open('config.yaml') as file:
-        config = yaml.load(file, Loader=SafeLoader)
+    _, mid, _ = st.columns([1, 1.5, 1])
+    with mid:
+        st.title("🦚 Meena Agencies")
+        st.caption("Trusted Pharma Wholesale Partner")
+        
+        with open('config.yaml') as file:
+            config = yaml.load(file, Loader=SafeLoader)
 
-    authenticator = stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days']
-    )
-
-    # v0.4.1 API: location is mandatory, fields are optional
-    authenticator.login(location='main', fields={'Form name': 'Login'})
-
-    # Retrieve status from session state
-    auth_status = st.session_state.get("authentication_status")
-    username = st.session_state.get("username")
-    name = st.session_state.get("name")
-
-    if auth_status:
-        # Build the user object from config
-        user_data = config['credentials']['usernames'].get(username, {})
-        user_data['id'] = username
-        user_data['name'] = name
-        st.session_state.user = user_data
-        st.session_state.page = "home"
-        st.rerun()
-    elif auth_status is False:
-        st.error('❌ Username/password is incorrect')
-    elif auth_status is None:
-        st.warning('👋 Please enter your username and password')
+        with st.form("login_form"):
+            st.info("Please enter your Retailer ID and PIN.")
+            uid = st.text_input("User ID").strip().lower() # 👈 FORCES LOWERCASE
+            pin = st.text_input("PIN", type="password").strip()
+            
+            if st.form_submit_button("Login", use_container_width=True):
+                users = config.get("credentials", {}).get("usernames", {})
+                user = users.get(uid)
+                
+                if user:
+                    stored_hash = user["password"]
+                    if bcrypt.checkpw(pin.encode(), stored_hash.encode()):
+                        user['id'] = uid
+                        st.session_state.user = user
+                        st.session_state.page = "home"
+                        st.rerun()
+                    else:
+                        st.error("❌ Incorrect PIN")
+                else:
+                    st.error("❌ Invalid User ID")
 
 
 def page_home(u):

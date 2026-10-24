@@ -4,21 +4,15 @@ cookie:
   name: meena_cookie
 credentials:
   usernames:
-    OWNER001:
-      email: owner001@meena.com
-      name: Meena Agencies HQ
-      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
-      role: owner
+    owner:
+      email: owner@meena.com
+      name: Owner
+      password: $2b$12$8e2lw8VAFWdvDSq.npH3RujWgnD9Sqy0oE4Dz5WouTh1gTmbSRjvK
+      role: Owner
       shop: Meena Agencies HQ
-    REP001:
-      email: rep001@meena.com
-      name: Chennai Sales Rep
-      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
-      role: rep
-      shop: Chennai Sales Rep
-    RET001:
+    ret001:
       email: ret001@meena.com
       name: Sri Balaji Medicals
-      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
-      role: retailer
+      password: $2b$12$4LZ6dOlfRm4jo1VqwHa2p.EQqMr4UzX7Chz7sy0ScjBgKwC4IG1xy
+      role: Retailer
       shop: Sri Balaji Medicals
