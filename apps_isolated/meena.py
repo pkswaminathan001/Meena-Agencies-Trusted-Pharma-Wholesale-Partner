@@ -92,15 +92,27 @@ def login_screen():
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             if st.form_submit_button("Login", use_container_width=True):
+                # Rate Limiting Logic
+                if "failed_attempts" not in st.session_state:
+                    st.session_state.failed_attempts = 0
+
+                if st.session_state.failed_attempts >= 5:
+                    st.error("🚨 SECURITY LOCK: Too many failed attempts. Please wait 15 minutes.")
+                    return
+
                 users = load_retailers()
                 user = next((u for u in users if u["id"] == rid), None)
                 if user:
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
+                        st.session_state.failed_attempts = 0 # Reset on success
                         st.session_state.user = user
                         st.session_state.page = "home"
                         st.rerun()
-                st.error("❌ Invalid ID or PIN")
+                
+                # Increment failed attempts
+                st.session_state.failed_attempts += 1
+                st.error(f"❌ Invalid ID or PIN (Attempt {st.session_state.failed_attempts}/5)")
 
 def page_home(u):
     st.title(f"Welcome, {u.get('shop', 'Partner')} 👋")
@@ -187,11 +199,12 @@ def page_cart():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Verify & Place Order", type="primary", use_container_width=True):
-                # Strip whitespaces just in case
+                # Strip whitespaces
                 clean_input = input_otp.strip() if input_otp else ""
                 expected_otp = str(st.session_state.order_otp).strip() if st.session_state.order_otp else ""
                 
-                if clean_input == expected_otp and len(clean_input) == 6:
+                # Secure Check: Strict 6 digits
+                if clean_input == expected_otp and len(clean_input) == 6 and clean_input.isdigit():
                     st.success("🎉 Order Placed Successfully!")
                     st.session_state.cart = []
                     st.session_state.show_otp_input = False
