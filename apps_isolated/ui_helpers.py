@@ -87,7 +87,7 @@ def get_icon(name: str) -> str:
             
     # 2. Dynamic high-quality stock photos (Distinct per medicine!)
     # We use a hash "lock" so the image for "Insulin" stays the same forever.
-    lock_id = int(hashlib.md5(label.encode()).hexdigest(), 16) % 1000
+    lock_id = int(hashlib.sha256(label.encode()).hexdigest(), 16) % 1000
     
     low = label.lower()
     keywords = "medicine,pills"
