@@ -73,24 +73,25 @@ def get_icon(name):
     import os
     
     # 1. Check if you have a REAL picture for this specific medicine
-    # Example: if the medicine is "Dolo 650", it looks for "images/dolo_650.jpg"
     safe_name = name.replace(" ", "_").replace("/", "_").replace("-", "_")
     for ext in [".png", ".jpg", ".jpeg"]:
         local_path = f"images/{safe_name}{ext}"
         if os.path.exists(local_path):
             return local_path
             
-    # 2. If no real picture, generate a reliable, colored text placeholder
-    # This API generates an image and NEVER gets blocked by the browser
-    display_name = name.replace(" ", "+").replace("-", "+")
-    
-    # Rotate colors so cards look distinct
-    colors = ["0B3C5D", "1D8348", "D35400", "C0392B", "8E44AD"]
-    bg_color = colors[len(name) % len(colors)]
-    
-    return f"https://ui-avatars.com/api/?name={display_name}&background={bg_color}&color=fff&size=150&bold=true"
-# ─── DATA LOADERS ───
-@st.cache_data(ttl=60)
+    # 2. Use the downloaded REAL Amazon-style photos based on category
+    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
+        return "images/real_tablet.jpg"
+    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
+        return "images/real_syrup.jpg"
+    elif any(k in name for k in ["injection", "insulin"]):
+        return "images/real_injection.jpg"
+    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
+        return "images/real_cream.jpg"
+    else:
+        return "images/real_default.jpg"
+
+
 def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
     if db_path.exists():
