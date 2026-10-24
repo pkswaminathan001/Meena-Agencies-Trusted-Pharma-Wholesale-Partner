@@ -134,7 +134,7 @@ def load_inventory():
         conn = sqlite3.connect(db_path)
         try:
             df = pd.read_sql_query(
-                "SELECT sku AS name, 0.0 AS price, qty AS stock "
+	                "SELECT sku AS name, 0.0 AS price, qty AS stock "
                 "FROM products LIMIT 100", conn,
             )
         finally:
