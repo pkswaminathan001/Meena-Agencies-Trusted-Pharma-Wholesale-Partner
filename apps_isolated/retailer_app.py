@@ -6,6 +6,9 @@ import json
 import sqlite3
 import hashlib
 import requests
+import folium
+from streamlit_folium import st_folium
+import datetime
 import random
 from streamlit_js_eval import get_geolocation
 
@@ -348,6 +351,33 @@ def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
 
+
+def page_owner_map():
+    st.title("🗺️ Live Sales Rep Tracking")
+    st.caption("Monitor your sales representatives' locations in real-time.")
+    
+    locations = load_locations()
+    
+    if not locations:
+        st.warning("No sales reps have checked in yet.")
+        return
+        
+    # Center map on Thanjavur
+    m = folium.Map(location=[10.7870, 79.1378], zoom_start=10)
+    
+    # Add a marker for every rep
+    for rep_id, data in locations.items():
+        folium.Marker(
+            [data["lat"], data["lon"]],
+            popup=f"<b>{rep_id}</b><br>Last Update: {data['time']}",
+            icon=folium.Icon(color="green", icon="user")
+        ).add_to(m)
+        
+    st_folium(m, width=800, height=500)
+    
+    st.markdown("### 📋 Recent Check-ins")
+    st.json(locations)
+
 # ─── SIDEBAR ───
 def render_sidebar():
     with st.sidebar:
@@ -440,6 +470,7 @@ def main():
     u = st.session_state.user
     
     if page == "home": page_home(u)
+    elif page == "owner_map": page_owner_map()
     elif page == "order": page_order()
     elif page == "cart": page_cart()
     elif page == "history": page_history(u)
