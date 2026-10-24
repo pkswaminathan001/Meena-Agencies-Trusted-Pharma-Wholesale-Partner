@@ -209,7 +209,7 @@ def save_order_history(user_id, cart, total):
         "date": str(datetime.date.today()),
         "items": cart,
         "total": total,
-        "status": "Paid",
+        "status": "Pending Owner Approval",
     }
     orders.append(new_order)
     with open(orders_file, "w") as f:
@@ -403,6 +403,8 @@ def page_cart(u):
     st.session_state.setdefault("show_otp_input", False)
     st.session_state.setdefault("order_otp", None)
 
+    st.warning("⚠️ **Important B2B Policy:** Payment is collected upfront. However, your order will remain **'Pending Owner Approval'** until the Owner verifies your credit history. You will be notified once approved.")
+    
     if not st.session_state.show_otp_input:
         if st.button("💳 Checkout Securely", type="primary",
                      use_container_width=True):
@@ -411,7 +413,7 @@ def page_cart(u):
                 cart_now = st.session_state.get("cart", [])
                 total_now = sum(i["price"] * i["qty"] for i in cart_now)
                 saved = save_order_history(u.get("id"), cart_now, total_now)
-                saved["status"] = "PAID (TEST)"
+                saved["status"] = "Pending Owner Approval (TEST)"
                 # rewrite status in orders.json
                 import json as _json
                 of = BASE_DIR / "orders.json"
@@ -587,6 +589,73 @@ def page_owner_map():
 
 
 # ── sidebar / router / main ───────────────────────────────────────────
+
+
+def page_owner_approvals():
+    st.title("👑 Owner Approval Dashboard")
+    st.caption("Review pending orders and make AI-assisted decisions based on customer history.")
+    
+    import json
+    of = BASE_DIR / "orders.json"
+    if not of.exists():
+        st.info("No orders yet.")
+        return
+        
+    orders = json.loads(of.read_text())
+    pending = [o for o in orders if "Pending" in o.get("status", "")]
+    
+    if not pending:
+        st.success("✅ No pending orders to review.")
+        return
+        
+    for i, order in enumerate(pending):
+        with st.expander(f"Order {order['order_id']} — {order['user_id']} (₹{order['total']})", expanded=True):
+            c1, c2 = st.columns([2, 1])
+            
+            with c1:
+                st.write("**Items Requested:**")
+                for it in order["items"]:
+                    st.write(f"- {it['name']} x {it['qty']} = ₹{it['price'] * it['qty']}")
+                    
+            with c2:
+                # Calculate Customer History
+                user_orders = [o for o in orders if o["user_id"] == order["user_id"]]
+                past_orders = [o for o in user_orders if o["order_id"] != order["order_id"]]
+                total_paid = sum(o["total"] for o in past_orders if "Paid" in o.get("status", "") or "Approved" in o.get("status", ""))
+                rejects = sum(1 for o in past_orders if "Reject" in o.get("status", ""))
+                
+                st.markdown("### 🤖 AI Risk Analysis")
+                st.info(f"**Customer History:** {len(past_orders)} past orders.\n\n**Total Cleared:** ₹{total_paid}\n\n**Rejections:** {rejects}")
+                
+                if rejects > 1:
+                    st.error("🚨 **AI Recommendation: REJECT.** Multiple past rejections or payment failures.")
+                elif total_paid > 5000:
+                    st.success("✅ **AI Recommendation: APPROVE.** High-value, trusted customer.")
+                else:
+                    st.warning("⚠️ **AI Recommendation: REVIEW.** Limited history. Proceed with caution.")
+            
+            st.divider()
+            b1, b2 = st.columns(2)
+            with b1:
+                if st.button("✅ Approve Order", key=f"app_{i}", type="primary", use_container_width=True):
+                    for o in orders:
+                        if o["order_id"] == order["order_id"]:
+                            o["status"] = "Approved & Confirmed"
+                    of.write_text(json.dumps(orders, indent=2))
+                    st.success(f"Order {order['order_id']} Approved!")
+                    import time; time.sleep(1)
+                    st.rerun()
+            with b2:
+                if st.button("❌ Reject Order", key=f"rej_{i}", use_container_width=True):
+                    for o in orders:
+                        if o["order_id"] == order["order_id"]:
+                            o["status"] = "Rejected by Owner"
+                    of.write_text(json.dumps(orders, indent=2))
+                    st.error(f"Order {order['order_id']} Rejected.")
+                    import time; time.sleep(1)
+                    st.rerun()
+
+
 def render_sidebar():
     with st.sidebar:
         st.markdown(
@@ -607,6 +676,7 @@ def render_sidebar():
             ("cart",       "🛍️ My Cart"),
             ("checkin",    "📍 Rep Check-In"),
             ("owner_map",  "🗺️ Live Tracking"),
+            ("owner_approvals", "👑 Approvals"),
             ("profile",    "👤 Profile"),
         ]
         for key, label in menu:
@@ -635,6 +705,7 @@ def main():
 
     if   page == "home":        page_home(u)
     elif page == "owner_map":   page_owner_map()
+    elif page == "owner_approvals": page_owner_approvals()
     elif page == "order":       page_order()
     elif page == "cart":        page_cart(u)
     elif page == "history":     page_history(u)
