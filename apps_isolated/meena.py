@@ -72,14 +72,13 @@ def get_icon(name):
     import urllib.parse
     
     name_str = str(name).strip()
-    
-    # This API generates an actual image on the fly with the medicine name.
-    # It is 100% reliable and will NEVER be blocked.
-    # We use the brand colors: Deep Medical Blue background, White text.
     encoded_name = urllib.parse.quote(name_str)
     
-    # Format: https://placehold.co/widthxheight/background/color/png?text=...
-    return f"https://placehold.co/150x150/0B3C5D/FFFFFF/png?text={encoded_name}"
+    # 1. Larger 300x300 resolution
+    # 2. White background (FFFFFF)
+    # 3. Deep Medical Blue text (0B3C5D)
+    # 4. Montserrat font for a clean look
+    return f"https://placehold.co/300x300/FFFFFF/0B3C5D/png?text={encoded_name}&font=Montserrat"
 
 
 def load_inventory():
@@ -264,7 +263,7 @@ def page_order():
         with st.container(border=True):
             c1, c2, c3 = st.columns([1.5, 4, 2])
             with c1:
-                                st.image(get_icon(name), width=80)
+                                st.image(get_icon(name), width=120)
             with c2:
                 st.markdown(f"### {name}")
                 st.markdown(f"<h3 style='color:#B12704; margin:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
