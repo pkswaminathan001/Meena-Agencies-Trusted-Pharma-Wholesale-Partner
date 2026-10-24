@@ -137,24 +137,31 @@ def save_order_history(user_id, cart, total):
 
 # ─── LOGIN ───
 def login_screen():
-    # 1. Inject CSS to force centering and limit the width of the login box
+    # 1. Inject CSS to force centering and hide the top Streamlit toolbar
     st.markdown("""
     <style>
-        /* Force the main container to center its content */
+        /* Hide the Streamlit top toolbar (Share, Star, Edit, GitHub) */
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+
+        /* Force the main container to center its content perfectly */
         .block-container {
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
             padding-top: 5vh !important;
+            max-width: 100% !important;
         }
         
-        /* Constrain the form width so it doesn't stretch on mobile */
+        /* Constrain the form width */
         div[data-testid="stForm"] {
             width: 100% !important;
             max-width: 350px !important;
             margin: 0 auto !important;
         }
+        
         /* Constrain the white bordered box */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             width: 100% !important;
@@ -173,7 +180,7 @@ def login_screen():
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. The Form (No columns, just the container)
+    # 3. The Form
     with st.container(border=True):
         with st.form("login"):
             st.markdown("### Sign in")
@@ -191,7 +198,6 @@ def login_screen():
                     st.session_state.page = "home"
                     st.rerun()
             st.error("❌ Invalid ID or PIN.")
-
 # ─── 1. AMAZON HOMEPAGE & DIGITAL MARKETING BANNER ───
 def page_home(u):
     st.markdown(f'''
