@@ -1157,7 +1157,7 @@ if "session_start" not in st.session_state:
 if "last_visibility" not in st.session_state:
     st.session_state.last_visibility = "visible"
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=1, show_spinner=False)
 def load_inventory():
     """Read from SQLite — 100x faster than CSV for 10,000+ rows."""
     import sqlite3
@@ -1170,7 +1170,7 @@ def load_inventory():
     today = pd.Timestamp.now()
     df["days_to_expiry"] = (df["expiry_date"] - today).dt.days
     df["status"] = df["days_to_expiry"].apply(lambda x: "Expired" if x<0 else ("Critical" if x<30 else ("Warning" if x<90 else "Healthy")))
-    df["selling_price"] = (df["cost_price"] * 1.25).round(2)
+    df["selling_price"] = 1.0  # TEMPORARY TEST PRICE
     df["inventory_value"] = df["quantity"] * df["cost_price"]
     return df
 
@@ -1189,7 +1189,7 @@ def load_retailers():
 def save_retailers(r):
     with open("retailers.json","w") as f: json.dump(r, f, indent=2)
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=1, show_spinner=False)
 def load_owner():
     if os.path.exists("owner.json"):
         with open("owner.json") as f: return json.load(f)
