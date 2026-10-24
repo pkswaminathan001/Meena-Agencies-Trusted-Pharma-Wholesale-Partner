@@ -75,21 +75,35 @@ def _local_image(name: str) -> Optional[Path]:
     return None
 
 def get_icon(name: str) -> str:
-    """Return a URL usable in <img src='...'>. Never breaks."""
+    import hashlib
     label = str(name).strip() or "Medicine"
+    
+    # 1. Try local images first (if you ever manually add them)
     local = _local_image(label)
     if local:
         uri = _data_uri(str(local))
         if uri:
             return uri
-    # Reliable fallback: placehold.co text card
-    words = label.split()
-    if len(words) > 2:
-        text = chr(10).join(" ".join(words[i:i+2]) for i in range(0, len(words), 2))
-    else:
-        text = label
-    q = urllib.parse.quote(text)
-    return f"https://placehold.co/300x300/FFFFFF/0B3C5D/png?text={q}&font=Montserrat"
+            
+    # 2. Dynamic high-quality stock photos (Distinct per medicine!)
+    # We use a hash "lock" so the image for "Insulin" stays the same forever.
+    lock_id = int(hashlib.md5(label.encode()).hexdigest(), 16) % 1000
+    
+    low = label.lower()
+    keywords = "medicine,pills"
+    
+    # Smart matching based on medicine name
+    if any(k in low for k in ["syrup", "liquid", "susp"]):
+        keywords = "syrup,bottle"
+    elif any(k in low for k in ["injection", "insulin", "vial"]):
+        keywords = "syringe,medicine"
+    elif any(k in low for k in ["cream", "gel", "ointment"]):
+        keywords = "cream,tube"
+    elif any(k in low for k in ["capsule", "cap"]):
+        keywords = "capsule,pills"
+        
+    return f"https://loremflickr.com/300/300/{keywords}?lock={lock_id}"
+
 
 # ---------- Amazon CSS ----------
 AMAZON_CSS = """
