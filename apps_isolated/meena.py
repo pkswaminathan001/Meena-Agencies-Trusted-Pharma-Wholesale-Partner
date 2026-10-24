@@ -335,19 +335,41 @@ def page_order():
     df = df.dropna(subset=["name"])
     df = df[df["name"].astype(str).str.lower() != "none"]
 
+    # Sticky Bottom Bar CSS
+    st.markdown("""
+    <style>
+    div.block-container { padding-bottom: 120px !important; }
+    .st-key-floating-cart {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 95%;
+        max-width: 900px;
+        background-color: #ffffff;
+        padding: 15px 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        border: 1px solid #e0e0e0;
+        z-index: 99999;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     if cart:
         total_cart = sum(i["price"] * i["qty"] for i in cart)
-        with st.expander(f"🛒 Live Cart — Total: ₹{total_cart:.2f}", expanded=True):
-            for i, it in enumerate(list(cart)):
-                c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
-                c1.write(f"**{it['name']}**")
-                if c2.button("➖", key=f"mini_m_{i}"):
-                    st.session_state.cart[i]["qty"] -= 1
-                    if st.session_state.cart[i]["qty"] <= 0: st.session_state.cart.pop(i)
-                    st.rerun()
-                c3.write(f"**{it['qty']}**")
-                if c4.button("➕", key=f"mini_p_{i}"):
-                    st.session_state.cart[i]["qty"] += 1
+        total_items = sum(i["qty"] for i in cart)
+        with st.container(key="floating-cart"):
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.markdown(
+                    f"<div style='font-size: 20px; font-weight: bold; padding-top: 5px;'>"
+                    f"🛒 Live Cart: {total_items} items — ₹{total_cart:.2f}</div>", 
+                    unsafe_allow_html=True
+                )
+            with c2:
+                if st.button("Checkout →", type="primary", use_container_width=True):
+                    st.session_state.page = "cart"
                     st.rerun()
 
     search = st.text_input(
