@@ -30,8 +30,10 @@ st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
     footer {visibility: hidden;}
+    /* Keep the sidebar toggle visible for mobile */
+    [data-testid="collapsedControl"] { display: flex !important; }
+    header { background-color: transparent !important; }
     .block-container {padding-top: 1rem; padding-bottom: 0rem;}
     .stButton>button { width: 100%; background-color: #1D8348; color: white; border-radius: 8px; }
     .stButton>button:hover { background-color: #145c32; color: white; }
@@ -99,7 +101,21 @@ def login_screen():
 # ─── PAGES ───
 def page_home(u):
     st.title(f"Welcome, {u.get('shop', 'Partner')} 👋")
-    st.info("Navigate to 'Place Order' to browse the catalog.")
+    
+    st.markdown("### ⚡ Quick Actions")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🛒 Place Order", use_container_width=True, type="primary"):
+            st.session_state.page = "order"
+            st.rerun()
+    with c2:
+        if st.button("🛍️ View Cart", use_container_width=True):
+            st.session_state.page = "cart"
+            st.rerun()
+            
+    st.divider()
+    st.info("💡 **Tip:** You can also open the sidebar menu (click the `>` icon on the top left) to access all pages.")
+
 
 def page_order():
     st.title("🛒 Place Order")
