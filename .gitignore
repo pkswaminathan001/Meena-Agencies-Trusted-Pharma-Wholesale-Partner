@@ -66,3 +66,4 @@ orders.json
 __pycache__/
 *.pyc
 orders.json
+_backups/
