@@ -263,6 +263,22 @@ def page_home(u):
         pass
     # ────────────────────────
 
+
+def get_icon(name):
+    name = str(name).lower()
+    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
+        return "💊"
+    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
+        return "🧴"
+    elif any(k in name for k in ["injection", "insulin"]):
+        return "💉"
+    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
+        return "🧴"
+    elif any(k in name for k in ["vitamin", "zinc", "c", "multivitamin"]):
+        return "🍊"
+    else:
+        return "📦"
+
 def page_order():
     st.title("🛒 Place Order")
     st.caption("Browse our catalog and add items to your cart.")
@@ -294,7 +310,11 @@ def page_order():
             
             # Amazon-style Product Image (Placeholder)
             with c1:
-                st.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", width=100)
+                st.markdown(f"""
+                <div style="background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <span style="font-size: 50px;">{get_icon(name)}</span>
+                </div>
+                """, unsafe_allow_html=True)
             
             # Product Details
             with c2:
@@ -478,7 +498,11 @@ def page_order_history(u):
             for item in items:
                 ic1, ic2 = st.columns([1, 5])
                 with ic1:
-                    st.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", width=50)
+                    st.markdown(f"""
+                    <div style="background: #f8f9fa; border-radius: 8px; text-align: center; padding: 5px;">
+                        <span style="font-size: 30px;">{get_icon(item.get('name', ''))}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with ic2:
                     st.markdown(f"**{item.get('name', 'Medicine')}**")
                     st.caption(f"Qty: {item.get('qty', 1)} | Price: ₹{item.get('price', 0)}")
