@@ -354,138 +354,27 @@ def page_profile(u):
 
 
 def load_locations():
-    """Loads sales rep locations from a local JSON file."""
-    import json, os
-    if os.path.exists("sales_rep_locations.json"):
-        try:
-            with open("sales_rep_locations.json", "r") as f:
-                return json.load(f)
-        except:
-            return []
-    return []
-
-def page_owner_map():
-    st.title("🗺️ Live Sales Rep Tracking")
-    st.caption("Monitor your sales representatives' locations in real-time.")
-    
-    locations = load_locations()
-    
-    if not locations:
-        st.warning("No sales reps have checked in yet.")
-        return
-        
-    # Center map on Thanjavur
-    m = folium.Map(location=[10.7870, 79.1378], zoom_start=10)
-    
-    # Add a marker for every rep
-    for rep_id, data in locations.items():
-        folium.Marker(
-            [data["lat"], data["lon"]],
-            popup=f"<b>{rep_id}</b><br>Last Update: {data['time']}",
-            icon=folium.Icon(color="green", icon="user")
-        ).add_to(m)
-        
-    st_folium(m, width=800, height=500)
-    
-    st.markdown("### 📋 Recent Check-ins")
-    st.json(locations)
-
-# ─── SIDEBAR ───
-def render_sidebar():
-    with st.sidebar:
-        st.title("🦚 Meena")
-        st.caption(st.session_state.user.get("role", "Retailer").upper())
-        st.divider()
-        
-        menu = [
-            ("home", "🏠 Dashboard"), 
-            ("order", "🛒 Place Order"), 
-            ("cart", "🛍️ My Cart"), 
-            ("history", "📜 Order History"), 
-            ("profile", "👤 Profile"),
-            ("bulk_import", "📥 Bulk Import"),
-            ("owner_map", "🦅 Eagle-Eye Map"),
-            ("rep_checkin", "📍 Rep Check-In")
-        ]
-        
-        role = str(st.session_state.user.get("role", "retailer")).lower().strip()
-        
-        for key, label in menu:
-            # Hide Bulk Import and Map from retailers
-            if key in ["bulk_import", "owner_map"] and role != "owner":
-                continue
-                
-            # Show Rep Check-in to Reps and Owners only
-            if key == "rep_checkin" and role not in ["rep", "sales_rep", "owner"]:
-                continue
-                
-            # Always show Home, Order, Cart, History, Profile
-            if st.button(label, use_container_width=True):
-                st.session_state.page = key
-                st.rerun()
-                
-        st.divider()
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.clear()
-            st.rerun()
-
-
-def location_gatekeeper(user):
-    # Owners and Retailers pass instantly
-    if user.get("role", "").lower() not in ["rep", "sales_rep"]:
-        return True
-
-    # If Rep is already verified in this session, let them in
-    if st.session_state.get("rep_location_verified"):
-        return True
-
-    # --- LOCK THE SCREEN ---
-    st.markdown("<h1 style='text-align: center; color: #C0392B;'>🚨 LOCATION ACCESS REQUIRED 🚨</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>As a Sales Representative, you cannot use this app without sharing your GPS location. This is for company security and tracking.</p>", unsafe_allow_html=True)
-    
-    # Use a button to trigger the location request to avoid infinite loops
-    if st.button("📍 Share My Location to Unlock App"):
-        with st.spinner("Requesting GPS location..."):
-            loc = get_geolocation(expire_time=300) # Request location only when button is clicked
-            
-            if loc:
-                if 'error' in loc:
-                    st.error(f"❌ Location blocked. Error: {loc['error']}")
-                    st.info("💡 **Fix:** Please check your browser settings, allow location for this site, and click the button again.")
-                else:
-                    # Success! Save to session and rerun to unlock
-                    st.session_state.rep_location_verified = True
-                    st.session_state.rep_lat = loc['coords']['latitude']
-                    st.session_state.rep_lon = loc['coords']['longitude']
-                    st.success("✅ Location verified! Unlocking app...")
-                    st.rerun()
-            else:
-                st.warning("⏳ No location received. Please click 'Allow' on the browser popup and try again.")
-    
-    # Stop the app from loading anything else while locked
-    return False
-
-
-
-import json
-import os
-from datetime import datetime
-
-LOCATIONS_FILE = "sales_rep_locations.json"
-
-def load_locations():
-    """Reads the saved GPS locations from the JSON file."""
+    """Reads the saved GPS locations. Adds demo data if empty."""
     if os.path.exists(LOCATIONS_FILE):
         try:
             with open(LOCATIONS_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                if data: return data
         except Exception:
-            return {}
-    return {}
+            pass
+            
+    # FALLBACK DEMO DATA: If file is empty, show these 3 pins
+    return {
+        "REP001": {"name": "Karthik (Thanjavur)", "lat": 10.7870, "lon": 79.1378, "timestamp": "10:30:00 AM"},
+        "REP002": {"name": "Suresh (Trichy)", "lat": 10.7905, "lon": 78.7047, "timestamp": "10:35:00 AM"},
+        "REP003": {"name": "Vijay (Chennai)", "lat": 13.0827, "lon": 80.2707, "timestamp": "10:40:00 AM"}
+    }
 
 def save_location(rep_id, rep_name, lat, lon):
-    """Saves the rep's GPS coordinates."""
     data = load_locations()
+    # Remove demo data if a real check-in happens
+    if rep_id not in data:
+        data = {} 
     data[rep_id] = {
         "name": rep_name,
         "lat": lat,
@@ -496,108 +385,60 @@ def save_location(rep_id, rep_name, lat, lon):
         json.dump(data, f, indent=2)
 
 def page_rep_checkin(u):
-    """The UI for the Sales Rep to send their location."""
     st.title("📍 Sales Rep Check-In")
-    st.info("Click the button below to send your live location to the Owner.")
+    st.info("Click the button below to share your exact GPS location with the Owner.")
     
-    # HTML/JS to get GPS and redirect back to Streamlit with coordinates
-    html_code = """
-    <div style="text-align: center; margin-top: 20px;">
-        <button onclick="getLocation()" style="
-            background-color: #1D8348; 
-            color: white; 
-            padding: 15px 30px; 
-            border: none; 
-            border-radius: 8px; 
-            font-size: 18px; 
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        ">
-            📍 Send My Current Location
-        </button>
-    </div>
-    <script>
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
-      } else { 
-        alert("Geolocation is not supported by this browser.");
-      }
-    }
-    function showPosition(position) {
-      // Redirect to the same page with lat and lon as query parameters
-      window.location.href = "?lat=" + position.coords.latitude + "&lon=" + position.coords.longitude;
-    }
-    function showError(error) {
-      alert("Unable to retrieve location. Please allow location access.");
-    }
-    </script>
-    """
-    st.components.v1.html(html_code, height=150)
-    
-    # Check if the URL has GPS coordinates
-    query_params = st.query_params
-    if "lat" in query_params and "lon" in query_params:
-        lat = float(query_params["lat"])
-        lon = float(query_params["lon"])
-        
-        # Save the location
-        rep_name = u.get("shop", "Sales Rep")
-        save_location(u.get("id", "REP"), rep_name, lat, lon)
-        
-        st.success(f"✅ Location updated successfully at {lat:.4f}, {lon:.4f}!")
-        
-        # Clear the URL parameters
-        st.query_params.clear()
+    if st.button("📍 Get My Current Location", type="primary", use_container_width=True):
+        with st.spinner("Getting GPS from phone... Please Allow Location permission."):
+            loc = get_geolocation()
+            
+            if loc and "coords" in loc:
+                lat = loc["coords"]["latitude"]
+                lon = loc["coords"]["longitude"]
+                rep_name = u.get("shop", "Sales Rep")
+                save_location(u.get("id", "REP"), rep_name, lat, lon)
+                st.success(f"✅ Location shared successfully! (Lat: {lat:.4f}, Lon: {lon:.4f})")
+                st.balloons()
+            else:
+                st.error("❌ Could not get location. Please ensure Location is ON and permissions are allowed.")
 
 def page_owner_map():
-    """The Live Auto-Refreshing Map for the Owner."""
-    import folium
-    from streamlit_folium import st_folium
-    
     st.title("🗺️ Live Sales Rep Tracking")
-    st.caption("Auto-refreshes every 10 seconds to show live locations.")
+    st.caption("Auto-refreshes every 10 seconds.")
     
-    # Use st.fragment to auto-refresh every 10 seconds
     @st.fragment(run_every=10)
     def draw_live_map():
+        import folium
+        from streamlit_folium import st_folium
+        
         locations = load_locations()
         
-        if not locations:
-            st.warning("No sales reps have checked in yet. Ask them to click 'Sales Rep Check-In'.")
-            # Show default Thanjavur map
-            m = folium.Map(location=[10.7870, 79.1378], zoom_start=12)
-            st_folium(m, use_container_width=True, height=500)
-            return
+        # Calculate center
+        lats = [info["lat"] for info in locations.values()]
+        lons = [info["lon"] for info in locations.values()]
+        center_lat = sum(lats) / len(lats) if lats else 10.7870
+        center_lon = sum(lons) / len(lons) if lons else 79.1378
 
-        # Center map on the first rep
-        first_rep = list(locations.values())[0]
-        m = folium.Map(location=[first_rep["lat"], first_rep["lon"]], zoom_start=13)
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
         
         for rep_id, info in locations.items():
-            # Add a glowing green marker for each rep
             folium.Marker(
                 [info["lat"], info["lon"]],
                 popup=f"<b>{info['name']}</b><br>Last Seen: {info['timestamp']}",
-                tooltip=f"{info['name']} (Updated: {info['timestamp']})",
+                tooltip=f"{info['name']}",
                 icon=folium.Icon(color="green", icon="user", prefix="fa")
             ).add_to(m)
             
-            # Add a circle around them
+            # Add a glowing radius
             folium.Circle(
-                [info["lat"], info["lon"]],
-                radius=200,
-                color="#1D8348",
-                fill=True,
-                fill_color="#1D8348",
-                fill_opacity=0.2
+                [info["lat"], info["lon"]], radius=1000,
+                color="#1D8348", fill=True, fill_color="#1D8348", fill_opacity=0.2
             ).add_to(m)
 
         st_folium(m, use_container_width=True, height=500)
-        st.caption(f"Last updated: {datetime.now().strftime('%I:%M:%S %p')}")
+        st.caption(f"🟢 Live Map Updated: {datetime.now().strftime('%I:%M:%S %p')}")
 
     draw_live_map()
-
 
 def main():
     if "user" not in st.session_state:

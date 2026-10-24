@@ -14,3 +14,4 @@ starlette<0.47.0
 streamlit-js-eval
 folium
 streamlit-folium
+streamlit-js-eval
