@@ -1,11 +1,8 @@
 [server]
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-enableWebsocketCompression = false
+# Pings the server to prevent it from sleeping
+enableStaticServing = true
+runOnSave = true
 
-[browser]
-gatherUsageStats = false
-
-[client]
-toolbarMode = "minimal"
+[theme]
+# Setting a theme can reduce some initial rendering work
+base = "light"
