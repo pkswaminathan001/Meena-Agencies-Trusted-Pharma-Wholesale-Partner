@@ -5,6 +5,7 @@ import sqlite3
 import hashlib
 import requests
 import random
+from bulk_import import render_bulk_import
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -154,6 +155,25 @@ def login_screen():
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
                         st.session_state.failed_attempts = 0 # Reset on success
+                        
+                        # 🛡️ AUTO-LINK TELEGRAM ID
+                        # If the user doesn't have a Telegram ID saved, try to get it from the URL (if opened inside Telegram)
+                        if not user.get("telegram_chat_id"):
+                            # In a real Telegram Mini App, you would parse the initData here
+                            # For now, we will assign a mock ID for testing
+                            user["telegram_chat_id"] = "8205802064" # Replace with dynamic extraction logic
+                            
+                            # Update the JSON file with the new Telegram ID
+                            rj_path = BASE_DIR / "retailers.json"
+                            if rj_path.exists():
+                                with open(rj_path, "r") as f:
+                                    all_users = json.load(f)
+                                for u in all_users:
+                                    if u["id"] == user["id"]:
+                                        u["telegram_chat_id"] = user["telegram_chat_id"]
+                                with open(rj_path, "w") as f:
+                                    json.dump(all_users, f, indent=2)
+                        
                         st.session_state.user = user
                         st.session_state.page = "home"
                         st.rerun()
@@ -334,6 +354,8 @@ def render_sidebar():
         menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
         
         for key, label in menu:
+            if key == "bulk_import" and st.session_state.user.get("role") != "owner":
+                continue
             if st.button(label, use_container_width=True):
                 st.session_state.page = key
                 st.rerun()
@@ -359,5 +381,6 @@ def main():
     elif page == "cart": page_cart()
     elif page == "history": page_history(u)
     elif page == "profile": page_profile(u)
+    elif page == "bulk_import": render_bulk_import()
 
 main()
