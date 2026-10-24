@@ -208,7 +208,7 @@ def product_grid(view):
             stock = int(row.get("stock", 0))
             
             with cols[j]:
-                with st.container(border=True):
+                with st.container(border=True, height=420):
                     st.markdown('<div style="color:#565959; font-size:10px; margin-bottom:4px;">Sponsored</div>', unsafe_allow_html=True)
                     st.image(get_icon(name), use_container_width=True)
                     st.markdown(f'<div class="amz-title">{name}</div>', unsafe_allow_html=True)
@@ -258,7 +258,7 @@ def page_cart():
     total = sum(item["price"] * item["qty"] for item in st.session_state.cart)
     
     st.write("")
-    with st.container(border=True):
+    with st.container(border=True, height=420):
         # Marketing Coupon Logic
         coupon = st.text_input("🎟️ Enter Promo Code", placeholder="Try MEENA10")
         discount = 0
@@ -308,7 +308,7 @@ def page_history(u):
     if not user_orders: st.info("You have not placed any orders yet."); return
     
     for order in reversed(user_orders):
-        with st.container(border=True):
+        with st.container(border=True, height=420):
             st.markdown(f'''
                 <div class="amz-order-header">
                     <div>ORDER PLACED<br><b>{order['date']}</b></div>
@@ -338,13 +338,13 @@ def page_profile(u):
     
     c1, c2 = st.columns(2)
     with c1:
-        with st.container(border=True):
+        with st.container(border=True, height=420):
             st.markdown("<h3>Login & Security</h3>", unsafe_allow_html=True)
             st.write(f"**Email:** {u.get('email', 'N/A')}")
             st.write(f"**Role:** {u.get('role', 'Retailer').capitalize()}")
             st.button("Edit Password", disabled=True, help="Contact admin to change PIN")
     with c2:
-        with st.container(border=True):
+        with st.container(border=True, height=420):
             st.markdown("<h3>Order History</h3>", unsafe_allow_html=True)
             st.write("Track, return, or buy things again.")
             st.button("View Your Orders", type="primary", on_click=go_to, args=("history",), use_container_width=True)
