@@ -2,7 +2,7 @@ import streamlit as st
 import urllib.parse
 
 def render_upi_payment(order, retailer, record_payment, on_success=None):
-    UPI_ID = "meenaagencies@upi"  # Change this to Dad's UPI
+    UPI_ID = "prswaminathan1@okicici"  # Change this to Dad's UPI
     PAYEE_NAME = "Meena Agencies"
     total = float(order.get("total", 0))
     items = order.get("items", [])

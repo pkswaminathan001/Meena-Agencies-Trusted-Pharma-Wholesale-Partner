@@ -358,7 +358,7 @@ def page_cart():
         
         import urllib.parse
         _total = float(total)
-        _upi_id = "meenaagencies@upi" # Change this to Dad's UPI ID
+        _upi_id = "prswaminathan1@okicici" # Change this to Dad's UPI ID
         _params = {"pa": _upi_id, "pn": "Meena Agencies", "am": f"{_total:.2f}", "cu": "INR", "tn": "Order Meena"}
         _upi_url = f"upi://pay?{urllib.parse.urlencode(_params)}"
         _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={urllib.parse.quote(_upi_url, safe='')}"
