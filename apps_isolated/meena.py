@@ -1,33 +1,10 @@
-st.markdown("""<style>
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-radius: 16px !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
-    background: #ffffff !important;
-    padding: 10px !important;
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
-}
-</style>""", unsafe_allow_html=True)
 import sys
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
+
 import os
 import streamlit as st
-from meena_modules.owner_verification import render_owner_verification
-try:
-    for k, v in st.secrets.items():
-        os.environ[k] = str(v)
-except Exception:
-    pass
-
-import streamlit as st
-from bulk_import import render_bulk_import
-from rep_tracker import render_rep_checkin, render_owner_map
 import pandas as pd
 import json
 import sqlite3
@@ -39,12 +16,25 @@ import datetime
 import random
 from streamlit_js_eval import get_geolocation
 
+# Safely load secrets into environment
+try:
+    for k, v in st.secrets.items():
+        os.environ[k] = str(v)
+except Exception:
+    pass
 
-from pathlib import Path
+# Safely import custom modules
+try:
+    from meena_modules.owner_verification import render_owner_verification
+    from meena_modules.apple_tesla_ui import render_apple_tesla_view
+    from meena_modules.gps_tracker import render_owner_rep_map
+    from meena_modules.qc_rating import render_qc_dashboard
+    from meena_modules.upi_payment import render_upi_payment
+    from meena_modules.pricing_ai import render_pricing_sandbox
+except ImportError:
+    pass
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Securely read token from Streamlit Cloud Secrets
+# Read Telegram token
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 except Exception:
@@ -52,7 +42,7 @@ except Exception:
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# CSS
+# ─── 2026 MODERN UI CSS ───
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -60,8 +50,38 @@ st.markdown("""
     .block-container {padding-top: 1rem; padding-bottom: 0rem;}
     .stButton>button { width: 100%; background-color: #1D8348; color: white; border-radius: 8px; font-weight: bold; }
     .stButton>button:hover { background-color: #145c32; color: white; }
+    
+    /* Glassmorphic 3D Cards */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 16px !important;
+        border: 1px solid rgba(226, 232, 240, 0.8) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
+        background: #ffffff !important;
+        padding: 10px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ─── 3D ICONS ───
+def get_icon(name):
+    name = str(name).lower()
+    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
+        return "https://img.icons8.com/3d-fluent/100/000000/pill.png"
+    elif any(k for k in ["syrup", "liquid", "suspension", "cough", "ors"] if k in name):
+        return "https://img.icons8.com/3d-fluent/100/000000/syrup.png"
+    elif any(k in name for k in ["injection", "insulin"]):
+        return "https://img.icons8.com/3d-fluent/100/000000/syringe.png"
+    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
+        return "https://img.icons8.com/3d-fluent/100/000000/ointment.png"
+    elif any(k in name for k in ["vitamin", "zinc", "c", "multivitamin"]):
+        return "https://img.icons8.com/3d-fluent/100/000000/vitamins.png"
+    else:
+        return "https://img.icons8.com/3d-fluent/100/000000/medical-packaging.png"
 
 # ─── DATA LOADERS ───
 @st.cache_data(ttl=60)
@@ -82,23 +102,15 @@ def load_retailers():
             return json.load(f)
     return []
 
-# ─── TELEGRAM OTP FUNCTION WITH DIAGNOSTICS ───
+# ─── TELEGRAM OTP ───
 def send_telegram_otp(chat_id, otp):
-    st.write("### 🔍 OTP Diagnostic Check")
-    
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "YOUR_TOKEN_HERE":
-        st.error("❌ **FAILED:** Token missing in Streamlit Secrets.")
+        st.error("❌ Token missing in Streamlit Secrets.")
         return False
-    else:
-        st.success("✅ Token loaded.")
-
     if not chat_id:
-        st.error("❌ **FAILED:** Chat ID is empty.")
+        st.error("❌ Chat ID is empty.")
         return False
-    else:
-        st.success(f"✅ Sending to Chat ID: `{chat_id}`")
 
-    st.info("Attempting to send OTP via Telegram API...")
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}
     
@@ -106,29 +118,13 @@ def send_telegram_otp(chat_id, otp):
         res = requests.post(url, json=payload)
         if res.status_code != 200:
             error_desc = res.json().get('description', 'Unknown error')
-            st.error(f"❌ **Telegram API Error:** {error_desc}")
-            if "chat not found" in error_desc:
-                st.warning("💡 **Fix:** Open `@MeenaAgenciesBot` in Telegram and click 'START' first!")
+            st.error(f"❌ Telegram API Error: {error_desc}")
             return False
         st.success("✅ OTP sent successfully to Telegram!")
         return True
     except Exception as e:
-        st.error(f"❌ **Network Error:** {e}")
+        st.error(f"❌ Network Error: {e}")
         return False
-
-# ─── PAGES ───
-
-import datetime
-
-
-try:
-    from meena_modules.apple_tesla_ui import render_apple_tesla_view
-    from meena_modules.gps_tracker import render_owner_rep_map
-    from meena_modules.qc_rating import render_qc_dashboard
-    from meena_modules.upi_payment import render_upi_payment
-except ImportError:
-    pass
-
 
 def save_order_history(user_id, cart, total):
     orders_file = BASE_DIR / "orders.json"
@@ -153,6 +149,7 @@ def save_order_history(user_id, cart, total):
         json.dump(orders, f, indent=2)
     return new_order
 
+# ─── PAGES ───
 def page_history(u):
     st.title("📜 Order History")
     orders_file = BASE_DIR / "orders.json"
@@ -170,26 +167,28 @@ def page_history(u):
         return
         
     for order in reversed(user_orders):
-        with st.expander(f"Order {order['order_id']} - {order['date']} (₹{order['total']})"):
+        with st.container(border=True):
+            st.markdown(f"### Order {order['order_id']}")
+            st.caption(f"Date: {order['date']} | Total: ₹{order['total']}")
             st.write(f"**Status:** {order['status']}")
+            st.divider()
+            
             for item in order['items']:
-                st.write(f"- {item['name']} x {item['qty']} = ₹{item['price'] * item['qty']}")
+                c1, c2 = st.columns([1, 5])
+                with c1:
+                    st.image(get_icon(item['name']), width=45)
+                with c2:
+                    st.markdown(f"**{item['name']}**")
+                    st.caption(f"Qty: {item['qty']} | Price: ₹{item['price']}")
 
 def login_screen():
     _, mid, _ = st.columns([1, 1.5, 1])
     with mid:
         st.title("🦚 Meena Agencies")
         st.caption("Trusted Pharma Wholesale Partner")
-        
-        # Check if Owner is using the secret admin URL
-        is_admin_url = st.query_params.get("admin") == "true"
-        
+        st.info("Please enter your ID and PIN.")
+            
         with st.form("login"):
-            if is_admin_url:
-                st.info("🔐 Admin Portal Login")
-            else:
-                st.info("Retailer Login: Please enter your Retailer ID and PIN.")
-                
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             
@@ -198,7 +197,6 @@ def login_screen():
                 user = next((u for u in users if u["id"] == rid), None)
                 
                 if user:
-                                            
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
                         st.session_state.user = user
@@ -211,20 +209,14 @@ def page_home(u):
     st.caption("Here is your business overview for today.")
     st.divider()
 
-    # ─── 1. KEY METRICS (KPIs) ───
     c1, c2, c3 = st.columns(3)
-    
-    # Mock data (You can replace this with real DB queries later)
     outstanding = u.get("outstanding", 145000.0)
     c1.metric("Outstanding Credit", f"₹{outstanding:,.0f}", delta="-5% (Good)", delta_color="normal")
-    
     c2.metric("Total Orders", "42", "+3 this week")
-    
     c3.metric("Pending Deliveries", "2", delta="Active", delta_color="inverse")
 
     st.divider()
 
-    # ─── 2. QUICK ACTIONS ───
     st.markdown("### ⚡ Quick Actions")
     a1, a2 = st.columns(2)
     with a1:
@@ -238,58 +230,11 @@ def page_home(u):
 
     st.divider()
 
-    # ─── 3. RECENT ORDERS ───
-    st.markdown("### 🧾 Recent Orders")
-    
-    # Load recent orders from JSON
-    orders_file = BASE_DIR / "orders.json"
-    recent_orders = []
-    if orders_file.exists():
-        try:
-            with open(orders_file, "r") as f:
-                all_orders = json.load(f)
-                recent_orders = [o for o in all_orders if o.get("user_id") == u.get("id")][-3:] # Get last 3
-        except:
-            pass
-            
-    if not recent_orders:
-        st.info("No recent orders found. Click 'Place New Order' to get started.")
-    else:
-        for order in reversed(recent_orders):
-            with st.expander(f"Order {order['order_id']} - {order['date']} (₹{order['total']:,.2f})"):
-                st.write(f"**Status:** {order['status']}")
-                for item in order['items']:
-                    st.write(f"- {item['name']} x {item['qty']}")
-                if st.button(f"🔁 Reorder {order['order_id']}", key=f"reorder_{order['order_id']}"):
-                    st.session_state.cart = order['items']
-                    st.session_state.page = "cart"
-                    st.rerun()
-
-
-    
-    # ─── APPLE / TESLA UI ───
+    # Apple / Tesla UI
     try:
-        my_orders = [o for o in load_orders() if o.get("retailer_id") == u.get("id")]
-        render_apple_tesla_view(u, my_orders, lambda x, y: f"₹{x:,.2f}")
+        render_apple_tesla_view(u, [], lambda x, y: f"₹{x:,.2f}")
     except Exception:
         pass
-    # ────────────────────────
-
-
-def get_icon(name):
-    name = str(name).lower()
-    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/pill.png"
-    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/syrup.png"
-    elif any(k in name for k in ["injection", "insulin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/syringe.png"
-    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/ointment.png"
-    elif any(k in name for k in ["vitamin", "zinc", "c", "multivitamin"]):
-        return "https://img.icons8.com/3d-fluent/100/000000/vitamins.png"
-    else:
-        return "https://img.icons8.com/3d-fluent/100/000000/medical-packaging.png"
 
 def page_order():
     cart_count = len(st.session_state.get("cart", []))
@@ -315,13 +260,25 @@ def page_order():
     view = df[df["name"].str.lower().str.contains(search)] if search else df
 
     for _, row in view.head(20).iterrows():
-        c1, c2, c3 = st.columns([4, 2, 2])
-        c1.write(f"**{row['name']}**")
-        c2.write(f"₹{row['price']}")
-        if c3.button("Add", key=f"add_{row['name']}"):
-            st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
-            st.toast(f"Added {row['name']}")
-            st.rerun()
+        name = str(row.get("name", "Unknown"))
+        price = float(row.get("price", 0))
+        stock = int(row.get("stock", 0))
+        
+        with st.container(border=True):
+            c1, c2, c3 = st.columns([1.5, 4, 2])
+            with c1:
+                st.image(get_icon(name), width=80)
+            with c2:
+                st.markdown(f"### {name}")
+                st.markdown(f"<h3 style='color:#B12704; margin:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
+                st.markdown("<p style='color:#007600; font-size:14px; font-weight:bold;'>In Stock</p>", unsafe_allow_html=True)
+            with c3:
+                st.write("")
+                st.write("")
+                if st.button("🛒 Add to Cart", key=f"add_{name}", use_container_width=True, type="primary"):
+                    st.session_state.cart.append({"name": name, "price": price, "qty": 1})
+                    st.toast(f"✅ Added {name} to cart!")
+                    st.rerun()
 
 def page_cart():
     st.title("🛍️ My Cart")
@@ -336,7 +293,6 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    # Initialize state safely
     if "show_otp_input" not in st.session_state:
         st.session_state.show_otp_input = False
     if "order_otp" not in st.session_state:
@@ -346,29 +302,22 @@ def page_cart():
         if st.button("💳 Checkout Securely", type="primary", use_container_width=True):
             otp = str(random.randint(100000, 999999))
             st.session_state.order_otp = otp
-            
             chat_id = st.session_state.user.get("telegram_chat_id", "8205802064")
-            
             if send_telegram_otp(chat_id, otp):
                 st.session_state.show_otp_input = True
                 st.rerun()
 
     if st.session_state.show_otp_input:
         st.info("Please enter the 6-digit OTP sent to your Telegram.")
-        
-        
         input_otp = st.text_input("Enter OTP", max_chars=6)
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Verify & Place Order", type="primary", use_container_width=True):
-                # Strip whitespaces
                 clean_input = input_otp.strip() if input_otp else ""
                 expected_otp = str(st.session_state.order_otp).strip() if st.session_state.order_otp else ""
                 
-                # Secure Check: Strict 6 digits
                 if clean_input == expected_otp and len(clean_input) == 6 and clean_input.isdigit():
-                    # Save the order to history
                     saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
                     st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
                     st.session_state.cart = []
@@ -380,59 +329,41 @@ def page_cart():
                     st.session_state.page = "home"
                     st.rerun()
                 else:
-                    st.error(f"❌ Invalid OTP. You typed: '{clean_input}'")
+                    st.error(f"❌ Invalid OTP.")
         with col2:
             if st.button("Cancel", use_container_width=True):
                 st.session_state.show_otp_input = False
                 st.session_state.order_otp = None
                 st.rerun()
 
-
-
-    
-    # ─── UPI PAYMENT QR ───
     st.divider()
     st.subheader("💳 Secure Payment")
     try:
-        cart_items = st.session_state.get("cart", [])
-        total_amount = sum(item.get("price", 0) * item.get("qty", 1) for item in cart_items)
-        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, u)
-    except Exception:
-        pass
-    # ─────────────────────
+        render_upi_payment({"order_id": "NEW-ORDER", "total": total}, st.session_state.get("user", {}))
+    except Exception as e:
+        st.error(f"UPI Error: {e}")
 
 def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
 
-
-
 def load_locations():
-    """Reads the saved GPS locations. Uses pathlib for stability."""
-    import json
-    from pathlib import Path
-    
-    loc_file = Path("sales_rep_locations.json")
+    loc_file = BASE_DIR / "sales_rep_locations.json"
     if loc_file.exists():
         try:
             return json.loads(loc_file.read_text())
         except Exception:
             pass
-            
     return {}
 
 def save_location(rep_id, rep_name, lat, lon):
-    import json
-    from pathlib import Path
-    from datetime import datetime
-    
-    loc_file = Path("sales_rep_locations.json")
+    loc_file = BASE_DIR / "sales_rep_locations.json"
     data = load_locations()
     data[rep_id] = {
         "name": rep_name,
         "lat": lat,
         "lon": lon,
-        "timestamp": datetime.now().strftime("%I:%M:%S %p")
+        "timestamp": datetime.datetime.now().strftime("%I:%M:%S %p")
     }
     loc_file.write_text(json.dumps(data, indent=2))
 
@@ -442,7 +373,6 @@ def page_rep_checkin(u):
     
     if st.button("📍 Get My Current Location", type="primary", use_container_width=True):
         with st.spinner("Getting GPS from phone... Please ALLOW Location permission."):
-            # Trigger the browser's GPS API
             loc = get_geolocation()
             
             if loc and "coords" in loc:
@@ -450,26 +380,18 @@ def page_rep_checkin(u):
                 lon = loc["coords"]["longitude"]
                 rep_name = u.get("shop", "Sales Rep")
                 save_location(u.get("id", "REP"), rep_name, lat, lon)
-                
-                st.success(f"✅ Location shared successfully! (Lat: {lat:.4f}, Lon: {lon:.4f})")
+                st.success(f"✅ Location shared! (Lat: {lat:.4f}, Lon: {lon:.4f})")
                 st.balloons()
             else:
-                st.error("❌ Could not get location. Please ensure Location is ON and permissions are allowed in your browser.")
+                st.error("❌ Could not get location. Please ensure Location is ON.")
 
 def page_owner_map():
-    import streamlit as st
-    import folium
-    from streamlit_folium import st_folium
-    from datetime import datetime
-    
     st.title("🗺️ Live Sales Rep Tracking")
     st.caption("Auto-refreshes every 10 seconds.")
     
     @st.fragment(run_every=10)
     def draw_live_map():
         locations = load_locations()
-        
-        # Calculate center
         lats = [info["lat"] for info in locations.values()]
         lons = [info["lon"] for info in locations.values()]
         center_lat = sum(lats) / len(lats) if lats else 10.7870
@@ -485,55 +407,45 @@ def page_owner_map():
                 icon=folium.Icon(color="green", icon="user", prefix="fa")
             ).add_to(m)
             
-            # Glowing radius
             folium.Circle(
                 [info["lat"], info["lon"]], radius=2000,
                 color="#1D8348", fill=True, fill_color="#1D8348", fill_opacity=0.2
             ).add_to(m)
 
         st_folium(m, use_container_width=True, height=500)
-        st.caption(f"🟢 Live Map Updated: {datetime.now().strftime('%I:%M:%S %p')}")
+        st.caption(f"🟢 Live Map Updated: {datetime.datetime.now().strftime('%I:%M:%S %p')}")
 
     draw_live_map()
-
     
-    # ─── OWNER QC & GPS ───
     st.divider()
     st.subheader("👑 Owner AI & Tracking Tools")
+    
     try:
-        # Safe fallbacks for AI Tools
         if 'load_activity' not in globals():
             def load_activity(): return []
         if 'load_orders' not in globals():
             def load_orders(): return []
-        
         render_qc_dashboard(load_activity, load_orders)
     except Exception as e:
         st.warning(f"⚠️ AI Tools warning: {e}")
         
     st.divider()
-    
-    # --- PAYMENT VERIFICATION CENTER ---
     try:
         render_owner_verification()
     except Exception as e:
         st.error(f"Payment Center Error: {e}")
-            
-        st.divider()
-        # --- PAYMENT VERIFICATION CENTER ---
-        try:
-            render_owner_verification()
-        except Exception as e:
-            st.error(f"Payment Center Error: {e}")
-verification()
 
-        st.divider()
+    st.divider()
+    try:
         render_pricing_sandbox()
+    except Exception as e:
+        st.warning(f"Pricing Sandbox Error: {e}")
 
+    st.divider()
+    try:
         render_owner_rep_map()
     except Exception as e:
-        st.error(f"Owner tools error: {e}")
-    # ──────────────────────
+        st.warning(f"Map Error: {e}")
 
 def render_sidebar():
     with st.sidebar:
@@ -546,10 +458,17 @@ def render_sidebar():
             ("home", "🏠 Dashboard"),
             ("order", "🛒 Place Order"),
             ("cart", "🛍️ My Cart"),
-            ("checkin", "📍 Rep Check-In"),
-            ("owner_map", "🗺️ Live Tracking"),
+            ("history", "📜 Order History"),
             ("profile", "👤 Profile")
         ]
+        
+        if role == "OWNER":
+            menu.extend([
+                ("rep_checkin", "📍 Rep Check-In"),
+                ("owner_map", "🗺️ Live Tracking")
+            ])
+        elif role in ["SALES_REP", "STAFF", "WORKER"]:
+            menu.append(("rep_checkin", "📍 Rep Check-In"))
         
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
@@ -561,19 +480,10 @@ def render_sidebar():
             st.session_state.clear()
             st.rerun()
 
-
-def location_gatekeeper(user):
-    """Acts as a pass-through. The actual GPS check-in is handled on the Rep Check-In page."""
-    return True
-
 def main():
     if "user" not in st.session_state:
         login_screen()
         return
-
-    # 🚨 CHECK LOCATION BEFORE DOING ANYTHING ELSE
-    if not location_gatekeeper(st.session_state.user):
-        return # Halt execution
 
     st.session_state.setdefault("page", "home")
     render_sidebar()
@@ -587,8 +497,6 @@ def main():
     elif page == "cart": page_cart()
     elif page == "history": page_history(u)
     elif page == "profile": page_profile(u)
-    elif page == "bulk_import": render_bulk_import()
-    elif page == "rep_checkin": render_rep_checkin(u)
-    elif page == "owner_map": render_owner_map()
+    elif page == "rep_checkin": page_rep_checkin(u)
 
 main()
