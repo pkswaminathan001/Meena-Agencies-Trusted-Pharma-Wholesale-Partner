@@ -471,19 +471,23 @@ def page_owner_map():
     st.divider()
     st.subheader("👑 Owner AI & Tracking Tools")
     try:
+        # Safe fallbacks for AI Tools
+        if 'load_activity' not in globals():
+            def load_activity(): return []
+        if 'load_orders' not in globals():
+            def load_orders(): return []
         
-
-# --- SAFE FALLBACKS FOR OWNER TOOLS ---
-if 'load_activity' not in globals():
-    def load_activity(): return []
-if 'load_orders' not in globals():
-    def load_orders(): return []
-# --------------------------------------
-
-        try:
-            render_qc_dashboard(load_activity, load_orders)
-        except Exception as e:
-            st.warning(f"⚠️ AI Tools warning: {e}")
+        render_qc_dashboard(load_activity, load_orders)
+    except Exception as e:
+        st.warning(f"⚠️ AI Tools warning: {e}")
+        
+    st.divider()
+    
+    # --- PAYMENT VERIFICATION CENTER ---
+    try:
+        render_owner_verification()
+    except Exception as e:
+        st.error(f"Payment Center Error: {e}")
             
         st.divider()
         # --- PAYMENT VERIFICATION CENTER ---
