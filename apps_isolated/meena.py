@@ -43,24 +43,11 @@ st.markdown("""
     .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
     
     /* ─── LOCK DOWN STREAMLIT UI ─── */
-    /* Hide Hamburger Menu & Footer */
     #MainMenu { visibility: hidden !important; display: none !important; }
     footer { visibility: hidden !important; display: none !important; }
-    
-    /* Hide Top Header background */
     header { background: transparent !important; visibility: hidden !important; }
-    
-    /* Hide the top toolbar (Share, Star, Edit, GitHub) */
-    [data-testid="stToolbar"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0px !important;
-    }
-    
-    /* Hide the Deploy Button */
-    .stDeployButton, .stAppDeployButton {
-        display: none !important;
-    }
+    [data-testid="stToolbar"] { display: none !important; visibility: hidden !important; height: 0px !important; }
+    .stDeployButton, .stAppDeployButton { display: none !important; }
 
     /* 2-Column Mobile Grid */
     @media (max-width: 768px) {
@@ -73,14 +60,11 @@ st.markdown("""
         background: #ffffff !important; padding: 12px !important;
         border-radius: 8px !important; border: none !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-        height: 100% !important; 
-        display: flex !important;
-        flex-direction: column !important;
+        height: 100% !important; display: flex !important; flex-direction: column !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] > div { 
         gap: 0.1rem !important; height: 100% !important; display: flex !important; flex-direction: column !important;
     }
-    /* Pushes the last element (the button) to the absolute bottom */
     div[data-testid="stVerticalBlockBorderWrapper"] > div > div:last-child {
         margin-top: auto !important; padding-top: 10px !important;
     }
@@ -109,8 +93,7 @@ st.markdown("""
     .amz-order-header { background: #f0f2f2; border-radius: 8px 8px 0 0; padding: 12px; display: flex; justify-content: space-between; color: #565959; font-size: 12px; border-bottom: 1px solid #d5d9d9; margin: -12px -12px 12px -12px; }
     .amz-order-header b { color: #0F1111; font-weight: 500; display: block; font-size: 13px;}
 </style>
-""", unsafe_allow_html=True )
-
+""", unsafe_allow_html=True)
 
 def get_icon(name):
     import urllib.parse
@@ -144,56 +127,26 @@ def save_order_history(user_id, cart, total):
     db_path = BASE_DIR / "meena_enterprise.db"
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    
     order_id = f"ORD-{random.randint(1000, 9999)}"
     date_str = str(datetime.date.today())
-    items_json = json.dumps(cart) # Store cart list as a JSON string
+    items_json = json.dumps(cart)
     status = "Paid"
-    
-    # Insert into SQLite
-    c.execute("""
-        INSERT INTO orders (order_id, user_id, date, total, items, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (order_id, user_id, date_str, total, items_json, status))
-    
+    c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", 
+              (order_id, user_id, date_str, total, items_json, status))
     conn.commit()
     conn.close()
-    
     return {"order_id": order_id}
 
 # ─── LOGIN ───
-# ─── LOGIN ───
 def login_screen():
-    # 1. Inject CSS to force centering
     st.markdown("""
     <style>
-        /* Force the main container to center its content perfectly */
-        .block-container {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding-top: 5vh !important;
-            max-width: 100% !important;
-        }
-        
-        /* Constrain the form width */
-        div[data-testid="stForm"] {
-            width: 100% !important;
-            max-width: 350px !important;
-            margin: 0 auto !important;
-        }
-        
-        /* Constrain the white bordered box */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            width: 100% !important;
-            max-width: 400px !important;
-            margin: 0 auto !important;
-        }
+        .block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; }
+        div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; }
+        div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }
     </style>
     """, unsafe_allow_html=True)
 
-    # 2. Branding (Centered)
     st.markdown("""
     <div style="text-align: center; margin-bottom: 20px;">
         <h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1>
@@ -202,7 +155,6 @@ def login_screen():
     </div>
     """, unsafe_allow_html=True)
 
-    # 3. The Form
     with st.container(border=True):
         with st.form("login"):
             st.markdown("### Sign in")
@@ -220,36 +172,29 @@ def login_screen():
                     st.session_state.page = "home"
                     st.rerun()
             st.error("❌ Invalid ID or PIN.")
-# ─── 1. AMAZON HOMEPAGE & DIGITAL MARKETING BANNER ───
+
+# ─── 1. HOMEPAGE ───
 def page_home(u):
-    st.markdown(f'''
-        <div class="amz-header">
-            <div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div>
-            <div style="font-size: 13px;">Hello, {u.get('shop', 'Partner')}</div>
-        </div>
-    ''', unsafe_allow_html=True)
-    
-    # Digital Marketing Promo Banner
+    st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
 
-    # Quick Action Cards
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="amz-card"><h3 style="margin-top:0;">Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
         st.button("View Orders", key="btn_hist", on_click=go_to, args=("history",), use_container_width=True)
     with c2:
-        st.markdown('<div class="amz-card"><h3 style="margin-top:0;">Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
         st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
-
+    
     c3, c4 = st.columns(2)
     with c3:
-        st.markdown('<div class="amz-card"><h3 style="margin-top:0;">Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
         st.button("Go to Profile", key="btn_prof", on_click=go_to, args=("profile",), use_container_width=True)
     with c4:
-        st.markdown('<div class="amz-card"><h3 style="margin-top:0;">Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
         st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
 
-# ─── 2. PRODUCT GRID (AMAZON MOBILE STYLE) ───
+# ─── 2. PRODUCT GRID ───
 @st.fragment
 def product_grid(view):
     cols_per_row = 4 
@@ -298,7 +243,7 @@ def page_order():
     if view.empty: st.warning("No results found."); return
     product_grid(view)
 
-# ─── 3. CART & DIGITAL MARKETING COUPONS ───
+# ─── 3. CART ───
 def page_cart():
     st.title("🛍️ Shopping Cart")
     if not st.session_state.cart:
@@ -316,8 +261,7 @@ def page_cart():
     total = sum(item["price"] * item["qty"] for item in st.session_state.cart)
     
     st.write("")
-    with st.container(border=True, height=420):
-        # Marketing Coupon Logic
+    with st.container(border=True):
         coupon = st.text_input("🎟️ Enter Promo Code", placeholder="Try MEENA10")
         discount = 0
         if coupon.strip().upper() == "MEENA10":
@@ -354,36 +298,22 @@ def page_cart():
                 st.session_state.cart = []; st.session_state.show_otp_input = False
                 st.balloons(); time.sleep(2); go_to("home"); st.rerun()
 
-# ─── 4. AMAZON ORDER HISTORY (SQLite Version) ───
+# ─── 4. ORDER HISTORY ───
 def page_history(u):
     st.title("Your Orders")
     db_path = BASE_DIR / "meena_enterprise.db"
-    
-    if not db_path.exists():
-        st.info("You have not placed any orders yet."); return
+    if not db_path.exists(): st.info("You have not placed any orders yet."); return
         
     conn = sqlite3.connect(db_path)
-    # Fetch orders for this specific user
     df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
     conn.close()
     
-    if df_orders.empty:
-        st.info("You have not placed any orders yet.")
-        return
+    if df_orders.empty: st.info("You have not placed any orders yet."); return
     
     for index, order in df_orders.iterrows():
         with st.container(border=True):
-            st.markdown(f'''
-                <div class="amz-order-header">
-                    <div>ORDER PLACED<br><b>{order['date']}</b></div>
-                    <div>TOTAL<br><b>₹{order['total']:,.2f}</b></div>
-                    <div>ORDER #<br><b>{order['order_id']}</b></div>
-                </div>
-            ''', unsafe_allow_html=True)
-            
-            # Parse the JSON string back into a Python list
+            st.markdown(f'''<div class="amz-order-header"><div>ORDER PLACED<br><b>{order['date']}</b></div><div>TOTAL<br><b>₹{order['total']:,.2f}</b></div><div>ORDER #<br><b>{order['order_id']}</b></div></div>''', unsafe_allow_html=True)
             items = json.loads(order['items'])
-            
             for item in items:
                 c1, c2, c3 = st.columns([2, 5, 2])
                 with c1: st.image(get_icon(item['name']), use_container_width=True)
@@ -394,24 +324,23 @@ def page_history(u):
                 with c3:
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
-                        st.toast(f"Added {item['name']} to cart"); st.rerun()un()
+                        st.toast(f"Added {item['name']} to cart"); st.rerun()
 
-# ─── 5. AMAZON PROFILE ───
+# ─── 5. PROFILE ───
 def page_profile(u):
     st.title("Your Account")
     st.markdown(f"**Hello, {u.get('name', 'Partner')}**")
     st.caption(f"Retailer ID: {u.get('id')} | Shop: {u.get('shop')}")
     st.divider()
-    
     c1, c2 = st.columns(2)
     with c1:
-        with st.container(border=True, height=420):
+        with st.container(border=True):
             st.markdown("<h3>Login & Security</h3>", unsafe_allow_html=True)
             st.write(f"**Email:** {u.get('email', 'N/A')}")
             st.write(f"**Role:** {u.get('role', 'Retailer').capitalize()}")
             st.button("Edit Password", disabled=True, help="Contact admin to change PIN")
     with c2:
-        with st.container(border=True, height=420):
+        with st.container(border=True):
             st.markdown("<h3>Order History</h3>", unsafe_allow_html=True)
             st.write("Track, return, or buy things again.")
             st.button("View Your Orders", type="primary", on_click=go_to, args=("history",), use_container_width=True)
@@ -423,13 +352,10 @@ def render_sidebar():
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
-        
         menu = [("home", "🏠 Home"), ("order", "🛒 Place Order"), ("cart", "🛍️ Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
-            
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.page == key else "secondary", on_click=go_to, args=(key,)):
                 pass
-                
         st.divider()
         if st.button("🚪 Sign Out", use_container_width=True):
             st.session_state.clear(); st.rerun()
@@ -437,15 +363,12 @@ def render_sidebar():
 def main():
     if "user" not in st.session_state:
         login_screen(); return
-    
     render_sidebar()
     u = st.session_state.user
-    
     if st.session_state.page == "home": page_home(u)
     elif st.session_state.page == "order": page_order()
     elif st.session_state.page == "cart": page_cart()
     elif st.session_state.page == "history": page_history(u)
     elif st.session_state.page == "profile": page_profile(u)
 
-# RUN APP (MUST BE THE VERY LAST LINE)
 main()
