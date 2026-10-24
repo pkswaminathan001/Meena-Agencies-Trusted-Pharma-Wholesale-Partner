@@ -82,6 +82,54 @@ def send_telegram_otp(chat_id, otp):
         return False
 
 # ─── PAGES ───
+
+import datetime
+
+def save_order_history(user_id, cart, total):
+    orders_file = BASE_DIR / "orders.json"
+    orders = []
+    if orders_file.exists():
+        try:
+            with open(orders_file, "r") as f:
+                orders = json.load(f)
+        except:
+            pass
+            
+    new_order = {
+        "order_id": f"ORD-{random.randint(1000, 9999)}",
+        "user_id": user_id,
+        "date": str(datetime.date.today()),
+        "items": cart,
+        "total": total,
+        "status": "Paid"
+    }
+    orders.append(new_order)
+    with open(orders_file, "w") as f:
+        json.dump(orders, f, indent=2)
+    return new_order
+
+def page_history(u):
+    st.title("📜 Order History")
+    orders_file = BASE_DIR / "orders.json"
+    if not orders_file.exists():
+        st.info("No orders placed yet.")
+        return
+        
+    with open(orders_file, "r") as f:
+        orders = json.load(f)
+        
+    user_orders = [o for o in orders if o.get("user_id") == u.get("id")]
+    
+    if not user_orders:
+        st.info("You haven't placed any orders yet.")
+        return
+        
+    for order in reversed(user_orders):
+        with st.expander(f"Order {order['order_id']} - {order['date']} (₹{order['total']})"):
+            st.write(f"**Status:** {order['status']}")
+            for item in order['items']:
+                st.write(f"- {item['name']} x {item['qty']} = ₹{item['price'] * item['qty']}")
+
 def login_screen():
     _, mid, _ = st.columns([1, 1.5, 1])
     with mid:
@@ -205,7 +253,9 @@ def page_cart():
                 
                 # Secure Check: Strict 6 digits
                 if clean_input == expected_otp and len(clean_input) == 6 and clean_input.isdigit():
-                    st.success("🎉 Order Placed Successfully!")
+                    # Save the order to history
+                    saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
+                    st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
                     st.session_state.cart = []
                     st.session_state.show_otp_input = False
                     st.session_state.order_otp = None
@@ -235,7 +285,7 @@ def render_sidebar():
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         
-        menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("profile", "👤 Profile")]
+        menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
         
         for key, label in menu:
             if st.button(label, use_container_width=True):
@@ -261,6 +311,7 @@ def main():
     if page == "home": page_home(u)
     elif page == "order": page_order()
     elif page == "cart": page_cart()
+    elif page == "history": page_history(u)
     elif page == "profile": page_profile(u)
 
 main()
