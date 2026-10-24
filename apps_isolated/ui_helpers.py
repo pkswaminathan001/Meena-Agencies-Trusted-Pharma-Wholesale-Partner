@@ -170,13 +170,27 @@ def render_product_card(*, name: str, price_paise: int, key: str,
         st.markdown(_rupee_block(price_paise), unsafe_allow_html=True)
         st.markdown(f'<div class="amz-delivery">{delivery}</div>',
                     unsafe_allow_html=True)
-        if st.button("Add to Cart", key=f"add_{key}", use_container_width=True):
-            if on_add:
-                on_add(name, price_paise)
-            else:
-                st.session_state.setdefault("cart", []).append(
-                    {"name": name, "price": price_paise, "qty": 1})
-            st.toast(f"✅ Added {name} to cart")
+        cart = st.session_state.setdefault("cart", [])
+        item = next((x for x in cart if x["name"] == name), None)
+
+        if item:
+            c1, c2, c3 = st.columns([1, 1, 1])
+            if c1.button("➖", key=f"minus_{key}", use_container_width=True):
+                item["qty"] -= 1
+                if item["qty"] <= 0:
+                    cart.remove(item)
+                st.rerun()
+            c2.markdown(f"<h4 style='text-align:center; margin: 0;'>{item['qty']}</h4>", unsafe_allow_html=True)
+            if c3.button("➕", key=f"plus_{key}", use_container_width=True):
+                item["qty"] += 1
+                st.rerun()
+        else:
+            if st.button("Add to Cart", key=f"add_{key}", use_container_width=True):
+                if on_add:
+                    on_add(name, price_paise)
+                else:
+                    cart.append({"name": name, "price": price_paise / 100, "qty": 1})
+                st.rerun()
 
 def render_product_grid(items: Iterable[dict], *,
                         on_add: Optional[Callable[[str, int], None]] = None,

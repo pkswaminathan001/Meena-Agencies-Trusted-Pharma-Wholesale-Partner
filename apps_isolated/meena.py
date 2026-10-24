@@ -332,6 +332,23 @@ def page_order():
     if df.empty:
         st.error("Inventory DB not found.")
         return
+    df = df.dropna(subset=["name"])
+    df = df[df["name"].astype(str).str.lower() != "none"]
+
+    if cart:
+        total_cart = sum(i["price"] * i["qty"] for i in cart)
+        with st.expander(f"🛒 Live Cart — Total: ₹{total_cart:.2f}", expanded=True):
+            for i, it in enumerate(list(cart)):
+                c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
+                c1.write(f"**{it['name']}**")
+                if c2.button("➖", key=f"mini_m_{i}"):
+                    st.session_state.cart[i]["qty"] -= 1
+                    if st.session_state.cart[i]["qty"] <= 0: st.session_state.cart.pop(i)
+                    st.rerun()
+                c3.write(f"**{it['qty']}**")
+                if c4.button("➕", key=f"mini_p_{i}"):
+                    st.session_state.cart[i]["qty"] += 1
+                    st.rerun()
 
     search = st.text_input(
         "Search medicine", placeholder="e.g. Dolo",
