@@ -59,3 +59,4 @@ bot.py
 bot.py
 *.env
 bot.py
+.env
