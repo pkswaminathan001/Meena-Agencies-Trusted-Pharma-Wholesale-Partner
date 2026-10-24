@@ -6,8 +6,8 @@ try:
 except Exception:
     pass
 from datetime import datetime, timedelta
-from meena_modules.telegram_autologin import run_telegram_autologin
-run_telegram_autologin()
+# from meena_modules.telegram_autologin import run_telegram_autologin
+# run_telegram_autologin() # Temporarily disabled to fix slow loading
 
 import streamlit as st
 from meena_modules.forecast_ui import render_forecast_dashboard
