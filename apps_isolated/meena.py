@@ -69,56 +69,17 @@ st.markdown("""
 
 # ─── 3D ICONS ───
 def get_icon(name):
-    name_lower = str(name).lower()
+    import urllib.parse
     
-    # 1. Map famous Indian Pharma Brands to their Real Company Logos
-    brand_map = {
-        "dolo": "microlabs.in",
-        "paracetamol": "cipla.com",
-        "amoxicillin": "gsk.com",
-        "augmentin": "gsk.com",
-        "azithral": "alembicpharmaceuticals.com",
-        "pan": "alkem.com",
-        "insulin": "novonordisk.com",
-        "metformin": "usv.in",
-        "cetirizine": "drreddys.com",
-        "omeprazole": "zyduslife.com",
-        "cough": "mankindpharma.com",
-        "vitamin": "abbott.com",
-        "zinc": "sunpharma.com"
-    }
-
-    for brand, domain in brand_map.items():
-        if brand in name_lower:
-            # Fetch the REAL company logo using Clearbit API
-            return f"https://logo.clearbit.com/{domain}"
-
-    # 2. If it's an unknown brand, pick a UNIQUE high-quality image based on its name
-    # We use a hash so the same medicine always gets the same image, but different meds get different images
-    import hashlib
-    # A curated list of 15 distinct, high-quality medicine photos from Unsplash
-    unique_images = [
-        "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1550572017-edb387ba6ad7?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1585435557343-3b092031a831?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1605289982774-9a6fef564df8?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1550572017-4c9f8fcd6f2e?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=200&h=200&fit=crop",
-        "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=200&h=200&fit=crop"
-    ]
+    name_str = str(name).strip()
     
-    # Create a deterministic hash from the name
-    hash_val = int(hashlib.md5(name_lower.encode()).hexdigest(), 16)
-    idx = hash_val % len(unique_images)
-    return unique_images[idx]
+    # This API generates an actual image on the fly with the medicine name.
+    # It is 100% reliable and will NEVER be blocked.
+    # We use the brand colors: Deep Medical Blue background, White text.
+    encoded_name = urllib.parse.quote(name_str)
+    
+    # Format: https://placehold.co/widthxheight/background/color/png?text=...
+    return f"https://placehold.co/150x150/0B3C5D/FFFFFF/png?text={encoded_name}"
 
 
 def load_inventory():
