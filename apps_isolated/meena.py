@@ -1,5 +1,17 @@
-def render_pricing_sandbox(*args, **kwargs):
-    pass
+st.markdown("""<style>
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 16px !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
+    background: #ffffff !important;
+    padding: 10px !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+}
+</style>""", unsafe_allow_html=True)
 import sys
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,23 +49,6 @@ try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 except Exception:
     TELEGRAM_BOT_TOKEN = ""
-
-
-<style>
-/* 2026 Modern Card UI */
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-radius: 16px !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
-    background: #ffffff !important;
-    padding: 10px !important;
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
-}
-</style>
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
@@ -283,7 +278,6 @@ def page_home(u):
 
 def get_icon(name):
     name = str(name).lower()
-    # Using premium 3D Fluent icons
     if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
         return "https://img.icons8.com/3d-fluent/100/000000/pill.png"
     elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
@@ -297,61 +291,37 @@ def get_icon(name):
     else:
         return "https://img.icons8.com/3d-fluent/100/000000/medical-packaging.png"
 
-
 def page_order():
-    st.title("🛒 Place Order")
-    st.caption("Browse our catalog and add items to your cart.")
-    
-    try:
-        df = load_inventory()
-    except:
-        st.error("Inventory could not be loaded.")
-        return
+    cart_count = len(st.session_state.get("cart", []))
+    if cart_count > 0:
+        c1, c2 = st.columns([3, 1])
+        c1.title("🛒 Place Order")
+        with c2:
+            if st.button(f"🛍️ View Cart ({cart_count})", type="primary", use_container_width=True):
+                st.session_state.page = "cart"
+                st.rerun()
+    else:
+        st.title("🛒 Place Order")
 
+    df = load_inventory()
     if df.empty:
-        st.info("No products found.")
+        st.error("Inventory DB not found.")
         return
 
     if "cart" not in st.session_state:
         st.session_state.cart = []
 
-    q = st.text_input("🔍 Search medicines by name", placeholder="e.g., Dolo, Amoxicillin").strip().lower()
-    view = df[df["name"].astype(str).str.lower().str.contains(q, na=False)] if q else df
+    search = st.text_input("Search medicine", placeholder="e.g. Dolo").lower()
+    view = df[df["name"].str.lower().str.contains(search)] if search else df
 
-    # Display in a grid
     for _, row in view.head(20).iterrows():
-        name = str(row.get("name", "Unknown"))
-        price = float(row.get("price", 0))
-        stock = int(row.get("stock", 0))
-        
-        with st.container(border=True):
-            c1, c2, c3 = st.columns([1.5, 4, 2])
-            
-            # Amazon-style Product Image (Placeholder)
-            with c1:
-                st.image(get_icon(name), width=80)
-            
-            # Product Details
-            with c2:
-                st.markdown(f"### {name}")
-                st.markdown(f"<h3 style='color:#B12704; margin:0; padding:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
-                st.markdown("<p style='color:#565959; font-size:12px; margin-top:5px;'>FREE delivery on orders above ₹500</p>", unsafe_allow_html=True)
-                if stock > 0:
-                    st.markdown(f"<p style='color:#007600; font-size:14px; font-weight:bold;'>In Stock ({stock} units)</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<p style='color:#B12704; font-size:14px; font-weight:bold;'>Out of Stock</p>", unsafe_allow_html=True)
-            
-            # Add to Cart Button
-            with c3:
-                st.write("") # spacing
-                st.write("")
-                if stock > 0:
-                    if st.button("🛒 Add to Cart", key=f"add_{name}", use_container_width=True, type="primary"):
-                        st.session_state.cart.append({"name": name, "price": price, "qty": 1})
-                        st.toast(f"✅ Added {name} to cart!")
-                else:
-                    st.button("Out of Stock", disabled=True, use_container_width=True)
-
+        c1, c2, c3 = st.columns([4, 2, 2])
+        c1.write(f"**{row['name']}**")
+        c2.write(f"₹{row['price']}")
+        if c3.button("Add", key=f"add_{row['name']}"):
+            st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
+            st.toast(f"Added {row['name']}")
+            st.rerun()
 
 def page_cart():
     st.title("🛍️ My Cart")
@@ -366,16 +336,13 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    # Initialize states safely
+    # Initialize state safely
     if "show_otp_input" not in st.session_state:
         st.session_state.show_otp_input = False
     if "order_otp" not in st.session_state:
         st.session_state.order_otp = None
-    if "show_upi_qr" not in st.session_state:
-        st.session_state.show_upi_qr = False
 
-    # STEP 1: Checkout Button
-    if not st.session_state.show_otp_input and not st.session_state.show_upi_qr:
+    if not st.session_state.show_otp_input:
         if st.button("💳 Checkout Securely", type="primary", use_container_width=True):
             otp = str(random.randint(100000, 999999))
             st.session_state.order_otp = otp
@@ -386,21 +353,31 @@ def page_cart():
                 st.session_state.show_otp_input = True
                 st.rerun()
 
-    # STEP 2: OTP Verification
     if st.session_state.show_otp_input:
         st.info("Please enter the 6-digit OTP sent to your Telegram.")
+        
+        
         input_otp = st.text_input("Enter OTP", max_chars=6)
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Verify & Proceed to Pay", type="primary", use_container_width=True):
+            if st.button("Verify & Place Order", type="primary", use_container_width=True):
+                # Strip whitespaces
                 clean_input = input_otp.strip() if input_otp else ""
                 expected_otp = str(st.session_state.order_otp).strip() if st.session_state.order_otp else ""
                 
+                # Secure Check: Strict 6 digits
                 if clean_input == expected_otp and len(clean_input) == 6 and clean_input.isdigit():
-                    # OTP is correct! Move to UPI Payment step.
+                    # Save the order to history
+                    saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
+                    st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
+                    st.session_state.cart = []
                     st.session_state.show_otp_input = False
-                    st.session_state.show_upi_qr = True
+                    st.session_state.order_otp = None
+                    st.balloons()
+                    import time
+                    time.sleep(2)
+                    st.session_state.page = "home"
                     st.rerun()
                 else:
                     st.error(f"❌ Invalid OTP. You typed: '{clean_input}'")
@@ -410,138 +387,24 @@ def page_cart():
                 st.session_state.order_otp = None
                 st.rerun()
 
-    # STEP 3: UPI Payment QR Code
-    if st.session_state.show_upi_qr:
-        st.markdown("### 💳 UPI Payment Required")
-        st.info("OTP Verified successfully! Please complete the payment to confirm your order.")
-        
-        import urllib.parse
-        _total = float(total)
-        _upi_id = "prswaminathan1@okicici" # Change this to Dad's UPI ID
-        _params = {"pa": _upi_id, "pn": "Meena Agencies", "am": f"{_total:.2f}", "cu": "INR", "tn": "Order Meena"}
-        _upi_url = f"upi://pay?{urllib.parse.urlencode(_params)}"
-        _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={urllib.parse.quote(_upi_url, safe='')}"
-        
-        html_box = '<div style="background:rgba(0,212,255,0.08);border:2px solid #00d4ff;border-radius:16px;padding:1.5rem;text-align:center;margin:1rem 0;">'
-        html_box += '<h3 style="color:#00d4ff;margin:0 0 0.5rem 0;">Secure Checkout</h3>'
-        html_box += f'<p style="color:#00d4ff;font-size:1.6rem;font-weight:800;margin:0.2rem 0;">₹{_total:,.2f}</p>'
-        html_box += '</div>'
-        st.markdown(html_box, unsafe_allow_html=True)
-        
-        c1, c2, c3 = st.columns([1,1,1])
-        with c2: st.image(_qr_url, width=220)
-        
-        st.markdown(f'<a href="{_upi_url}" style="display:block;text-align:center;padding:16px;margin:1rem 0;background:linear-gradient(135deg,#00d4ff,#7b61ff);color:#fff;font-weight:700;border-radius:12px;text-decoration:none;">📱 Pay ₹{_total:,.2f} via UPI App</a>', unsafe_allow_html=True)
-        st.markdown("---")
-        
-        _b1, _b2 = st.columns(2)
-        with _b1:
-            if st.button(f"✅ I Have Paid (₹{_total:,.2f})", key="hard_confirm", type="primary", use_container_width=True):
-                # Order is finally placed after payment confirmation
-                saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
-                st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
-                st.session_state.cart = []
-                st.session_state.show_otp_input = False
-                st.session_state.order_otp = None
-                st.session_state.show_upi_qr = False
-                st.balloons()
-                import time
-                time.sleep(2)
-                st.session_state.page = "home"
-                st.rerun()
-        with _b2:
-            if st.button("❌ Cancel Order", key="cancel_order_btn", use_container_width=True):
-                st.session_state.show_upi_qr = False
-                st.session_state.cart = []
-                st.rerun()
 
 
-
-def page_order_history(u):
-    import json
-    import os
-    import pandas as pd
-    from datetime import datetime
-
-    st.title("📜 My Orders & Bills")
-    st.caption("View your past orders and download invoices.")
     
-    orders_file = Path("orders.json")
-    if not orders_file.exists():
-        st.info("You have not placed any orders yet.")
-        return
-        
+    # ─── UPI PAYMENT QR ───
+    st.divider()
+    st.subheader("💳 Secure Payment")
     try:
-        with open(orders_file, "r") as f:
-            all_orders = json.load(f)
-    except:
-        st.error("Could not read orders database.")
-        return
-        
-    my_orders = [o for o in all_orders if str(o.get("retailer_id")) == str(u.get("id"))]
-    
-    if not my_orders:
-        st.info("You have not placed any orders yet.")
-        return
-        
-    my_orders = sorted(my_orders, key=lambda x: x.get("timestamp", ""), reverse=True)
-
-    for order in my_orders:
-        status = order.get("status", "Pending")
-        
-        with st.container(border=True):
-            # Order Header
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                st.markdown(f"**Order {order.get('order_id')}**")
-                st.caption(f"Placed on: {order.get('timestamp', 'N/A')[:10]}")
-            with c2:
-                st.markdown(f"<h3 style='text-align:right; margin:0;'>₹{order.get('total', 0):,.2f}</h3>", unsafe_allow_html=True)
-            
-            st.divider()
-            
-            # Status
-            if status == "Approved":
-                st.success("🟢 Approved & Paid")
-            elif status == "Rejected":
-                st.error("🔴 Rejected")
-            else:
-                st.warning("🟡 Pending Verification")
-            
-            # Items List
-            items = order.get("items", [])
-            for item in items:
-                ic1, ic2 = st.columns([1, 5])
-                with ic1:
-                    st.image(get_icon(item.get("name", "")), width=45)
-                with ic2:
-                    st.markdown(f"**{item.get('name', 'Medicine')}**")
-                    st.caption(f"Qty: {item.get('qty', 1)} | Price: ₹{item.get('price', 0)}")
-            
-            st.divider()
-            
-            # Actions
-            if status == "Approved":
-                try:
-                    from meena_modules.invoice_generator import generate_invoice_pdf
-                    pdf_bytes = generate_invoice_pdf(order, u)
-                    st.download_button(
-                        label="📥 Download PDF Invoice",
-                        data=pdf_bytes,
-                        file_name=f"Invoice_{order.get('order_id')}.pdf",
-                        mime="application/pdf",
-                        type="primary",
-                        key=f"dl_{order.get('order_id')}"
-                    )
-                except Exception as e:
-                    st.warning(f"Could not generate PDF: {e}")
-            else:
-                st.info("Invoice will be available once payment is verified.")
-
+        cart_items = st.session_state.get("cart", [])
+        total_amount = sum(item.get("price", 0) * item.get("qty", 1) for item in cart_items)
+        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, u)
+    except Exception:
+        pass
+    # ─────────────────────
 
 def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
+
 
 
 def load_locations():
@@ -637,69 +500,56 @@ def page_owner_map():
     # ─── OWNER QC & GPS ───
     st.divider()
     st.subheader("👑 Owner AI & Tracking Tools")
-    # 1. QC Dashboard
     try:
+        # Safe fallbacks for AI Tools
+        if 'load_activity' not in globals():
+            def load_activity(): return []
+        if 'load_orders' not in globals():
+            def load_orders(): return []
+        
         render_qc_dashboard(load_activity, load_orders)
     except Exception as e:
-        st.warning(f"⚠️ AI QC Tools unavailable: {e}")
-
+        st.warning(f"⚠️ AI Tools warning: {e}")
+        
     st.divider()
     
-    # 2. Payment Verification Center (Always visible)
+    # --- PAYMENT VERIFICATION CENTER ---
     try:
         render_owner_verification()
     except Exception as e:
         st.error(f"Payment Center Error: {e}")
+            
+        st.divider()
+        # --- PAYMENT VERIFICATION CENTER ---
+        try:
+            render_owner_verification()
+        except Exception as e:
+            st.error(f"Payment Center Error: {e}")
+verification()
 
-    st.divider()
-    
-    # 3. Pricing Sandbox
-    try:
+        st.divider()
         render_pricing_sandbox()
-    except Exception as e:
-        st.warning(f"⚠️ Pricing Sandbox unavailable: {e}")
 
-    st.divider()
-    
-    # 4. GPS Map
-    try:
         render_owner_rep_map()
     except Exception as e:
-        st.warning(f"⚠️ GPS Map unavailable: {e}")
+        st.error(f"Owner tools error: {e}")
     # ──────────────────────
 
 def render_sidebar():
     with st.sidebar:
-        # Display the actual logo
-        try:
-            st.image("logo.png", use_container_width=True)
-        except:
-            st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
-            
+        st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # --- ROLE-BASED MENU ---
         menu = [
             ("home", "🏠 Dashboard"),
             ("order", "🛒 Place Order"),
             ("cart", "🛍️ My Cart"),
-            ("history", "📜 My Orders & Bills"),
+            ("checkin", "📍 Rep Check-In"),
+            ("owner_map", "🗺️ Live Tracking"),
+            ("profile", "👤 Profile")
         ]
-
-        # Add Owner/Staff specific items
-        if role == "OWNER":
-            menu.extend([
-                ("checkin", "📍 Rep Check-In"),
-                ("owner_map", "🗺️ Live Tracking")
-            ])
-        elif role in ["SALES_REP", "STAFF", "WORKER"]:
-            menu.append(("checkin", "📍 Rep Check-In"))
-            
-        # Everyone gets Profile
-        menu.append(("profile", "👤 Profile"))
-        # -----------------------
         
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
@@ -710,6 +560,7 @@ def render_sidebar():
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.clear()
             st.rerun()
+
 
 def location_gatekeeper(user):
     """Acts as a pass-through. The actual GPS check-in is handled on the Rep Check-In page."""
