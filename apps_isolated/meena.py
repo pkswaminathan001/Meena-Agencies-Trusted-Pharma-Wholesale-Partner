@@ -354,7 +354,16 @@ def render_sidebar():
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         
-        menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
+        menu = [
+            ("home", "🏠 Dashboard"), 
+            ("order", "🛒 Place Order"), 
+            ("cart", "🛍️ My Cart"), 
+            ("history", "📜 Order History"), 
+            ("profile", "👤 Profile"),
+            ("bulk_import", "📥 Bulk Import"),
+            ("owner_map", "🦅 Eagle-Eye Map"),
+            ("rep_checkin", "📍 Rep Check-In")
+        ]
         
         role = str(st.session_state.user.get("role", "retailer")).lower().strip()
         
