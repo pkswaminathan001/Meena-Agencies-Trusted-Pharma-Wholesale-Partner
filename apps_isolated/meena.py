@@ -141,15 +141,25 @@ def send_telegram_otp(chat_id, otp):
     except Exception: return False
 
 def save_order_history(user_id, cart, total):
-    orders_file = BASE_DIR / "orders.json"
-    orders = []
-    if orders_file.exists():
-        try: orders = json.loads(orders_file.read_text())
-        except Exception: pass
-    new_order = {"order_id": f"ORD-{random.randint(1000, 9999)}", "user_id": user_id, "date": str(datetime.date.today()), "total": total, "items": cart, "status": "Paid"}
-    orders.append(new_order)
-    orders_file.write_text(json.dumps(orders, indent=2))
-    return new_order
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    order_id = f"ORD-{random.randint(1000, 9999)}"
+    date_str = str(datetime.date.today())
+    items_json = json.dumps(cart) # Store cart list as a JSON string
+    status = "Paid"
+    
+    # Insert into SQLite
+    c.execute("""
+        INSERT INTO orders (order_id, user_id, date, total, items, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (order_id, user_id, date_str, total, items_json, status))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"order_id": order_id}
 
 # ─── LOGIN ───
 # ─── LOGIN ───
@@ -344,19 +354,25 @@ def page_cart():
                 st.session_state.cart = []; st.session_state.show_otp_input = False
                 st.balloons(); time.sleep(2); go_to("home"); st.rerun()
 
-# ─── 4. AMAZON ORDER HISTORY ───
+# ─── 4. AMAZON ORDER HISTORY (SQLite Version) ───
 def page_history(u):
     st.title("Your Orders")
-    orders_file = BASE_DIR / "orders.json"
-    if not orders_file.exists(): st.info("You have not placed any orders yet."); return
-    try: orders = json.loads(orders_file.read_text())
-    except Exception: return
+    db_path = BASE_DIR / "meena_enterprise.db"
     
-    user_orders = [o for o in orders if str(o.get("user_id")) == str(u.get("id"))]
-    if not user_orders: st.info("You have not placed any orders yet."); return
+    if not db_path.exists():
+        st.info("You have not placed any orders yet."); return
+        
+    conn = sqlite3.connect(db_path)
+    # Fetch orders for this specific user
+    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
+    conn.close()
     
-    for order in reversed(user_orders):
-        with st.container(border=True, height=420):
+    if df_orders.empty:
+        st.info("You have not placed any orders yet.")
+        return
+    
+    for index, order in df_orders.iterrows():
+        with st.container(border=True):
             st.markdown(f'''
                 <div class="amz-order-header">
                     <div>ORDER PLACED<br><b>{order['date']}</b></div>
@@ -365,7 +381,10 @@ def page_history(u):
                 </div>
             ''', unsafe_allow_html=True)
             
-            for item in order['items']:
+            # Parse the JSON string back into a Python list
+            items = json.loads(order['items'])
+            
+            for item in items:
                 c1, c2, c3 = st.columns([2, 5, 2])
                 with c1: st.image(get_icon(item['name']), use_container_width=True)
                 with c2:
@@ -375,7 +394,7 @@ def page_history(u):
                 with c3:
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
-                        st.toast(f"Added {item['name']} to cart"); st.rerun()
+                        st.toast(f"Added {item['name']} to cart"); st.rerun()un()
 
 # ─── 5. AMAZON PROFILE ───
 def page_profile(u):
