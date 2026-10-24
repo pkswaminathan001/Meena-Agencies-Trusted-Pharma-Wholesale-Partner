@@ -72,23 +72,21 @@ def get_icon(name):
     import urllib.parse
     
     name_str = str(name).strip()
-    
-    # Format the text: split long names into multiple lines so the font doesn't shrink
     words = name_str.split()
+    
     if len(words) > 2:
         lines = []
-        # Put 2 words per line
         for i in range(0, len(words), 2):
             lines.append(" ".join(words[i:i+2]))
-        display_text = "
-".join(lines)
+        # chr(10) is the safe way to insert a newline character
+        display_text = chr(10).join(lines)
     else:
         display_text = name_str
         
     encoded_name = urllib.parse.quote(display_text)
     
-    # Use a 300x300 White box with Blue text and a clean font
     return f"https://placehold.co/300x300/FFFFFF/0B3C5D/png?text={encoded_name}&font=Montserrat"
+
 
 
 def load_inventory():
