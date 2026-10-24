@@ -336,8 +336,9 @@ def page_order():
     search = st.text_input(
         "Search medicine", placeholder="e.g. Dolo",
     ).strip().lower()
-    view = (df[df["name"].str.lower().str.contains(search, na=False)]
-            if search else df)
+    view = df.dropna(subset=["name"])  # Remove None
+    view = (view[view["name"].str.lower().str.contains(search, na=False)]
+            if search else view)
     view = view.head(40).reset_index(drop=True)
 
     def add_to_cart(name, price_paise):
