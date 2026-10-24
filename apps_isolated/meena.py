@@ -34,7 +34,7 @@ except Exception:
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── ULTRA CLEAN AMAZON MOBILE CSS (TIGHT SPACING) ───
+# ─── AMAZON INDIA MOBILE GRID CSS ───
 st.markdown("""
 <style>
     /* Hide Streamlit chrome */
@@ -42,41 +42,42 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 0.5rem; padding-bottom: 0; max-width: 1200px;}
-    
-    /* 1. FORCE 2-COLUMN GRID ON MOBILE */
+
+    /* 1. FORCE 2-COLUMN GRID ON MOBILE (like Amazon) */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: wrap !important;
-            gap: 0.5rem !important;
+            gap: 0.3rem !important;
         }
         div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-            flex: 1 1 45% !important;
-            min-width: 45% !important;
+            flex: 1 1 48% !important;
+            min-width: 48% !important;
             max-width: 48% !important;
         }
     }
 
-    /* 2. KILL EMPTY SPACE INSIDE CARDS */
+    /* 2. KILL WHITESPACE INSIDE CARDS */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 6px !important; 
+        padding: 6px !important;
         border-radius: 8px;
         border: 1px solid #e5e5e5;
+        margin-bottom: 4px !important;
     }
-    /* Remove Streamlit's default vertical gaps between elements */
+    /* Remove Streamlit's default vertical gaps */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        gap: 0.1rem !important;
+        gap: 0.05rem !important;
     }
     
     /* 3. FIX IMAGE SIZE & RENDERING */
     div[data-testid="stVerticalBlockBorderWrapper"] img {
-        height: 120px !important;
+        height: 140px !important;
         width: 100% !important;
         object-fit: contain !important;
-        margin-bottom: 4px;
+        margin-bottom: 2px !important;
         border-radius: 4px;
     }
     
-    /* 4. FORCE AMAZON YELLOW BUTTON */
+    /* 4. AMAZON YELLOW BUTTON (Shorter) */
     div.stButton > button[kind="primary"] {
         background-color: #FFD814 !important;
         color: #0F1111 !important;
@@ -85,15 +86,16 @@ st.markdown("""
         font-weight: 600 !important;
         padding: 2px 8px !important;
         width: 100% !important;
-        min-height: 30px !important;
-        height: 30px !important;
-        font-size: 13px !important;
+        min-height: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background-color: #F7CA00 !important;
     }
-    
+
     /* 5. TIGHT TYPOGRAPHY */
+    .amz-sponsored { color: #565959; font-size: 10px; font-weight: 400; margin-bottom: 2px; }
     .amz-title { 
         color: #0F1111; 
         font-size: 13px; 
@@ -105,19 +107,17 @@ st.markdown("""
         overflow: hidden;
         margin-bottom: 2px;
     }
-    .amz-price { color: #0F1111; font-size: 16px; font-weight: 700; margin-bottom: 4px;}
+    .amz-price { color: #0F1111; font-size: 18px; font-weight: 700; margin-bottom: 4px;}
     .amz-decimal { font-size: 11px; position: relative; top: -3px; }
-    .amz-stock-ok { color: #067d1f; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-    .amz-stock-out { color: #b12704; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .amz-stock-ok { color: #067d1f; font-size: 10px; font-weight: 600; margin-bottom: 4px; }
+    .amz-stock-out { color: #b12704; font-size: 10px; font-weight: 600; margin-bottom: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
 # ─── REAL MEDICINE IMAGE GENERATOR ───
 def get_icon(name):
-    # Uses a clean medical background with the medicine name clearly visible
     import urllib.parse
     clean_name = str(name).replace(" ", "+")
-    # Generates a 200x200 image with a nice blue border and large text
     return f"https://placehold.co/200x200/F0F8FF/0B3C5D/png?text={clean_name}&font=Montserrat&font-size=40"
 
 @st.cache_data(ttl=60)
@@ -213,7 +213,6 @@ def product_grid(view):
             row = view.iloc[idx]
             
             raw_name = str(row.get("name", "Unknown"))
-            # Clean the "- 0" from database
             name = raw_name.replace(" - 0", "").replace("-0", "").replace("- 1", "").strip()
             
             price = float(row.get("price", 0))
@@ -221,7 +220,9 @@ def product_grid(view):
             
             with cols[j]:
                 with st.container(border=True):
-                    # Real image with padding
+                    # Sponsored Tag (Amazon style)
+                    st.markdown('<div class="amz-sponsored">Sponsored</div>', unsafe_allow_html=True)
+                    
                     try: st.image(get_icon(name), use_container_width=True)
                     except Exception: pass
                     
