@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import datetime
+from meena_modules.invoice_generator import generate_invoice_pdf, send_invoice_to_telegram
 
 def render_owner_verification():
     st.markdown("## 💳 Payment Verification Center")
@@ -43,7 +44,7 @@ def render_owner_verification():
                             o["status"] = "Approved"
                     with open(orders_file, "w") as f:
                         json.dump(orders, f, indent=2)
-                    st.success("Order Approved!")
+                    st.success("Order Approved & Invoice Sent!")
                     st.rerun()
             with c2:
                 if st.button("❌ Reject (Invalid UTR)", key=f"rej_{idx}"):

@@ -16,3 +16,4 @@ folium
 streamlit-folium
 streamlit-js-eval
 streamlit-js-eval
+fpdf2
