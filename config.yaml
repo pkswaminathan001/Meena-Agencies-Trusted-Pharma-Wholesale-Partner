@@ -7,18 +7,18 @@ credentials:
     OWNER001:
       email: owner001@meena.com
       name: Meena Agencies HQ
-      password: $2b$12$iqO4CkGVXy9ky05kjvtqVOQM4FYxMeUfmaKLKA89VxwaKPH6GBmXW
+      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
       role: owner
       shop: Meena Agencies HQ
     REP001:
       email: rep001@meena.com
       name: Chennai Sales Rep
-      password: $2b$12$n1nCWCgH2gZt.LHdZVhfheDXsFulYvP0StbxRFSrfvgQAhiCotMK.
+      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
       role: rep
       shop: Chennai Sales Rep
     RET001:
       email: ret001@meena.com
       name: Sri Balaji Medicals
-      password: $2b$12$FhAV1evICGm0T4HIHlsyXOl0cn61gJr54IY.D9vlLZvBsWeTjG2lS
+      password: $2b$12$nuZEjqxTWRpzOhJsSiJpCetOHzBQqagIaj3uDuYDEx1zaOogTeyk.
       role: retailer
       shop: Sri Balaji Medicals
