@@ -315,14 +315,12 @@ def page_home(u):
 
 def page_order():
     cart = st.session_state.setdefault("cart", [])
+    
     if cart:
         c1, c2 = st.columns([3, 1])
         c1.title("🛒 Place Order")
         with c2:
-            if st.button(
-                f"🛍️ View Cart ({len(cart)})",
-                type="primary", use_container_width=True,
-            ):
+            if st.button(f"🛍️ View Cart ({len(cart)})", type="primary", use_container_width=True):
                 st.session_state.page = "cart"
                 st.rerun()
     else:
@@ -332,26 +330,40 @@ def page_order():
     if df.empty:
         st.error("Inventory DB not found.")
         return
+        
+    # 1. Remove None products
     df = df.dropna(subset=["name"])
     df = df[df["name"].astype(str).str.lower() != "none"]
 
-    # Sticky Bottom Bar CSS
+    search = st.text_input("Search medicine", placeholder="e.g. Dolo").strip().lower()
+    view = (df[df["name"].str.lower().str.contains(search, na=False)] if search else df)
+    view = view.head(40).reset_index(drop=True)
+
+    def add_to_cart(name, price_paise):
+        for it in st.session_state.cart:
+            if it["name"] == name:
+                it["qty"] += 1
+                return
+        st.session_state.cart.append({"name": name, "price": round(price_paise / 100, 2), "qty": 1})
+
+    items = [{
+        "name": row["name"],
+        "price_paise": int(round(float(row["price"]) * 100)),
+        "key": f"{i}",
+    } for i, row in view.iterrows()]
+
+    # 2. Render the Amazon-style grid with typeable inline buttons
+    render_product_grid(items, on_add=add_to_cart, cols_per_row=4)
+
+    # 3. Sticky Bottom Bar
     st.markdown("""
     <style>
     div.block-container { padding-bottom: 120px !important; }
     .st-key-floating-cart {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 95%;
-        max-width: 900px;
-        background-color: #ffffff;
-        padding: 15px 25px;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-        border: 1px solid #e0e0e0;
-        z-index: 99999;
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        width: 95%; max-width: 900px; background-color: #ffffff;
+        padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        border: 1px solid #e0e0e0; z-index: 99999;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -362,41 +374,11 @@ def page_order():
         with st.container(key="floating-cart"):
             c1, c2 = st.columns([3, 1])
             with c1:
-                st.markdown(
-                    f"<div style='font-size: 20px; font-weight: bold; padding-top: 5px;'>"
-                    f"🛒 Live Cart: {total_items} items — ₹{total_cart:.2f}</div>", 
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"<div style='font-size: 20px; font-weight: bold; padding-top: 5px;'>🛒 Live Cart: {total_items} items — ₹{total_cart:.2f}</div>", unsafe_allow_html=True)
             with c2:
                 if st.button("Checkout →", type="primary", use_container_width=True):
                     st.session_state.page = "cart"
                     st.rerun()
-
-    search = st.text_input(
-        "Search medicine", placeholder="e.g. Dolo",
-    ).strip().lower()
-    view = df.dropna(subset=["name"])  # Remove None
-    view = (view[view["name"].str.lower().str.contains(search, na=False)]
-            if search else view)
-    view = view.head(40).reset_index(drop=True)
-
-    def add_to_cart(name, price_paise):
-        cart = st.session_state.setdefault("cart", [])
-        price = round(price_paise / 100, 2)
-        for it in cart:
-            if it["name"] == name:
-                it["qty"] += 1
-                return
-        cart.append({"name": name, "price": price, "qty": 1})
-
-    items = [{
-        "name": row["name"],
-        "price_paise": int(round(float(row["price"]) * 100)),
-        "key": f"{i}",
-    } for i, row in view.iterrows()]
-
-    render_product_grid(items, on_add=add_to_cart, cols_per_row=4)
-
 
 def page_cart(u):
     st.title("🛍️ My Cart")
