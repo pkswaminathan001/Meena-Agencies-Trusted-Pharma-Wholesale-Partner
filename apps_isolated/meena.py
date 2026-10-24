@@ -7,17 +7,6 @@ import os, json, sqlite3, hashlib, requests, datetime, random, time
 import streamlit as st
 import pandas as pd
 
-# Safely import custom modules
-try:
-    from meena_modules.owner_verification import render_owner_verification
-    from meena_modules.apple_tesla_ui import render_apple_tesla_view
-    from meena_modules.gps_tracker import render_owner_rep_map
-    from meena_modules.qc_rating import render_qc_dashboard
-    from meena_modules.upi_payment import render_upi_payment
-    from meena_modules.pricing_ai import render_pricing_sandbox
-except ImportError:
-    pass
-
 try:
     for k, v in st.secrets.items(): os.environ[k] = str(v)
 except Exception: pass
@@ -27,7 +16,6 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── STATE MANAGEMENT ───
 if "page" not in st.session_state: st.session_state.page = "home"
 if "cart" not in st.session_state: st.session_state.cart = []
 if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
@@ -35,27 +23,19 @@ if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = F
 def go_to(page_name):
     st.session_state.page = page_name
 
-# ─── CSS: AMAZON UI, MARKETING BANNERS, & MOBILE GRID ───
 st.markdown("""
 <style>
-    /* Amazon Backgrounds & Layout */
     .stApp { background-color: #eaeded !important; }
     .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
-    
-    /* ─── LOCK DOWN STREAMLIT UI ─── */
     #MainMenu { visibility: hidden !important; display: none !important; }
     footer { visibility: hidden !important; display: none !important; }
     header { background: transparent !important; visibility: hidden !important; }
     [data-testid="stToolbar"] { display: none !important; visibility: hidden !important; height: 0px !important; }
     .stDeployButton, .stAppDeployButton { display: none !important; }
-
-    /* 2-Column Mobile Grid */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 0.5rem !important; }
         div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { flex: 1 1 48% !important; min-width: 48% !important; max-width: 48% !important; }
     }
-    
-    /* ─── AMAZON CARDS: EQUAL HEIGHT & ALIGNMENT FIX ─── */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #ffffff !important; padding: 12px !important;
         border-radius: 8px !important; border: none !important;
@@ -69,27 +49,20 @@ st.markdown("""
         margin-top: auto !important; padding-top: 10px !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] img { height: 140px !important; width: 100% !important; object-fit: contain !important; }
-    
-    /* Amazon Buttons */
     div.stButton > button[kind="primary"], div[data-testid="stForm"] button {
         background-color: #FFD814 !important; color: #0F1111 !important;
         border: 1px solid #FCD200 !important; border-radius: 8px !important;
         font-weight: bold !important; width: 100% !important; min-height: 40px !important; font-size: 14px !important;
     }
     div.stButton > button[kind="primary"]:hover, div[data-testid="stForm"] button:hover { background-color: #F7CA00 !important; }
-
-    /* Homepage Banners & Cards */
     .amz-header { background: #131921; color: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
     .promo-banner { background: linear-gradient(90deg, #ff9900 0%, #ff5500 100%); color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 15px;}
     .amz-card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px;}
-    
-    /* Typography & Order History */
     .amz-title { color: #0F1111; font-size: 13px; font-weight: 600; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 2px; }
     .amz-price { color: #0F1111; font-size: 18px; font-weight: 700; margin-bottom: 4px;}
     .amz-decimal { font-size: 11px; position: relative; top: -3px; }
     .amz-stock-ok { color: #067d1f; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
     .amz-rating { color: #FFA41C; font-size: 12px; margin-bottom: 4px; }
-    
     .amz-order-header { background: #f0f2f2; border-radius: 8px 8px 0 0; padding: 12px; display: flex; justify-content: space-between; color: #565959; font-size: 12px; border-bottom: 1px solid #d5d9d9; margin: -12px -12px 12px -12px; }
     .amz-order-header b { color: #0F1111; font-weight: 500; display: block; font-size: 13px;}
 </style>
@@ -102,11 +75,9 @@ def get_icon(name):
 @st.cache_data(ttl=60)
 def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
-    if not db_path.exists():
-        return pd.DataFrame()
+    if not db_path.exists(): return pd.DataFrame()
     try:
         conn = sqlite3.connect(db_path)
-        # Check if 'products' table exists
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products';")
         if not cursor.fetchone():
@@ -115,21 +86,14 @@ def load_inventory():
         df = pd.read_sql_query("SELECT sku as name, 1.0 as price, qty as stock FROM products LIMIT 100", conn)
         conn.close()
         return df
-    except Exception:
-        return pd.DataFrame()
+    except Exception: return pd.DataFrame()
+
 @st.cache_data(ttl=60)
 def load_retailers():
     rj_path = BASE_DIR / "retailers.json"
     if rj_path.exists():
         with open(rj_path, "r") as f: return json.load(f)
     return []
-
-def send_telegram_otp(chat_id, otp):
-    if not TELEGRAM_BOT_TOKEN or not chat_id: return False
-    try:
-        res = requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": f"🦚 Meena Agencies\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}, timeout=10)
-        return res.status_code == 200
-    except Exception: return False
 
 def save_order_history(user_id, cart, total):
     db_path = BASE_DIR / "meena_enterprise.db"
@@ -139,37 +103,20 @@ def save_order_history(user_id, cart, total):
     date_str = str(datetime.date.today())
     items_json = json.dumps(cart)
     status = "Paid"
-    c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", 
-              (order_id, user_id, date_str, total, items_json, status))
+    c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", (order_id, user_id, date_str, total, items_json, status))
     conn.commit()
     conn.close()
     return {"order_id": order_id}
 
-# ─── LOGIN ───
 def login_screen():
-    st.markdown("""
-    <style>
-        .block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; }
-        div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; }
-        div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1>
-        <h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2>
-        <p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
+    st.markdown("""<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1><h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2><p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p></div>""", unsafe_allow_html=True)
     with st.container(border=True):
         with st.form("login"):
             st.markdown("### Sign in")
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             submit = st.form_submit_button("Login", use_container_width=True, type="primary")
-            
         if submit:
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
@@ -181,11 +128,9 @@ def login_screen():
                     st.rerun()
             st.error("❌ Invalid ID or PIN.")
 
-# ─── 1. HOMEPAGE ───
 def page_home(u):
     st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
-
     c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
@@ -193,7 +138,6 @@ def page_home(u):
     with c2:
         st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
         st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
-    
     c3, c4 = st.columns(2)
     with c3:
         st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
@@ -202,7 +146,6 @@ def page_home(u):
         st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
         st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
 
-# ─── 2. PRODUCT GRID ───
 @st.fragment
 def product_grid(view):
     cols_per_row = 4 
@@ -215,23 +158,20 @@ def product_grid(view):
             name = str(row.get("name", "Unknown")).replace(" - 0", "").replace("-0", "").replace("- 1", "").strip()
             price = float(row.get("price", 0))
             stock = int(row.get("stock", 0))
-            
             with cols[j]:
                 with st.container(border=True, height=420):
                     st.markdown('<div style="color:#565959; font-size:10px; margin-bottom:4px;">Sponsored</div>', unsafe_allow_html=True)
                     st.image(get_icon(name), use_container_width=True)
                     st.markdown(f'<div class="amz-title">{name}</div>', unsafe_allow_html=True)
                     st.markdown('<div class="amz-rating">⭐⭐⭐⭐☆ (1,245)</div>', unsafe_allow_html=True)
-                    
                     if stock > 0: st.markdown(f'<div class="amz-stock-ok">✅ In stock ({stock})</div>', unsafe_allow_html=True)
                     else: st.markdown('<div style="color:#b12704; font-size:11px; font-weight:600;">❌ Out of stock</div>', unsafe_allow_html=True)
-                    
                     rupees = int(price); paise = int(round((price - rupees) * 100))
                     st.markdown(f'<div class="amz-price"><span class="amz-decimal">₹</span>{rupees}<span class="amz-decimal">.{paise:02d}</span></div>', unsafe_allow_html=True)
-                    
                     if st.button("Add to Cart", key=f"add_{name}_{idx}", disabled=(stock <= 0), use_container_width=True, type="primary"):
                         st.session_state.cart.append({"name": name, "price": price, "qty": 1})
                         st.toast(f"✅ Added {name}"); st.rerun()
+
 def page_order():
     cart_count = len(st.session_state.cart)
     if cart_count > 0:
@@ -240,24 +180,20 @@ def page_order():
         with c2:
             st.write("")
             st.button(f"🛍️ Cart ({cart_count})", type="primary", on_click=go_to, args=("cart",), use_container_width=True)
-    else:
-        st.title("🛒 Place Order")
-        
+    else: st.title("🛒 Place Order")
     df = load_inventory()
     if df.empty:
         st.warning("Inventory database is not available yet. Please try again later.")
         return
     search = st.text_input("🔍 Search", placeholder="Search medicines...").lower()
     view = df[df["name"].str.lower().str.contains(search)] if search else df
-    if view.empty:
-        st.warning("No results found."); return
+    if view.empty: st.warning("No results found."); return
     product_grid(view)
-# ─── 3. CART ───
+
 def page_cart():
     st.title("🛍️ Shopping Cart")
     if not st.session_state.cart:
         st.info("Your Cart is empty."); return
-        
     for i, item in enumerate(st.session_state.cart):
         c1, c2, c3 = st.columns([4, 1, 1])
         c1.write(f"**{item['name']}**  \n₹{item['price']} each")
@@ -266,9 +202,7 @@ def page_cart():
             st.session_state.cart[i]["qty"] = new_qty; st.rerun()
         if c3.button("🗑️", key=f"del_{i}", help="Remove item"):
             st.session_state.cart.pop(i); st.toast("Item removed"); st.rerun()
-            
     total = sum(item["price"] * item["qty"] for item in st.session_state.cart)
-    
     st.write("")
     with st.container(border=True):
         coupon = st.text_input("🎟️ Enter Promo Code", placeholder="Try MEENA10")
@@ -276,29 +210,23 @@ def page_cart():
         if coupon.strip().upper() == "MEENA10":
             discount = total * 0.10
             st.success(f"✅ Promo Applied! You saved ₹{discount:,.2f}")
-        elif coupon:
-            st.error("❌ Invalid Promo Code")
-            
+        elif coupon: st.error("❌ Invalid Promo Code")
         final_total = total - discount
         st.markdown(f"### Subtotal: ₹{total:,.2f}")
         if discount > 0:
             st.markdown(f"### Discount: -₹{discount:,.2f}")
             st.markdown(f"## Final Total: ₹{final_total:,.2f}")
-            
         if st.button("💳 Proceed to Checkout", type="primary", use_container_width=True):
             st.session_state.show_otp_input = True; st.rerun()
-            
     if st.session_state.show_otp_input:
         st.subheader("Verify & Place Order")
         input_otp = st.text_input("Enter 6-digit OTP", max_chars=6)
         otp_valid = len(input_otp.strip()) == 6 and input_otp.strip().isdigit()
-        
         if st.button("Verify & Place Order", type="primary", use_container_width=True, disabled=not otp_valid):
             saved = save_order_history(st.session_state.user.get("id"), st.session_state.cart, final_total)
             st.success(f"🎉 Order {saved['order_id']} placed!")
             st.session_state.cart = []; st.session_state.show_otp_input = False
             st.balloons(); time.sleep(2); go_to("home"); st.rerun()
-                
         with st.expander("🔑 Use PIN instead of OTP"):
             fallback_pin = st.text_input("4-digit PIN", type="password", max_chars=4)
             if st.button("Verify PIN & Place Order", use_container_width=True, disabled=(len(fallback_pin) != 4)):
@@ -307,40 +235,17 @@ def page_cart():
                 st.session_state.cart = []; st.session_state.show_otp_input = False
                 st.balloons(); time.sleep(2); go_to("home"); st.rerun()
 
-<<<<<<< HEAD
-# # ─── 4. ORDER HISTORY ───
 def page_history(u):
     st.title("Your Orders")
     db_path = BASE_DIR / "meena_enterprise.db"
-    if not db_path.exists(): 
-        st.info("You have not placed any orders yet."); return
-        
+    if not db_path.exists(): st.info("You have not placed any orders yet."); return
     try:
         conn = sqlite3.connect(db_path)
         df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
         conn.close()
     except Exception:
-        # If the table doesn't exist yet on the live server, gracefully handle it
-        st.info("You have not placed any orders yet.")
-        return
-=======
-# ─── 4. ORDER HISTORY ───
-def page_history(u):
-    st.title("Your Orders")
-    db_path = BASE_DIR / "meena_enterprise.db"
-    if not db_path.exists(): st.info("You have not placed any orders yet."); return
-        
-    conn = sqlite3.connect(db_path)
-    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
-    conn.close()
-    
+        st.info("You have not placed any orders yet."); return
     if df_orders.empty: st.info("You have not placed any orders yet."); return
->>>>>>> a6bc546f8fa0bf73ab2d3571788db185d59c8dfa
-    
-    if df_orders.empty: 
-        st.info("You have not placed any orders yet."); 
-        return
-    
     for index, order in df_orders.iterrows():
         with st.container(border=True):
             st.markdown(f'''<div class="amz-order-header"><div>ORDER PLACED<br><b>{order['date']}</b></div><div>TOTAL<br><b>₹{order['total']:,.2f}</b></div><div>ORDER #<br><b>{order['order_id']}</b></div></div>''', unsafe_allow_html=True)
@@ -356,12 +261,7 @@ def page_history(u):
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
                         st.toast(f"Added {item['name']} to cart"); st.rerun()
-<<<<<<< HEAD
-# ─── 5. AMAZON PROFILE ───
-=======
 
-# ─── 5. PROFILE ───
->>>>>>> a6bc546f8fa0bf73ab2d3571788db185d59c8dfa
 def page_profile(u):
     st.title("Your Account")
     st.markdown(f"**Hello, {u.get('name', 'Partner')}**")
@@ -380,7 +280,6 @@ def page_profile(u):
             st.write("Track, return, or buy things again.")
             st.button("View Your Orders", type="primary", on_click=go_to, args=("history",), use_container_width=True)
 
-# ─── SIDEBAR & ROUTER ───
 def render_sidebar():
     with st.sidebar:
         st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
