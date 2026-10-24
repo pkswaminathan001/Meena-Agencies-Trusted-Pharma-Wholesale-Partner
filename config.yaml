@@ -1,0 +1,24 @@
+cookie:
+  expiry_days: 30
+  key: meena_secret_key_987
+  name: meena_cookie
+credentials:
+  usernames:
+    OWNER001:
+      email: owner001@meena.com
+      name: Meena Agencies HQ
+      password: $2b$12$iqO4CkGVXy9ky05kjvtqVOQM4FYxMeUfmaKLKA89VxwaKPH6GBmXW
+      role: owner
+      shop: Meena Agencies HQ
+    REP001:
+      email: rep001@meena.com
+      name: Chennai Sales Rep
+      password: $2b$12$n1nCWCgH2gZt.LHdZVhfheDXsFulYvP0StbxRFSrfvgQAhiCotMK.
+      role: rep
+      shop: Chennai Sales Rep
+    RET001:
+      email: ret001@meena.com
+      name: Sri Balaji Medicals
+      password: $2b$12$FhAV1evICGm0T4HIHlsyXOl0cn61gJr54IY.D9vlLZvBsWeTjG2lS
+      role: retailer
+      shop: Sri Balaji Medicals

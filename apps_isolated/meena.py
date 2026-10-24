@@ -35,6 +35,9 @@ import pandas as pd
 import requests
 import folium
 import streamlit as st
+import streamlit_authenticator as stauth
+import yaml
+from yaml.loader import SafeLoader
 from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
 
@@ -219,31 +222,29 @@ def save_order_history(user_id, cart, total):
 
 # ── pages ─────────────────────────────────────────────────────────────
 def login_screen():
-    _, mid, _ = st.columns([1, 1.5, 1])
-    with mid:
-        st.title("🦚 Meena Agencies")
-        st.caption("Trusted Pharma Wholesale Partner")
-        is_admin_url = st.query_params.get("admin") == "true"
+    # Load secure config
+    with open('config.yaml') as file:
+        config = yaml.load(file, Loader=SafeLoader)
 
-        with st.form("login"):
-            if is_admin_url:
-                st.info("🔐 Admin portal login")
-            else:
-                st.info("Please enter your Retailer ID and PIN.")
+    authenticator = stauth.Authenticate(
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days']
+    )
 
-            rid = st.text_input("User ID").strip().upper()
-            pin = st.text_input("PIN", type="password").strip()
+    # Render login UI
+    name, auth_status, username = authenticator.login('main')
 
-            if st.form_submit_button("Login", use_container_width=True):
-                users = load_retailers()
-                user = next((x for x in users if x.get("id") == rid), None)
-                if user:
-                    pin_hash = hashlib.sha256(pin.encode()).hexdigest()
-                    if pin_hash == user.get("pin_hash") or pin == user.get("pin"):
-                        st.session_state.user = user
-                        st.session_state.page = "home"
-                        st.rerun()
-                st.error("❌ Invalid ID or PIN")
+    if auth_status:
+        st.session_state.user = config['credentials']['usernames'][username]
+        st.session_state.user['id'] = username
+        st.session_state.page = "home"
+        st.rerun()
+    elif auth_status is False:
+        st.error('❌ Username/password is incorrect')
+    elif auth_status is None:
+        st.warning('👋 Please enter your username and password')
 
 
 def page_home(u):
@@ -689,6 +690,7 @@ def render_sidebar():
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.clear()
+            st.query_params.clear()
             st.rerun()
 
 
