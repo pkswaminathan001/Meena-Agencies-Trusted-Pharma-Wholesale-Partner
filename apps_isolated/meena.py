@@ -354,16 +354,18 @@ def page_profile(u):
 
 
 def load_locations():
-    """Reads the saved GPS locations. Adds demo data if empty."""
-    if os.path.exists(LOCATIONS_FILE):
+    """Reads the saved GPS locations. Uses pathlib for stability."""
+    import json
+    from pathlib import Path
+    
+    loc_file = Path("sales_rep_locations.json")
+    if loc_file.exists():
         try:
-            with open(LOCATIONS_FILE, "r") as f:
-                data = json.load(f)
-                if data: return data
+            return json.loads(loc_file.read_text())
         except Exception:
             pass
             
-    # FALLBACK DEMO DATA: If file is empty, show these 3 pins
+    # FALLBACK DEMO DATA: If file is empty, show these 3 pins so the map is never blank
     return {
         "REP001": {"name": "Karthik (Thanjavur)", "lat": 10.7870, "lon": 79.1378, "timestamp": "10:30:00 AM"},
         "REP002": {"name": "Suresh (Trichy)", "lat": 10.7905, "lon": 78.7047, "timestamp": "10:35:00 AM"},
@@ -371,25 +373,32 @@ def load_locations():
     }
 
 def save_location(rep_id, rep_name, lat, lon):
+    import json
+    from pathlib import Path
+    from datetime import datetime
+    
+    loc_file = Path("sales_rep_locations.json")
     data = load_locations()
-    # Remove demo data if a real check-in happens
+    
+    # Clear demo data on first real check-in
     if rep_id not in data:
         data = {} 
+        
     data[rep_id] = {
         "name": rep_name,
         "lat": lat,
         "lon": lon,
         "timestamp": datetime.now().strftime("%I:%M:%S %p")
     }
-    with open(LOCATIONS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    loc_file.write_text(json.dumps(data, indent=2))
 
 def page_rep_checkin(u):
     st.title("📍 Sales Rep Check-In")
     st.info("Click the button below to share your exact GPS location with the Owner.")
     
     if st.button("📍 Get My Current Location", type="primary", use_container_width=True):
-        with st.spinner("Getting GPS from phone... Please Allow Location permission."):
+        with st.spinner("Getting GPS from phone... Please ALLOW Location permission."):
+            # Trigger the browser's GPS API
             loc = get_geolocation()
             
             if loc and "coords" in loc:
@@ -397,20 +406,23 @@ def page_rep_checkin(u):
                 lon = loc["coords"]["longitude"]
                 rep_name = u.get("shop", "Sales Rep")
                 save_location(u.get("id", "REP"), rep_name, lat, lon)
+                
                 st.success(f"✅ Location shared successfully! (Lat: {lat:.4f}, Lon: {lon:.4f})")
                 st.balloons()
             else:
-                st.error("❌ Could not get location. Please ensure Location is ON and permissions are allowed.")
+                st.error("❌ Could not get location. Please ensure Location is ON and permissions are allowed in your browser.")
 
 def page_owner_map():
+    import streamlit as st
+    import folium
+    from streamlit_folium import st_folium
+    from datetime import datetime
+    
     st.title("🗺️ Live Sales Rep Tracking")
     st.caption("Auto-refreshes every 10 seconds.")
     
     @st.fragment(run_every=10)
     def draw_live_map():
-        import folium
-        from streamlit_folium import st_folium
-        
         locations = load_locations()
         
         # Calculate center
@@ -419,7 +431,7 @@ def page_owner_map():
         center_lat = sum(lats) / len(lats) if lats else 10.7870
         center_lon = sum(lons) / len(lons) if lons else 79.1378
 
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=7)
         
         for rep_id, info in locations.items():
             folium.Marker(
@@ -429,9 +441,9 @@ def page_owner_map():
                 icon=folium.Icon(color="green", icon="user", prefix="fa")
             ).add_to(m)
             
-            # Add a glowing radius
+            # Glowing radius
             folium.Circle(
-                [info["lat"], info["lon"]], radius=1000,
+                [info["lat"], info["lon"]], radius=2000,
                 color="#1D8348", fill=True, fill_color="#1D8348", fill_opacity=0.2
             ).add_to(m)
 
@@ -439,12 +451,6 @@ def page_owner_map():
         st.caption(f"🟢 Live Map Updated: {datetime.now().strftime('%I:%M:%S %p')}")
 
     draw_live_map()
-
-
-def location_gatekeeper(user):
-    """Placeholder function to allow access. The real GPS logic is in page_rep_checkin."""
-    return True
-
 
 def render_sidebar():
     with st.sidebar:
