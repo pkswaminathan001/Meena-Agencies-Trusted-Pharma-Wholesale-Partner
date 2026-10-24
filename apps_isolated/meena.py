@@ -1,5 +1,4 @@
 import streamlit as st
-from meena_modules.pricing_ai import render_pricing_sandbox
 from bulk_import import render_bulk_import
 from rep_tracker import render_rep_checkin, render_owner_map
 import pandas as pd
@@ -93,6 +92,8 @@ def send_telegram_otp(chat_id, otp):
 # ─── PAGES ───
 
 import datetime
+
+from meena_modules.pricing_ai import render_pricing_sandbox
 
 try:
     from meena_modules.apple_tesla_ui import render_apple_tesla_view
