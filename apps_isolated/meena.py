@@ -34,15 +34,16 @@ except Exception:
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── ULTRA CLEAN AMAZON MOBILE CSS ───
+# ─── ULTRA CLEAN AMAZON MOBILE CSS (TIGHT SPACING) ───
 st.markdown("""
 <style>
+    /* Hide Streamlit chrome */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 0.5rem; padding-bottom: 0; max-width: 1200px;}
     
-    /* Force 2-column grid on mobile (like Amazon) */
+    /* 1. FORCE 2-COLUMN GRID ON MOBILE */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: wrap !important;
@@ -55,68 +56,69 @@ st.markdown("""
         }
     }
 
-    /* Constrain image size so it doesn't take up the whole screen */
-    div[data-testid="stVerticalBlockBorderWrapper"] img {
-        max-height: 140px !important;
-        object-fit: contain !important;
-        display: block;
-        margin: 0 auto;
-    }
-    
-    /* Tighten the card */
+    /* 2. KILL EMPTY SPACE INSIDE CARDS */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #fff; 
-        border: 1px solid #e5e5e5; 
+        padding: 6px !important; 
         border-radius: 8px;
-        padding: 8px; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e5e5e5;
+    }
+    /* Remove Streamlit's default vertical gaps between elements */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        gap: 0.1rem !important;
     }
     
-    /* AMAZON YELLOW BUTTON */
+    /* 3. FIX IMAGE SIZE & RENDERING */
+    div[data-testid="stVerticalBlockBorderWrapper"] img {
+        height: 120px !important;
+        width: 100% !important;
+        object-fit: contain !important;
+        margin-bottom: 4px;
+        border-radius: 4px;
+    }
+    
+    /* 4. FORCE AMAZON YELLOW BUTTON */
     div.stButton > button[kind="primary"] {
         background-color: #FFD814 !important;
         color: #0F1111 !important;
         border: 1px solid #FCD200 !important;
         border-radius: 20px !important;
         font-weight: 600 !important;
-        padding: 4px 10px !important;
+        padding: 2px 8px !important;
         width: 100% !important;
-        min-height: 32px !important;
-        font-size: 14px !important;
+        min-height: 30px !important;
+        height: 30px !important;
+        font-size: 13px !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background-color: #F7CA00 !important;
-        border-color: #F2C200 !important;
     }
     
-    /* Typography */
+    /* 5. TIGHT TYPOGRAPHY */
     .amz-title { 
         color: #0F1111; 
-        font-size: 14px; 
-        font-weight: 500; 
-        margin-top: 8px; 
-        margin-bottom: 2px; 
+        font-size: 13px; 
+        font-weight: 600; 
         line-height: 1.2; 
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        margin-bottom: 2px;
     }
-    .amz-price { color: #0F1111; font-size: 18px; font-weight: 600; margin-bottom: 8px;}
-    .amz-decimal { font-size: 12px; position: relative; top: -3px; }
-    .amz-stock-ok { color: #067d1f; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-    .amz-stock-out { color: #b12704; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .amz-price { color: #0F1111; font-size: 16px; font-weight: 700; margin-bottom: 4px;}
+    .amz-decimal { font-size: 11px; position: relative; top: -3px; }
+    .amz-stock-ok { color: #067d1f; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .amz-stock-out { color: #b12704; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ─── REAL MEDICINE IMAGE GENERATOR ───
 def get_icon(name):
+    # Uses a clean medical background with the medicine name clearly visible
     import urllib.parse
-    words = str(name).strip().split()
-    if len(words) > 2:
-        display = chr(10).join(" ".join(words[i:i+2]) for i in range(0, len(words), 2))
-    else:
-        display = " ".join(words)
-    return f"https://placehold.co/300x300/FFFFFF/0B3C5D/png?text={urllib.parse.quote(display)}&font=Montserrat"
+    clean_name = str(name).replace(" ", "+")
+    # Generates a 200x200 image with a nice blue border and large text
+    return f"https://placehold.co/200x200/F0F8FF/0B3C5D/png?text={clean_name}&font=Montserrat&font-size=40"
 
 @st.cache_data(ttl=60)
 def load_inventory():
@@ -137,8 +139,7 @@ def load_retailers():
     return []
 
 def send_telegram_otp(chat_id, otp):
-    if not TELEGRAM_BOT_TOKEN or not chat_id:
-        return False
+    if not TELEGRAM_BOT_TOKEN or not chat_id: return False
     try:
         res = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -146,17 +147,14 @@ def send_telegram_otp(chat_id, otp):
             timeout=10,
         )
         return res.status_code == 200
-    except Exception:
-        return False
+    except Exception: return False
 
 def save_order_history(user_id, cart, total):
     orders_file = BASE_DIR / "orders.json"
     orders = []
     if orders_file.exists():
-        try:
-            orders = json.loads(orders_file.read_text())
-        except Exception:
-            pass
+        try: orders = json.loads(orders_file.read_text())
+        except Exception: pass
     new_order = {"order_id": f"ORD-{random.randint(1000, 9999)}", "user_id": user_id,
                  "date": str(datetime.date.today()), "items": cart, "total": total, "status": "Paid"}
     orders.append(new_order)
@@ -170,8 +168,8 @@ def login_screen():
         st.caption("Trusted Pharma Wholesale Partner")
         st.info("Please enter your ID and PIN.")
         with st.form("login"):
-            rid = st.text_input("User ID", help="Your registered retailer or staff ID").strip().upper()
-            pin = st.text_input("PIN", type="password", help="Your 4-digit PIN").strip()
+            rid = st.text_input("User ID").strip().upper()
+            pin = st.text_input("PIN", type="password").strip()
             submit = st.form_submit_button("Login", use_container_width=True, type="primary")
         if submit:
             users = load_retailers()
@@ -182,11 +180,10 @@ def login_screen():
                     st.session_state.user = user
                     st.session_state.page = "home"
                     st.rerun()
-            st.error("❌ Invalid ID or PIN. Please try again or contact support.")
+            st.error("❌ Invalid ID or PIN.")
 
 def page_home(u):
     st.title(f"Welcome back, {u.get('shop', 'Partner')} 👋")
-    st.caption("Here is your business overview for today.")
     st.divider()
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Orders", "42", "+3 this week")
@@ -207,7 +204,7 @@ def page_home(u):
 
 @st.fragment
 def product_grid(view):
-    cols_per_row = 3 # Desktop uses 3, CSS forces 2 on mobile
+    cols_per_row = 3 
     for i in range(0, len(view.head(30)), cols_per_row):
         cols = st.columns(cols_per_row)
         for j in range(cols_per_row):
@@ -215,8 +212,8 @@ def product_grid(view):
             if idx >= len(view): continue
             row = view.iloc[idx]
             
-            # Strip the weird "- 0" from database
             raw_name = str(row.get("name", "Unknown"))
+            # Clean the "- 0" from database
             name = raw_name.replace(" - 0", "").replace("-0", "").replace("- 1", "").strip()
             
             price = float(row.get("price", 0))
@@ -224,6 +221,7 @@ def product_grid(view):
             
             with cols[j]:
                 with st.container(border=True):
+                    # Real image with padding
                     try: st.image(get_icon(name), use_container_width=True)
                     except Exception: pass
                     
@@ -287,7 +285,6 @@ def page_cart():
     
     with st.container(border=True):
         st.markdown(f"### Total: ₹{total:,.2f}")
-        st.caption("🔒 Secure checkout")
         
     if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
     if "order_otp" not in st.session_state: st.session_state.order_otp = None
