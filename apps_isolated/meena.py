@@ -38,6 +38,23 @@ try:
 except Exception:
     TELEGRAM_BOT_TOKEN = ""
 
+
+<style>
+/* 2026 Modern Card UI */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 16px !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
+    background: #ffffff !important;
+    padding: 10px !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+}
+</style>
+
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
 # CSS
@@ -266,18 +283,20 @@ def page_home(u):
 
 def get_icon(name):
     name = str(name).lower()
+    # Using premium 3D Fluent icons
     if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return "💊"
+        return "https://img.icons8.com/3d-fluent/100/000000/pill.png"
     elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
-        return "🧴"
+        return "https://img.icons8.com/3d-fluent/100/000000/syrup.png"
     elif any(k in name for k in ["injection", "insulin"]):
-        return "💉"
+        return "https://img.icons8.com/3d-fluent/100/000000/syringe.png"
     elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return "🧴"
+        return "https://img.icons8.com/3d-fluent/100/000000/ointment.png"
     elif any(k in name for k in ["vitamin", "zinc", "c", "multivitamin"]):
-        return "🍊"
+        return "https://img.icons8.com/3d-fluent/100/000000/vitamins.png"
     else:
-        return "📦"
+        return "https://img.icons8.com/3d-fluent/100/000000/medical-packaging.png"
+
 
 def page_order():
     st.title("🛒 Place Order")
@@ -310,11 +329,7 @@ def page_order():
             
             # Amazon-style Product Image (Placeholder)
             with c1:
-                st.markdown(f"""
-                <div style="background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <span style="font-size: 50px;">{get_icon(name)}</span>
-                </div>
-                """, unsafe_allow_html=True)
+                st.image(get_icon(name), width=80)
             
             # Product Details
             with c2:
@@ -498,11 +513,7 @@ def page_order_history(u):
             for item in items:
                 ic1, ic2 = st.columns([1, 5])
                 with ic1:
-                    st.markdown(f"""
-                    <div style="background: #f8f9fa; border-radius: 8px; text-align: center; padding: 5px;">
-                        <span style="font-size: 30px;">{get_icon(item.get('name', ''))}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.image(get_icon(item.get("name", "")), width=45)
                 with ic2:
                     st.markdown(f"**{item.get('name', 'Medicine')}**")
                     st.caption(f"Qty: {item.get('qty', 1)} | Price: ₹{item.get('price', 0)}")
