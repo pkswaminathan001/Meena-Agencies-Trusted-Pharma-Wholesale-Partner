@@ -394,8 +394,8 @@ def page_history(u):
                 with c3:
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
-                        st.toast(f"Added {item['name']} to cart"); st.rerun()un()
-
+                        st.toast(f"Added {item['name']} to cart")
+                        st.rerun()
 # ─── 5. AMAZON PROFILE ───
 def page_profile(u):
     st.title("Your Account")
