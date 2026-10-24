@@ -39,27 +39,9 @@ from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
 
 # ── UI helpers (with graceful fallback if file missing) ───────────────
-try:
-    from ui_helpers import (
-        get_icon, inject_amazon_css, render_product_card, render_product_grid,
-    )
-except Exception as _ui_err:
-    def inject_amazon_css():
-        pass
-    def get_icon(name):
-        import urllib.parse as _u
-        q = _u.quote(str(name))
-        return f"https://placehold.co/300x300/FFFFFF/0B3C5D/png?text={q}&font=Montserrat"
-    def render_product_card(*, name, price_paise, key, on_add=None, **_):
-        st.write(f"**{name}** — ₹{price_paise/100:.2f}")
-        if st.button("Add", key=f"add_{key}"):
-            on_add and on_add(name, price_paise)
-    def render_product_grid(items, *, on_add=None, cols_per_row=4):
-        for it in items:
-            render_product_card(
-                name=it["name"], price_paise=it["price_paise"],
-                key=it["key"], on_add=on_add,
-            )
+from apps_isolated.ui_helpers import (
+    get_icon, inject_amazon_css, render_product_card, render_product_grid,
+)
 
 # ── st.fragment fallback (Streamlit < 1.37) ───────────────────────────
 def _fragment(run_every=None):
