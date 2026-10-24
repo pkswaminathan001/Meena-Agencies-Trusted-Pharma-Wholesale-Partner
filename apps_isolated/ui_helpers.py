@@ -174,16 +174,36 @@ def render_product_card(*, name: str, price_paise: int, key: str,
         item = next((x for x in cart if x["name"] == name), None)
 
         if item:
-            c1, c2, c3 = st.columns([1, 1, 1])
-            if c1.button("➖", key=f"minus_{key}", use_container_width=True):
-                item["qty"] -= 1
-                if item["qty"] <= 0:
-                    cart.remove(item)
-                st.rerun()
-            c2.markdown(f"<h4 style='text-align:center; margin: 0;'>{item['qty']}</h4>", unsafe_allow_html=True)
-            if c3.button("➕", key=f"plus_{key}", use_container_width=True):
-                item["qty"] += 1
-                st.rerun()
+            def _update_qty(item_name, key, delta=None):
+                for x in st.session_state.cart:
+                    if x["name"] == item_name:
+                        if delta is not None:
+                            x["qty"] += delta
+                        else:
+                            x["qty"] = st.session_state[f"qty_in_{key}"]
+                        
+                        if x["qty"] <= 0:
+                            st.session_state.cart.remove(x)
+                        else:
+                            st.session_state[f"qty_in_{key}"] = x["qty"]
+                        break
+
+            c1, c2, c3 = st.columns([1, 1.5, 1])
+            
+            c1.button("➖", key=f"minus_{key}", use_container_width=True, 
+                      on_click=_update_qty, args=(name, key, -1))
+            
+            c2.number_input(
+                "Qty", min_value=1, max_value=9999, 
+                value=int(item["qty"]), 
+                key=f"qty_in_{key}", 
+                label_visibility="collapsed",
+                on_change=_update_qty,
+                args=(name, key, None)
+            )
+            
+            c3.button("➕", key=f"plus_{key}", use_container_width=True, 
+                      on_click=_update_qty, args=(name, key, 1))
         else:
             if st.button("Add to Cart", key=f"add_{key}", use_container_width=True):
                 if on_add:
