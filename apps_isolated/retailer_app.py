@@ -440,6 +440,11 @@ def page_owner_map():
 
     draw_live_map()
 
+
+def location_gatekeeper(user):
+    """Placeholder function to allow access. The real GPS logic is in page_rep_checkin."""
+    return True
+
 def main():
     if "user" not in st.session_state:
         login_screen()
