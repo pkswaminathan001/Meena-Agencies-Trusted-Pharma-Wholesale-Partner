@@ -397,6 +397,80 @@ def page_cart():
                 st.rerun()
 
 
+
+def page_order_history(u):
+    import json
+    import os
+    import pandas as pd
+    from datetime import datetime
+    from meena_modules.invoice_generator import generate_invoice_pdf
+
+    st.title("📜 My Orders & Bills")
+    st.caption("View your past orders, track status, and download invoices.")
+    
+    orders_file = Path("orders.json")
+    if not orders_file.exists():
+        st.info("You have not placed any orders yet.")
+        return
+        
+    try:
+        with open(orders_file, "r") as f:
+            all_orders = json.load(f)
+    except:
+        st.error("Could not read orders database.")
+        return
+        
+    # Filter orders for this specific retailer
+    my_orders = [o for o in all_orders if str(o.get("retailer_id")) == str(u.get("id"))]
+    
+    if not my_orders:
+        st.info("You have not placed any orders yet.")
+        return
+        
+    # Sort by newest first
+    my_orders = sorted(my_orders, key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    for order in my_orders:
+        status = order.get("status", "Pending")
+        
+        # Status Badges
+        if status == "Approved":
+            status_tag = "🟢 Approved & Paid"
+        elif status == "Rejected":
+            status_tag = "🔴 Rejected"
+        else:
+            status_tag = "🟡 Pending Verification"
+            
+        with st.expander(f"{status_tag} | Order {order.get('order_id')} | Total: ₹{order.get('total', 0):,.2f} | {order.get('timestamp', '')[:10]}"):
+            
+            # Order details table
+            items = order.get("items", [])
+            if items:
+                df = pd.DataFrame(items)
+                df = df[["name", "qty", "price"]]
+                df["Total"] = df["price"] * df["qty"]
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            st.write(f"**Delivery Address:** {order.get('address', 'N/A')}")
+            st.write(f"**UTR / Txn ID:** `{order.get('utr', 'N/A')}`")
+            
+            # Download PDF Invoice (Only if approved)
+            if status == "Approved":
+                try:
+                    pdf_bytes = generate_invoice_pdf(order, u)
+                    st.download_button(
+                        label="📥 Download PDF Invoice",
+                        data=pdf_bytes,
+                        file_name=f"Invoice_{order.get('order_id')}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                        key=f"dl_{order.get('order_id')}"
+                    )
+                except Exception as e:
+                    st.warning(f"Could not generate PDF: {e}")
+            else:
+                st.warning("Invoice will be available once the Owner verifies your payment.")
+
 def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
@@ -543,6 +617,7 @@ def render_sidebar():
             ("home", "🏠 Dashboard"),
             ("order", "🛒 Place Order"),
             ("cart", "🛍️ My Cart"),
+            ("history", "📜 My Orders & Bills"),
         ]
 
         # Add Owner/Staff specific items
