@@ -6,6 +6,7 @@ import hashlib
 import requests
 import random
 from bulk_import import render_bulk_import
+from rep_tracker import render_rep_checkin, render_owner_map
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -354,7 +355,10 @@ def render_sidebar():
         menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
         
         for key, label in menu:
-            if key == "bulk_import" and st.session_state.user.get("role") != "owner":
+            role = st.session_state.user.get("role", "").lower()
+            if key in ["bulk_import", "owner_map"] and role != "owner":
+                continue
+            if key == "rep_checkin" and role not in ["rep", "sales_rep", "owner"]:
                 continue
             if st.button(label, use_container_width=True):
                 st.session_state.page = key
@@ -382,5 +386,7 @@ def main():
     elif page == "history": page_history(u)
     elif page == "profile": page_profile(u)
     elif page == "bulk_import": render_bulk_import()
+    elif page == "rep_checkin": render_rep_checkin(u)
+    elif page == "owner_map": render_owner_map()
 
 main()
