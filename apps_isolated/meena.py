@@ -40,11 +40,24 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .block-container {padding-top: 1rem; padding-bottom: 0; max-width: 1200px;}
+    .block-container {padding-top: 0.5rem; padding-bottom: 0; max-width: 1200px;}
     
-    /* Prevent the giant image on mobile */
+    /* Force 2-column grid on mobile (like Amazon) */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            flex: 1 1 45% !important;
+            min-width: 45% !important;
+            max-width: 48% !important;
+        }
+    }
+
+    /* Constrain image size so it doesn't take up the whole screen */
     div[data-testid="stVerticalBlockBorderWrapper"] img {
-        max-height: 160px !important;
+        max-height: 140px !important;
         object-fit: contain !important;
         display: block;
         margin: 0 auto;
@@ -54,20 +67,22 @@ st.markdown("""
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #fff; 
         border: 1px solid #e5e5e5; 
-        border-radius: 12px;
-        padding: 10px; 
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        border-radius: 8px;
+        padding: 8px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     
-    /* AMAZON YELLOW BUTTON (Targets Streamlit Primary Button) */
+    /* AMAZON YELLOW BUTTON */
     div.stButton > button[kind="primary"] {
         background-color: #FFD814 !important;
         color: #0F1111 !important;
         border: 1px solid #FCD200 !important;
         border-radius: 20px !important;
         font-weight: 600 !important;
-        padding: 6px 12px !important;
+        padding: 4px 10px !important;
         width: 100% !important;
+        min-height: 32px !important;
+        font-size: 14px !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background-color: #F7CA00 !important;
@@ -75,11 +90,22 @@ st.markdown("""
     }
     
     /* Typography */
-    .amz-title { color: #0F1111; font-size: 15px; font-weight: 500; margin-top: 10px; margin-bottom: 4px; line-height: 1.3; }
-    .amz-price { color: #0F1111; font-size: 20px; font-weight: 600; }
-    .amz-decimal { font-size: 13px; position: relative; top: -5px; }
-    .amz-stock-ok { color: #067d1f; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
-    .amz-stock-out { color: #b12704; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+    .amz-title { 
+        color: #0F1111; 
+        font-size: 14px; 
+        font-weight: 500; 
+        margin-top: 8px; 
+        margin-bottom: 2px; 
+        line-height: 1.2; 
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .amz-price { color: #0F1111; font-size: 18px; font-weight: 600; margin-bottom: 8px;}
+    .amz-decimal { font-size: 12px; position: relative; top: -3px; }
+    .amz-stock-ok { color: #067d1f; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .amz-stock-out { color: #b12704; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -181,7 +207,7 @@ def page_home(u):
 
 @st.fragment
 def product_grid(view):
-    cols_per_row = 3
+    cols_per_row = 3 # Desktop uses 3, CSS forces 2 on mobile
     for i in range(0, len(view.head(30)), cols_per_row):
         cols = st.columns(cols_per_row)
         for j in range(cols_per_row):
@@ -189,7 +215,7 @@ def product_grid(view):
             if idx >= len(view): continue
             row = view.iloc[idx]
             
-            # Fix the weird "- 0" from the database
+            # Strip the weird "- 0" from database
             raw_name = str(row.get("name", "Unknown"))
             name = raw_name.replace(" - 0", "").replace("-0", "").replace("- 1", "").strip()
             
@@ -212,12 +238,9 @@ def product_grid(view):
                     paise = int(round((price - rupees) * 100))
                     st.markdown(f'<div class="amz-price"><span class="amz-decimal">₹</span>{rupees}<span class="amz-decimal">.{paise:02d}</span></div>', unsafe_allow_html=True)
                     
-                    # NO DELIVERY TEXT HERE!
-                    st.write("")
-                    
                     if st.button("Add to Cart", key=f"add_{name}", disabled=(stock <= 0), use_container_width=True, type="primary"):
                         st.session_state.cart.append({"name": name, "price": price, "qty": 1})
-                        st.toast(f"✅ Added {name} to cart"); st.rerun()
+                        st.toast(f"✅ Added {name}"); st.rerun()
 
 def page_order():
     if "cart" not in st.session_state: st.session_state.cart = []
