@@ -469,6 +469,9 @@ def page_owner_map():
     try:
         render_qc_dashboard(load_activity, load_orders)
         st.divider()
+        render_owner_verification()
+
+        st.divider()
         render_pricing_sandbox()
 
         render_owner_rep_map()
