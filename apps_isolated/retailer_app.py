@@ -14,6 +14,7 @@ def get_base64_image(image_path):
         return ""
 
 import random
+import time
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -88,19 +89,33 @@ def login_screen():
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             if st.form_submit_button("Login", use_container_width=True):
+                start_time = time.time()
+                
                 users = load_retailers()
                 user = next((u for u in users if u["id"] == rid), None)
+                
                 if user:
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
+                        end_time = time.time()
+                        load_time = round((end_time - start_time) * 1000, 2) # in milliseconds
+                        
                         st.session_state.user = user
                         st.session_state.page = "home"
+                        st.session_state.login_speed = load_time
                         st.rerun()
+                
                 st.error("❌ Invalid ID or PIN")
 
 # ─── PAGES ───
 def page_home(u):
     st.title(f"Welcome, {u.get('shop', 'Partner')} 👋")
+    
+    # Display login speed if available
+    if "login_speed" in st.session_state:
+        st.toast(f"⚡ Logged in securely in {st.session_state.login_speed} ms")
+        del st.session_state.login_speed
+
     
     st.markdown("### ⚡ Quick Actions")
     c1, c2 = st.columns(2)
