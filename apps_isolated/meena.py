@@ -470,39 +470,35 @@ def page_owner_map():
     # ─── OWNER QC & GPS ───
     st.divider()
     st.subheader("👑 Owner AI & Tracking Tools")
+    # 1. QC Dashboard
     try:
-        # Safe fallbacks for AI Tools
-        if 'load_activity' not in globals():
-            def load_activity(): return []
-        if 'load_orders' not in globals():
-            def load_orders(): return []
-        
         render_qc_dashboard(load_activity, load_orders)
     except Exception as e:
-        st.warning(f"⚠️ AI Tools warning: {e}")
-        
+        st.warning(f"⚠️ AI QC Tools unavailable: {e}")
+
     st.divider()
     
-    # --- PAYMENT VERIFICATION CENTER ---
+    # 2. Payment Verification Center (Always visible)
     try:
         render_owner_verification()
     except Exception as e:
         st.error(f"Payment Center Error: {e}")
-            
-        st.divider()
-        # --- PAYMENT VERIFICATION CENTER ---
-        try:
-            render_owner_verification()
-        except Exception as e:
-            st.error(f"Payment Center Error: {e}")
-verification()
 
-        st.divider()
+    st.divider()
+    
+    # 3. Pricing Sandbox
+    try:
         render_pricing_sandbox()
+    except Exception as e:
+        st.warning(f"⚠️ Pricing Sandbox unavailable: {e}")
 
+    st.divider()
+    
+    # 4. GPS Map
+    try:
         render_owner_rep_map()
     except Exception as e:
-        st.error(f"Owner tools error: {e}")
+        st.warning(f"⚠️ GPS Map unavailable: {e}")
     # ──────────────────────
 
 def render_sidebar():
