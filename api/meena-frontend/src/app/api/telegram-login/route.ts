@@ -3,14 +3,8 @@ import crypto from 'crypto';
 
 export async function POST(req: Request) {
   const { init_data } = await req.json();
-  
-  if (init_data === "mock_data_for_demo") {
-    return NextResponse.json({
-      id: "TG_DEMO_123", shop: "Meena Agencies (Demo)", role: "owner", phone: "Telegram", telegram_chat_id: "8205802064"
-    });
-  }
-
   const botToken = process.env.TELEGRAM_BOT_TOKEN || "";
+  
   try {
     const urlParams = new URLSearchParams(init_data);
     const hash = urlParams.get('hash');
@@ -27,10 +21,10 @@ export async function POST(req: Request) {
     if (calculatedHash === hash) {
       const user = JSON.parse(urlParams.get('user') || '{}');
       return NextResponse.json({
-        id: `TG_${user.id}`, shop: `${user.first_name} ${user.last_name || ''}`, role: "owner", phone: "Telegram", telegram_chat_id: user.id
+        id: `TG_${user.id}`, shop: `${user.first_name}`, role: "owner", phone: "Telegram", telegram_chat_id: user.id
       });
     }
-    return NextResponse.json({ error: "Invalid hash" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   } catch (error) {
     return NextResponse.json({ error: "Auth failed" }, { status: 500 });
   }
