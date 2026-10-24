@@ -16,8 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Securely read token from Streamlit Cloud Secrets
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
-except:
-    
+except Exception:
+    TELEGRAM_BOT_TOKEN = ""
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
