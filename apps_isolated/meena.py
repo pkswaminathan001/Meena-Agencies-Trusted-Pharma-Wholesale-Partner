@@ -119,12 +119,15 @@ def get_icon(name):
 @st.cache_data(ttl=60)
 def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
-    if db_path.exists():
+    if not db_path.exists():
+        return pd.DataFrame()
+    try:
         conn = sqlite3.connect(db_path)
         df = pd.read_sql_query("SELECT sku as name, 1.0 as price, qty as stock FROM products LIMIT 100", conn)
         conn.close()
         return df
-    return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
 
 @st.cache_data(ttl=60)
 def load_retailers():
@@ -279,7 +282,6 @@ def product_grid(view):
                     if st.button("Add to Cart", key=f"add_{name}_{idx}", disabled=(stock <= 0), use_container_width=True, type="primary"):
                         st.session_state.cart.append({"name": name, "price": price, "qty": 1})
                         st.toast(f"✅ Added {name}"); st.rerun()
-
 def page_order():
     cart_count = len(st.session_state.cart)
     if cart_count > 0:
@@ -292,10 +294,13 @@ def page_order():
         st.title("🛒 Place Order")
         
     df = load_inventory()
-    if df.empty: st.error("Inventory DB not found."); return
+    if df.empty:
+        st.warning("Inventory database is not available yet. Please try again later.")
+        return
     search = st.text_input("🔍 Search", placeholder="Search medicines...").lower()
     view = df[df["name"].str.lower().str.contains(search)] if search else df
-    if view.empty: st.warning("No results found."); return
+    if view.empty:
+        st.warning("No results found."); return
     product_grid(view)
 
 # ─── 3. CART & DIGITAL MARKETING COUPONS ───
@@ -354,36 +359,30 @@ def page_cart():
                 st.session_state.cart = []; st.session_state.show_otp_input = False
                 st.balloons(); time.sleep(2); go_to("home"); st.rerun()
 
-# ─── 4. AMAZON ORDER HISTORY (SQLite Version) ───
+# # ─── 4. ORDER HISTORY ───
 def page_history(u):
     st.title("Your Orders")
     db_path = BASE_DIR / "meena_enterprise.db"
-    
-    if not db_path.exists():
+    if not db_path.exists(): 
         st.info("You have not placed any orders yet."); return
         
-    conn = sqlite3.connect(db_path)
-    # Fetch orders for this specific user
-    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
-    conn.close()
-    
-    if df_orders.empty:
+    try:
+        conn = sqlite3.connect(db_path)
+        df_orders = pd.read_sql_query("SELECT * FROM orders WHERE user_id = ? ORDER BY rowid DESC", conn, params=(str(u.get("id")),))
+        conn.close()
+    except Exception:
+        # If the table doesn't exist yet on the live server, gracefully handle it
         st.info("You have not placed any orders yet.")
+        return
+    
+    if df_orders.empty: 
+        st.info("You have not placed any orders yet."); 
         return
     
     for index, order in df_orders.iterrows():
         with st.container(border=True):
-            st.markdown(f'''
-                <div class="amz-order-header">
-                    <div>ORDER PLACED<br><b>{order['date']}</b></div>
-                    <div>TOTAL<br><b>₹{order['total']:,.2f}</b></div>
-                    <div>ORDER #<br><b>{order['order_id']}</b></div>
-                </div>
-            ''', unsafe_allow_html=True)
-            
-            # Parse the JSON string back into a Python list
+            st.markdown(f'''<div class="amz-order-header"><div>ORDER PLACED<br><b>{order['date']}</b></div><div>TOTAL<br><b>₹{order['total']:,.2f}</b></div><div>ORDER #<br><b>{order['order_id']}</b></div></div>''', unsafe_allow_html=True)
             items = json.loads(order['items'])
-            
             for item in items:
                 c1, c2, c3 = st.columns([2, 5, 2])
                 with c1: st.image(get_icon(item['name']), use_container_width=True)
@@ -394,8 +393,7 @@ def page_history(u):
                 with c3:
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
-                        st.toast(f"Added {item['name']} to cart")
-                        st.rerun()
+                        st.toast(f"Added {item['name']} to cart"); st.rerun()
 # ─── 5. AMAZON PROFILE ───
 def page_profile(u):
     st.title("Your Account")
