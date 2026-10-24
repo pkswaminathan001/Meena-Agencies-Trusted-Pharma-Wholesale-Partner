@@ -1392,7 +1392,7 @@ elif st.session_state.role in ("retailer", "customer"):
         po = st.session_state.pending_order
         
         # 1. Check if payment is already done
-        if not po.get("paid", False):
+        if not po.get("otp_verified", False):
             st.markdown("### 🔐 OTP Verification Required")
             st.info(f"OTP sent to your registered contact via {get_active_channel()}.")
             if get_active_channel() == "console":
@@ -1402,7 +1402,7 @@ elif st.session_state.role in ("retailer", "customer"):
             with c1:
                 if st.button("✅ Verify OTP", width='stretch'):
                     if entered == po["otp"]:
-                        po["paid"] = False # OTP correct, move to payment step
+                        po["otp_verified"] = True # Mark as verified
                         st.rerun()
                     else: 
                         st.error("❌ Wrong OTP")
