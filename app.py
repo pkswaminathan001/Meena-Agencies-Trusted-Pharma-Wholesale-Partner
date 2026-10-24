@@ -1,3 +1,10 @@
+import os
+import streamlit as st
+try:
+    for k, v in st.secrets.items():
+        os.environ[k] = str(v)
+except Exception:
+    pass
 from datetime import datetime, timedelta
 from meena_modules.telegram_autologin import run_telegram_autologin
 run_telegram_autologin()
