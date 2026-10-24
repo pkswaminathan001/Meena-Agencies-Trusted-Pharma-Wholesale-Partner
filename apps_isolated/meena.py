@@ -264,36 +264,60 @@ def page_home(u):
     # ────────────────────────
 
 def page_order():
-    cart_count = len(st.session_state.get("cart", []))
-    if cart_count > 0:
-        c1, c2 = st.columns([3, 1])
-        c1.title("🛒 Place Order")
-        with c2:
-            if st.button(f"🛍️ View Cart ({cart_count})", type="primary", use_container_width=True):
-                st.session_state.page = "cart"
-                st.rerun()
-    else:
-        st.title("🛒 Place Order")
+    st.title("🛒 Place Order")
+    st.caption("Browse our catalog and add items to your cart.")
+    
+    try:
+        df = load_inventory()
+    except:
+        st.error("Inventory could not be loaded.")
+        return
 
-    df = load_inventory()
     if df.empty:
-        st.error("Inventory DB not found.")
+        st.info("No products found.")
         return
 
     if "cart" not in st.session_state:
         st.session_state.cart = []
 
-    search = st.text_input("Search medicine", placeholder="e.g. Dolo").lower()
-    view = df[df["name"].str.lower().str.contains(search)] if search else df
+    q = st.text_input("🔍 Search medicines by name", placeholder="e.g., Dolo, Amoxicillin").strip().lower()
+    view = df[df["name"].astype(str).str.lower().str.contains(q, na=False)] if q else df
 
+    # Display in a grid
     for _, row in view.head(20).iterrows():
-        c1, c2, c3 = st.columns([4, 2, 2])
-        c1.write(f"**{row['name']}**")
-        c2.write(f"₹{row['price']}")
-        if c3.button("Add", key=f"add_{row['name']}"):
-            st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
-            st.toast(f"Added {row['name']}")
-            st.rerun()
+        name = str(row.get("name", "Unknown"))
+        price = float(row.get("price", 0))
+        stock = int(row.get("stock", 0))
+        
+        with st.container(border=True):
+            c1, c2, c3 = st.columns([1.5, 4, 2])
+            
+            # Amazon-style Product Image (Placeholder)
+            with c1:
+                st.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", width=100)
+            
+            # Product Details
+            with c2:
+                st.markdown(f"### {name}")
+                st.markdown(f"<h3 style='color:#B12704; margin:0; padding:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
+                st.markdown("<p style='color:#565959; font-size:12px; margin-top:5px;'>FREE delivery on orders above ₹500</p>", unsafe_allow_html=True)
+                if stock > 0:
+                    st.markdown(f"<p style='color:#007600; font-size:14px; font-weight:bold;'>In Stock ({stock} units)</p>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<p style='color:#B12704; font-size:14px; font-weight:bold;'>Out of Stock</p>", unsafe_allow_html=True)
+            
+            # Add to Cart Button
+            with c3:
+                st.write("") # spacing
+                st.write("")
+                if stock > 0:
+                    if st.button("🛒 Add to Cart", key=f"add_{name}", use_container_width=True, type="primary"):
+                        st.session_state.cart.append({"name": name, "price": price, "qty": 1})
+                        st.toast(f"✅ Added {name} to cart!")
+                else:
+                    st.button("Out of Stock", disabled=True, use_container_width=True)
+
+
 def page_cart():
     st.title("🛍️ My Cart")
     cart = st.session_state.get("cart", [])
@@ -403,10 +427,9 @@ def page_order_history(u):
     import os
     import pandas as pd
     from datetime import datetime
-    from meena_modules.invoice_generator import generate_invoice_pdf
 
     st.title("📜 My Orders & Bills")
-    st.caption("View your past orders, track status, and download invoices.")
+    st.caption("View your past orders and download invoices.")
     
     orders_file = Path("orders.json")
     if not orders_file.exists():
@@ -420,43 +443,52 @@ def page_order_history(u):
         st.error("Could not read orders database.")
         return
         
-    # Filter orders for this specific retailer
     my_orders = [o for o in all_orders if str(o.get("retailer_id")) == str(u.get("id"))]
     
     if not my_orders:
         st.info("You have not placed any orders yet.")
         return
         
-    # Sort by newest first
     my_orders = sorted(my_orders, key=lambda x: x.get("timestamp", ""), reverse=True)
 
     for order in my_orders:
         status = order.get("status", "Pending")
         
-        # Status Badges
-        if status == "Approved":
-            status_tag = "🟢 Approved & Paid"
-        elif status == "Rejected":
-            status_tag = "🔴 Rejected"
-        else:
-            status_tag = "🟡 Pending Verification"
+        with st.container(border=True):
+            # Order Header
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.markdown(f"**Order {order.get('order_id')}**")
+                st.caption(f"Placed on: {order.get('timestamp', 'N/A')[:10]}")
+            with c2:
+                st.markdown(f"<h3 style='text-align:right; margin:0;'>₹{order.get('total', 0):,.2f}</h3>", unsafe_allow_html=True)
             
-        with st.expander(f"{status_tag} | Order {order.get('order_id')} | Total: ₹{order.get('total', 0):,.2f} | {order.get('timestamp', '')[:10]}"):
+            st.divider()
             
-            # Order details table
+            # Status
+            if status == "Approved":
+                st.success("🟢 Approved & Paid")
+            elif status == "Rejected":
+                st.error("🔴 Rejected")
+            else:
+                st.warning("🟡 Pending Verification")
+            
+            # Items List
             items = order.get("items", [])
-            if items:
-                df = pd.DataFrame(items)
-                df = df[["name", "qty", "price"]]
-                df["Total"] = df["price"] * df["qty"]
-                st.dataframe(df, use_container_width=True, hide_index=True)
+            for item in items:
+                ic1, ic2 = st.columns([1, 5])
+                with ic1:
+                    st.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", width=50)
+                with ic2:
+                    st.markdown(f"**{item.get('name', 'Medicine')}**")
+                    st.caption(f"Qty: {item.get('qty', 1)} | Price: ₹{item.get('price', 0)}")
             
-            st.write(f"**Delivery Address:** {order.get('address', 'N/A')}")
-            st.write(f"**UTR / Txn ID:** `{order.get('utr', 'N/A')}`")
+            st.divider()
             
-            # Download PDF Invoice (Only if approved)
+            # Actions
             if status == "Approved":
                 try:
+                    from meena_modules.invoice_generator import generate_invoice_pdf
                     pdf_bytes = generate_invoice_pdf(order, u)
                     st.download_button(
                         label="📥 Download PDF Invoice",
@@ -469,7 +501,8 @@ def page_order_history(u):
                 except Exception as e:
                     st.warning(f"Could not generate PDF: {e}")
             else:
-                st.warning("Invoice will be available once the Owner verifies your payment.")
+                st.info("Invoice will be available once payment is verified.")
+
 
 def page_profile(u):
     st.title("👤 Profile")
