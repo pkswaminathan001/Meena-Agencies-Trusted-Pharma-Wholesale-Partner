@@ -1,27 +1,27 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
-import Image from 'next/image';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [error, setError] = useState("");
   
+  // UI State
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showAddStock, setShowAddStock] = useState(false);
-  const [stockSku, setStockSku] = useState("");
-  const [stockQty, setStockQty] = useState(1);
-
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  
+  // Cart & Checkout State
   const [cart, setCart] = useState<any[]>([]);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState(1);
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1=Review, 2=OTP
   const [otp, setOtp] = useState("");
   const [orderSuccess, setOrderSuccess] = useState("");
 
   const handleTelegramLogin = async (initData: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/telegram_login`, {
+      const res = await fetch("/api/telegram-login", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ init_data: initData })
@@ -38,12 +38,16 @@ export default function Home() {
   useEffect(() => {
     const savedUser = localStorage.getItem("meena_user");
     if (savedUser) setUser(JSON.parse(savedUser));
+    
+    const savedOrders = localStorage.getItem("meena_orders");
+    if (savedOrders) setOrderHistory(JSON.parse(savedOrders));
+
     const tg = (window as any).Telegram?.WebApp;
     if (tg && tg.initData) { tg.expand(); handleTelegramLogin(tg.initData); }
   }, []);
 
   const fetchProducts = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`).then(res => res.json()).then(data => setProducts(data));
+    fetch("/api/products").then(res => res.json()).then(data => setProducts(data));
   };
 
   useEffect(() => { if (user) fetchProducts(); }, [user]);
@@ -60,13 +64,13 @@ export default function Home() {
 
   const handleRequestOtp = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/request_order_otp`, {
+      const res = await fetch("/api/request-otp", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telegram_id: user.telegram_chat_id || "8205802064" })
       });
       const data = await res.json();
-      if (data.otp) alert(`DEMO MODE: Your Telegram OTP is ${data.otp}`);
+      // Do not alert, just move to OTP step. The OTP is sent to Telegram.
       setCheckoutStep(2);
     } catch (err) {
       alert("Failed to send OTP");
@@ -74,72 +78,54 @@ export default function Home() {
   };
 
   const handlePlaceOrder = async () => {
-    // 1. Verify OTP first
     try {
-      const otpRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verify_otp_only`, {
+      const res = await fetch("/api/save-order", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram_id: user.telegram_chat_id || "8205802064", otp: otp })
+        body: JSON.stringify({
+          telegram_id: user.telegram_chat_id || "8205802064",
+          cart_items: cart,
+          payment_id: "MOCK_PAYMENT"
+        })
       });
-      if (!otpRes.ok) throw new Error("Invalid OTP");
-
-      // 2. Open Razorpay Checkout
-      const options = {
-        key: "rzp_test_YOUR_KEY_HERE", // Replace with your Razorpay Key ID
-        amount: cartTotal * 100, // Amount in paise
-        currency: "INR",
-        name: "Meena Agencies",
-        description: "Pharma Order Payment",
-        image: "/logo.png",
-        handler: async function (response: any) {
-          // 3. Payment Success -> Save Order
-          const orderRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save_order`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              telegram_id: user.telegram_chat_id || "8205802064",
-              cart_items: cart,
-              payment_id: response.razorpay_payment_id
-            })
-          });
-          const data = await orderRes.json();
-          setOrderSuccess(data.order_id);
-          setCart([]);
-          setShowCheckoutModal(false);
-          setCheckoutStep(1);
-          setOtp("");
-        },
-        prefill: {
-          name: user.shop,
-          contact: user.phone
-        },
-        theme: { color: "#0B3C5D" }
-      };
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      if (!res.ok) throw new Error("Invalid OTP");
+      const data = await res.json();
       
+      // Save to History
+      const newOrder = {
+        id: data.order_id,
+        total: data.total,
+        date: new Date().toLocaleDateString(),
+        items: data.items
+      };
+      const updatedHistory = [newOrder, ...orderHistory];
+      setOrderHistory(updatedHistory);
+      localStorage.setItem("meena_orders", JSON.stringify(updatedHistory));
+
+      // Reset UI
+      setOrderSuccess(data.order_id);
+      setCart([]);
+      setShowCheckoutModal(false);
+      setCheckoutStep(1);
+      setOtp("");
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-  const handleLogout = () => { setUser(null); localStorage.removeItem("meena_user"); };
+  const handleLogout = () => { 
+    setUser(null); 
+    localStorage.removeItem("meena_user"); 
+    window.location.reload();
+  };
 
   if (!user) {
     return (
       <>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
-        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="beforeInteractive" />
         <div className="h-screen flex items-center justify-center bg-gray-50">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-96 border-t-4 border-[#0B3C5D] text-center">
-            
-            {/* HUGE CIRCLE LOGO ON LOGIN SCREEN */}
-            <img 
-              src="/logo.png" 
-              alt="Meena Agencies Logo" 
-              className="mx-auto w-[180px] h-[180px] rounded-full mb-6 shadow-2xl object-cover border-4 border-[#1D8348]" 
-            />
-            
+            <img src="/logo.png" alt="Logo" className="mx-auto w-[150px] h-[150px] rounded-full mb-6 shadow-lg object-cover border-4 border-[#1D8348]" />
             <h1 className="text-2xl font-bold text-[#0B3C5D] mb-2">Meena Agencies</h1>
             <p className="text-gray-500 text-sm mb-6">Fast B2B Pharma Ordering</p>
             {error && <p className="text-red-500 text-sm mb-4 font-bold">{error}</p>}
@@ -154,23 +140,26 @@ export default function Home() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
+      
+      {/* SIDEBAR */}
       <div className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-30 w-64 bg-[#0B3C5D] text-white flex flex-col`}>
-        <div className="p-4 border-b border-blue-800">
-           <h2 className="text-xl font-bold">🦚 Meena</h2>
-           <p className="text-sm text-green-400 font-semibold">{user.role}</p>
+        <div className="p-4 border-b border-blue-800 flex items-center gap-3">
+           <img src="/logo.png" className="w-10 h-10 rounded-full" alt="Logo"/>
+           <div>
+             <h2 className="text-lg font-bold">Meena</h2>
+             <p className="text-xs text-green-400 font-semibold">{user.role}</p>
+           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          <a href="#" className="block py-2 px-4 bg-blue-800 rounded-lg">📦 Dashboard</a>
-          <a href="#" className="block py-2 px-4 hover:bg-blue-800 rounded-lg">🛒 Place Order</a>
-          {user.role === 'owner' && (
-            <button onClick={() => setShowAddStock(true)} className="w-full text-left py-2 px-4 text-green-400 font-bold">➕ Add Stock</button>
-          )}
+          <button onClick={() => setShowOrderHistory(false)} className={`block w-full text-left py-2 px-4 rounded-lg ${!showOrderHistory ? 'bg-blue-800' : 'hover:bg-blue-800'}`}>📦 Dashboard</button>
+          <button onClick={() => setShowOrderHistory(true)} className={`block w-full text-left py-2 px-4 rounded-lg ${showOrderHistory ? 'bg-blue-800' : 'hover:bg-blue-800'}`}>📜 Order History</button>
         </nav>
         <div className="p-4 border-t border-blue-800">
           <button onClick={handleLogout} className="w-full bg-red-600 py-2 rounded-lg font-bold">🚪 Logout</button>
         </div>
       </div>
 
+      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white shadow-sm p-4 flex justify-between items-center md:hidden">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">☰</button>
@@ -181,29 +170,69 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto">
             {orderSuccess && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
-                <strong>✅ Order Placed Successfully!</strong> Order ID: {orderSuccess}
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex justify-between items-center">
+                <span><strong>✅ Order Placed Successfully!</strong> ID: {orderSuccess}</span>
+                <button onClick={() => setOrderSuccess("")} className="text-green-700 font-bold">✕</button>
               </div>
             )}
-            <h1 className="text-3xl font-bold text-[#0B3C5D] mb-2">Welcome, {user.shop}</h1>
-            <p className="text-gray-500 mb-8">User: {user.id} | Role: {user.role}</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.map((p, i) => (
-                <div key={i} className="bg-white rounded-xl shadow hover:shadow-xl transition p-5 border-l-4 border-[#1D8348] flex flex-col justify-between">
+            {showOrderHistory ? (
+              <div>
+                <h1 className="text-3xl font-bold text-[#0B3C5D] mb-6">📜 Order History</h1>
+                {orderHistory.length === 0 ? (
+                  <p className="text-gray-500">No orders placed yet.</p>
+                ) : (
+                  orderHistory.map((order: any, i: number) => (
+                    <div key={i} className="bg-white p-4 rounded-lg shadow-md mb-4 border-l-4 border-[#0B3C5D]">
+                      <div className="flex justify-between font-bold mb-2">
+                        <span>Order: {order.id}</span>
+                        <span className="text-[#1D8348]">₹{order.total}</span>
+                      </div>
+                      <p className="text-sm text-gray-500">Date: {order.date}</p>
+                      <div className="mt-2 text-sm">
+                        {order.items.map((item: any, j: number) => (
+                          <div key={j}>{item.name} x {item.qty}</div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="flex justify-between items-center mb-8">
                   <div>
-                    <h3 className="font-bold text-lg text-[#0B3C5D]">{p.name}</h3>
-                    <p className="text-2xl font-extrabold text-[#1D8348] mt-2">₹{p.price}</p>
-                    <p className="text-sm text-gray-500 mb-4">Stock: {p.stock}</p>
+                    <h1 className="text-3xl font-bold text-[#0B3C5D] mb-2">Welcome, {user.shop}</h1>
+                    <p className="text-gray-500">User: {user.id} | Role: {user.role}</p>
                   </div>
-                  <button onClick={() => addToCart(p)} className="w-full bg-[#0B3C5D] text-white py-2 rounded font-bold hover:bg-blue-800">Add to Cart</button>
+                  {cart.length > 0 && (
+                    <button 
+                      onClick={() => setShowCheckoutModal(true)} 
+                      className="bg-[#1D8348] text-white px-6 py-3 rounded-lg font-bold shadow-lg flex items-center gap-2 hover:bg-green-700"
+                    >
+                      🛒 View Cart ({cart.length})
+                    </button>
+                  )}
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {products.map((p, i) => (
+                    <div key={i} className="bg-white rounded-xl shadow hover:shadow-xl transition p-5 border-l-4 border-[#1D8348] flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-bold text-lg text-[#0B3C5D]">{p.name}</h3>
+                        <p className="text-2xl font-extrabold text-[#1D8348] mt-2">₹{p.price}</p>
+                        <p className="text-sm text-gray-500 mb-4">Stock: {p.stock}</p>
+                      </div>
+                      <button onClick={() => addToCart(p)} className="w-full bg-[#0B3C5D] text-white py-2 rounded font-bold hover:bg-blue-800">Add to Cart</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
 
+      {/* CART BUTTON */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50">
           <button onClick={() => setShowCheckoutModal(true)} className="bg-[#1D8348] text-white px-6 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 hover:bg-green-700">
@@ -212,6 +241,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* CHECKOUT MODAL */}
       {showCheckoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-2xl w-96">
@@ -236,27 +266,13 @@ export default function Home() {
             ) : (
               <>
                 <h2 className="text-xl font-bold mb-2">Enter Security OTP</h2>
-                <p className="text-sm text-gray-500 mb-4">We sent a 6-digit code to your Telegram app.</p>
-                <input type="text" value={otp} onChange={e => setOtp(e.target.value)} placeholder="Enter 6-digit OTP" className="w-full mb-4 px-4 py-3 border rounded-lg text-center text-xl tracking-widest font-bold" maxLength={6} />
+                <p className="text-sm text-gray-500 mb-4">Check your Telegram app for the 6-digit code.</p>
+                <input type="text" value={otp} onChange={e => setOtp(e.target.value)} placeholder="000000" className="w-full mb-4 px-4 py-3 border rounded-lg text-center text-xl tracking-widest font-bold" maxLength={6} />
                 <button onClick={handlePlaceOrder} className="w-full bg-[#1D8348] text-white py-3 rounded-lg font-bold mb-2">✅ Verify & Place Order</button>
                 <button onClick={() => setCheckoutStep(1)} className="w-full bg-gray-200 py-2 rounded-lg">Back</button>
               </>
             )}
           </div>
-        </div>
-      )}
-
-      {showAddStock && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <form onSubmit={(e) => { e.preventDefault(); fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/add_stock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: stockSku, qty: stockQty }) }).then(() => { setShowAddStock(false); fetchProducts(); }) }} className="bg-white p-6 rounded-xl shadow-2xl w-96">
-            <h2 className="text-xl font-bold mb-4">Quick Add Stock</h2>
-            <input type="text" placeholder="Medicine SKU" onChange={e => setStockSku(e.target.value)} className="w-full mb-3 p-2 border rounded" required />
-            <input type="number" placeholder="Quantity" onChange={e => setStockQty(parseInt(e.target.value))} className="w-full mb-4 p-2 border rounded" required />
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowAddStock(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-[#1D8348] text-white rounded font-bold">Save</button>
-            </div>
-          </form>
         </div>
       )}
     </div>

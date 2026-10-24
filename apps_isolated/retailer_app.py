@@ -133,7 +133,17 @@ def page_home(u):
 
 
 def page_order():
-    st.title("🛒 Place Order")
+    # Show a big "View Cart" button if items exist
+    cart_count = len(st.session_state.get("cart", []))
+    if cart_count > 0:
+        c1, c2 = st.columns([3, 1])
+        c1.title("🛒 Place Order")
+        with c2:
+            if st.button(f"🛍️ View Cart ({cart_count})", type="primary", use_container_width=True):
+                st.session_state.page = "cart"
+                st.rerun()
+    else:
+        st.title("🛒 Place Order")
     df = load_inventory()
     if df.empty:
         st.error("Inventory DB not found.")
