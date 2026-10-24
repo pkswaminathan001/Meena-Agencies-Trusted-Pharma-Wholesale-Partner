@@ -60,3 +60,6 @@ bot.py
 *.env
 bot.py
 .env
+__pycache__/
+*.pyc
+orders.json
