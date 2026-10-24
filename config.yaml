@@ -1,7 +1,3 @@
-cookie:
-  expiry_days: 30
-  key: meena_secret_key_987
-  name: meena_cookie
 credentials:
   usernames:
     owner:
