@@ -1388,10 +1388,10 @@ elif st.session_state.role in ("retailer", "customer"):
     st.markdown("---")
 
     st.markdown("---")
-    if st.session_state.pending_order is not None:
+        if st.session_state.pending_order is not None:
         po = st.session_state.pending_order
+        r = st.session_state.get("retailer")
         
-        # 1. Check if payment is already done
         if not po.get("otp_verified", False):
             st.markdown("### 🔐 OTP Verification Required")
             st.info(f"OTP sent to your registered contact via {get_active_channel()}.")
@@ -1400,15 +1400,64 @@ elif st.session_state.role in ("retailer", "customer"):
             entered = st.text_input("Enter 6-digit OTP", max_chars=6, key="otp_input")
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("✅ Verify OTP", width='stretch'):
+                if st.button("✅ Verify & Proceed to Pay", width='stretch', type="primary"):
                     if entered == po["otp"]:
-                        po["otp_verified"] = True # Mark as verified
+                        po["otp_verified"] = True
                         st.rerun()
                     else: 
                         st.error("❌ Wrong OTP")
             with c2:
                 if st.button("❌ Cancel", width='stretch'):
                     st.session_state.pending_order = None; st.rerun()
+            st.stop()
+        else:
+            st.markdown("### 💳 Review & Pay")
+            st.info("OTP Verified! Please review your items. You can edit your cart before paying.")
+            
+            if st.session_state.cart:
+                import pandas as _pd_cart
+                _cart_df = _pd_cart.DataFrame(st.session_state.cart)
+                _cart_df["Total"] = _cart_df["qty"] * _cart_df["price"]
+                st.dataframe(_cart_df[["medicine", "qty", "price", "Total"]], hide_index=True, use_container_width=True)
+            
+            import urllib.parse
+            _total = float(po["order"].get("total", 0))
+            _upi_id = "meenaagencies@upi"
+            _params = {"pa": _upi_id, "pn": "Meena Agencies", "am": f"{_total:.2f}", "cu": "INR", "tn": f"Order {po['order'].get('order_id','')}"}
+            _upi_url = f"upi://pay?{urllib.parse.urlencode(_params)}"
+            _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={urllib.parse.quote(_upi_url, safe='')}"
+            
+            html_box = '<div style="background:rgba(0,212,255,0.08);border:2px solid #00d4ff;border-radius:16px;padding:1.5rem;text-align:center;margin:1rem 0;">'
+            html_box += '<h3 style="color:#00d4ff;margin:0 0 0.5rem 0;">Secure Checkout</h3>'
+            html_box += f'<p style="color:#00d4ff;font-size:1.6rem;font-weight:800;margin:0.2rem 0;">₹{_total:,.2f}</p>'
+            html_box += '</div>'
+            st.markdown(html_box, unsafe_allow_html=True)
+            
+            c1, c2, c3 = st.columns([1,1,1])
+            with c2: st.image(_qr_url, width=220)
+            
+            pay_btn_html = f'<a href="{_upi_url}" style="display:block;text-align:center;padding:16px;margin:1rem 0;background:linear-gradient(135deg,#00d4ff,#7b61ff);color:#fff;font-weight:700;border-radius:12px;text-decoration:none;">📱 Pay ₹{_total:,.2f} via UPI App</a>'
+            st.markdown(pay_btn_html, unsafe_allow_html=True)
+            st.markdown("---")
+            
+            _b1, _b2 = st.columns(2)
+            with _b1:
+                if st.button(f"✅ I Have Paid (₹{_total:,.2f})", key="hard_confirm", type="primary", use_container_width=True):
+                    orders = load_orders()
+                    order = po["order"]
+                    order["status"] = "Pending"
+                    order["payment_status"] = "Awaiting Verification"
+                    orders.append(order)
+                    save_orders(orders)
+                    st.session_state.pending_order = None
+                    st.session_state.cart = []
+                    st.success("✅ Order placed! Our team is verifying your payment.")
+                    st.balloons()
+                    st.rerun()
+            with _b2:
+                if st.button("🛒 Edit Cart / Add Items", key="edit_cart_btn", use_container_width=True):
+                    st.session_state.pending_order = None
+                    st.rerun()
             st.stop()
         
         # 2. If OTP is verified, show UPI Payment
