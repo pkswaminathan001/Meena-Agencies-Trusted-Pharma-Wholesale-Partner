@@ -294,7 +294,6 @@ def page_order():
             st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
             st.toast(f"Added {row['name']}")
             st.rerun()
-
 def page_cart():
     st.title("🛍️ My Cart")
     cart = st.session_state.get("cart", [])
@@ -308,13 +307,16 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    # Initialize state safely
+    # Initialize states safely
     if "show_otp_input" not in st.session_state:
         st.session_state.show_otp_input = False
     if "order_otp" not in st.session_state:
         st.session_state.order_otp = None
+    if "show_upi_qr" not in st.session_state:
+        st.session_state.show_upi_qr = False
 
-    if not st.session_state.show_otp_input:
+    # STEP 1: Checkout Button
+    if not st.session_state.show_otp_input and not st.session_state.show_upi_qr:
         if st.button("💳 Checkout Securely", type="primary", use_container_width=True):
             otp = str(random.randint(100000, 999999))
             st.session_state.order_otp = otp
@@ -325,31 +327,21 @@ def page_cart():
                 st.session_state.show_otp_input = True
                 st.rerun()
 
+    # STEP 2: OTP Verification
     if st.session_state.show_otp_input:
         st.info("Please enter the 6-digit OTP sent to your Telegram.")
-        
-        
         input_otp = st.text_input("Enter OTP", max_chars=6)
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Verify & Place Order", type="primary", use_container_width=True):
-                # Strip whitespaces
+            if st.button("Verify & Proceed to Pay", type="primary", use_container_width=True):
                 clean_input = input_otp.strip() if input_otp else ""
                 expected_otp = str(st.session_state.order_otp).strip() if st.session_state.order_otp else ""
                 
-                # Secure Check: Strict 6 digits
                 if clean_input == expected_otp and len(clean_input) == 6 and clean_input.isdigit():
-                    # Save the order to history
-                    saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
-                    st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
-                    st.session_state.cart = []
+                    # OTP is correct! Move to UPI Payment step.
                     st.session_state.show_otp_input = False
-                    st.session_state.order_otp = None
-                    st.balloons()
-                    import time
-                    time.sleep(2)
-                    st.session_state.page = "home"
+                    st.session_state.show_upi_qr = True
                     st.rerun()
                 else:
                     st.error(f"❌ Invalid OTP. You typed: '{clean_input}'")
@@ -359,24 +351,55 @@ def page_cart():
                 st.session_state.order_otp = None
                 st.rerun()
 
+    # STEP 3: UPI Payment QR Code
+    if st.session_state.show_upi_qr:
+        st.markdown("### 💳 UPI Payment Required")
+        st.info("OTP Verified successfully! Please complete the payment to confirm your order.")
+        
+        import urllib.parse
+        _total = float(total)
+        _upi_id = "meenaagencies@upi" # Change this to Dad's UPI ID
+        _params = {"pa": _upi_id, "pn": "Meena Agencies", "am": f"{_total:.2f}", "cu": "INR", "tn": "Order Meena"}
+        _upi_url = f"upi://pay?{urllib.parse.urlencode(_params)}"
+        _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={urllib.parse.quote(_upi_url, safe='')}"
+        
+        html_box = '<div style="background:rgba(0,212,255,0.08);border:2px solid #00d4ff;border-radius:16px;padding:1.5rem;text-align:center;margin:1rem 0;">'
+        html_box += '<h3 style="color:#00d4ff;margin:0 0 0.5rem 0;">Secure Checkout</h3>'
+        html_box += f'<p style="color:#00d4ff;font-size:1.6rem;font-weight:800;margin:0.2rem 0;">₹{_total:,.2f}</p>'
+        html_box += '</div>'
+        st.markdown(html_box, unsafe_allow_html=True)
+        
+        c1, c2, c3 = st.columns([1,1,1])
+        with c2: st.image(_qr_url, width=220)
+        
+        st.markdown(f'<a href="{_upi_url}" style="display:block;text-align:center;padding:16px;margin:1rem 0;background:linear-gradient(135deg,#00d4ff,#7b61ff);color:#fff;font-weight:700;border-radius:12px;text-decoration:none;">📱 Pay ₹{_total:,.2f} via UPI App</a>', unsafe_allow_html=True)
+        st.markdown("---")
+        
+        _b1, _b2 = st.columns(2)
+        with _b1:
+            if st.button(f"✅ I Have Paid (₹{_total:,.2f})", key="hard_confirm", type="primary", use_container_width=True):
+                # Order is finally placed after payment confirmation
+                saved_order = save_order_history(st.session_state.user.get("id"), cart, total)
+                st.success(f"🎉 Order {saved_order['order_id']} Placed Successfully!")
+                st.session_state.cart = []
+                st.session_state.show_otp_input = False
+                st.session_state.order_otp = None
+                st.session_state.show_upi_qr = False
+                st.balloons()
+                import time
+                time.sleep(2)
+                st.session_state.page = "home"
+                st.rerun()
+        with _b2:
+            if st.button("❌ Cancel Order", key="cancel_order_btn", use_container_width=True):
+                st.session_state.show_upi_qr = False
+                st.session_state.cart = []
+                st.rerun()
 
-
-    
-    # ─── UPI PAYMENT QR ───
-    st.divider()
-    st.subheader("💳 Secure Payment")
-    try:
-        cart_items = st.session_state.get("cart", [])
-        total_amount = sum(item.get("price", 0) * item.get("qty", 1) for item in cart_items)
-        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, st.session_state.get("user", {}))
-    except Exception as e:
-        st.error(f"UPI Payment Error: {e}")
-    # ─────────────────────
 
 def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
-
 
 
 def load_locations():
