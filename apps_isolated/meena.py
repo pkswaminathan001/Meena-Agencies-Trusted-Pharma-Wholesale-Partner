@@ -35,7 +35,6 @@ import pandas as pd
 import requests
 import folium
 import streamlit as st
-import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 from streamlit_folium import st_folium
