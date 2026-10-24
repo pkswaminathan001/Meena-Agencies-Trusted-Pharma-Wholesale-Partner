@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 except:
-    TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE"
+    
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
