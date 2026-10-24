@@ -166,30 +166,48 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    if st.button("💳 Checkout Securely", type="primary"):
-        otp = str(random.randint(100000, 999999))
-        st.session_state.order_otp = otp
-        
-        # Use the Telegram chat ID from the user's profile (or a fallback for demo)
-        chat_id = st.session_state.user.get("telegram_chat_id", "YOUR_CHAT_ID_HERE")
-        sent = send_telegram_otp(chat_id, otp)
-        
-        if sent:
-            st.success("✅ OTP sent to your Telegram app!")
-        else:
-            st.warning(f"⚠️ Demo Mode. Your OTP is: **{otp}**")
-            
-        st.session_state.show_otp_input = True
+    # Initialize state if not present
+    if "show_otp_input" not in st.session_state:
+        st.session_state.show_otp_input = False
+    if "order_otp" not in st.session_state:
+        st.session_state.order_otp = None
 
-    if st.session_state.get("show_otp_input"):
+    if not st.session_state.show_otp_input:
+        if st.button("💳 Checkout Securely", type="primary", use_container_width=True):
+            # Simulate sending OTP
+            import random
+            otp = str(random.randint(100000, 999999))
+            st.session_state.order_otp = otp
+            st.session_state.show_otp_input = True
+            st.success(f"✅ OTP sent to Telegram! (Demo Code: {otp})")
+            st.rerun()
+
+    if st.session_state.show_otp_input:
+        st.info("Please enter the 6-digit OTP sent to your Telegram.")
         input_otp = st.text_input("Enter OTP", max_chars=6)
-        if st.button("Verify & Place Order"):
-            if input_otp == st.session_state.get("order_otp"):
-                st.success("🎉 Order Placed Successfully!")
-                st.session_state.cart = []
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Verify & Place Order", type="primary", use_container_width=True):
+                if input_otp == st.session_state.order_otp:
+                    st.success("🎉 Order Placed Successfully!")
+                    st.session_state.cart = []
+                    st.session_state.show_otp_input = False
+                    st.session_state.order_otp = None
+                    st.balloons()
+                    import time
+                    time.sleep(2)
+                    st.session_state.page = "home"
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid OTP")
+        with col2:
+            if st.button("Cancel", use_container_width=True):
                 st.session_state.show_otp_input = False
-            else:
-                st.error("❌ Invalid OTP")
+                st.session_state.order_otp = None
+                st.rerun()
+
+
 
 def page_profile(u):
     st.title("👤 Profile")
