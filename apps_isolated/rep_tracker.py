@@ -28,7 +28,14 @@ def render_rep_checkin(user):
     st.warning("⚠️ **Note:** For exact GPS tracking, please open this on a mobile phone with Location turned ON. Laptops use IP/Wi-Fi, which can be off by several kilometers.")
     st.caption("Click below to mark your attendance and share your live location with the Owner.")
     
-    loc = get_geolocation(expire_time=300)
+    # Read from the gatekeeper session state instead of asking again
+    lat = st.session_state.get("rep_lat")
+    lon = st.session_state.get("rep_lon")
+    
+    if not lat or not lon:
+        st.error("Location missing. Please refresh the page.")
+        return
+    loc = {"coords": {"latitude": lat, "longitude": lon}}
     
     if loc:
         try:

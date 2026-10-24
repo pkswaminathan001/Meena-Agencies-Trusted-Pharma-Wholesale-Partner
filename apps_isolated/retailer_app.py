@@ -7,6 +7,7 @@ import sqlite3
 import hashlib
 import requests
 import random
+from streamlit_js_eval import get_geolocation
 
 
 from pathlib import Path
@@ -386,10 +387,53 @@ def render_sidebar():
             st.session_state.clear()
             st.rerun()
 
+
+def location_gatekeeper(user):
+    # Owners and Retailers pass instantly
+    if user.get("role", "").lower() not in ["rep", "sales_rep"]:
+        return True
+
+    # If Rep is already verified in this session, let them in
+    if st.session_state.get("rep_location_verified"):
+        return True
+
+    # --- LOCK THE SCREEN ---
+    st.markdown("<h1 style='text-align: center; color: #C0392B;'>🚨 LOCATION ACCESS REQUIRED 🚨</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>As a Sales Representative, you cannot use this app without sharing your GPS location. This is for company security and tracking.</p>", unsafe_allow_html=True)
+    st.warning("Please click 'Allow' on the browser popup to proceed.")
+    
+    # Request location
+    loc = get_geolocation()
+    
+    if loc:
+        if 'error' in loc:
+            st.error(f"❌ Location blocked. Error: {loc['error']}")
+            st.info("💡 **Fix:** Please check your browser settings, allow location for this site, and refresh the page.")
+            if st.button("🔄 Try Again"):
+                st.rerun()
+        else:
+            # Success! Save to session and rerun
+            st.session_state.rep_location_verified = True
+            st.session_state.rep_lat = loc['coords']['latitude']
+            st.session_state.rep_lon = loc['coords']['longitude']
+            st.success("✅ Location verified! Unlocking app...")
+            import time
+            time.sleep(1)
+            st.rerun()
+    else:
+        st.info("⏳ Waiting for GPS permission. Please click 'Allow' on your browser.")
+        
+    # Stop the app from loading anything else
+    return False
+
 def main():
     if "user" not in st.session_state:
         login_screen()
         return
+
+    # 🚨 CHECK LOCATION BEFORE DOING ANYTHING ELSE
+    if not location_gatekeeper(st.session_state.user):
+        return # Halt execution
 
     st.session_state.setdefault("page", "home")
     render_sidebar()
