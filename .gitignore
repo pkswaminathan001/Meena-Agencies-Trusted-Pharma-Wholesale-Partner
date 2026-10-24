@@ -63,3 +63,6 @@ bot.py
 __pycache__/
 *.pyc
 orders.json
+__pycache__/
+*.pyc
+orders.json
