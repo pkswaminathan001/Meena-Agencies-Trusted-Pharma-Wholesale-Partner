@@ -137,23 +137,50 @@ def save_order_history(user_id, cart, total):
 
 # ─── LOGIN ───
 def login_screen():
-    _, mid, _ = st.columns([1, 1.5, 1])
-    with mid:
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1>
-            <h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2>
-            <p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # 1. Inject CSS to force centering and limit the width of the login box
+    st.markdown("""
+    <style>
+        /* Force the main container to center its content */
+        .block-container {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding-top: 5vh !important;
+        }
         
-        with st.container(border=True):
-            with st.form("login"):
-                st.markdown("### Sign in")
-                rid = st.text_input("User ID").strip().upper()
-                pin = st.text_input("PIN", type="password").strip()
-                submit = st.form_submit_button("Login", use_container_width=True, type="primary")
-                
+        /* Constrain the form width so it doesn't stretch on mobile */
+        div[data-testid="stForm"] {
+            width: 100% !important;
+            max-width: 350px !important;
+            margin: 0 auto !important;
+        }
+        /* Constrain the white bordered box */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            width: 100% !important;
+            max-width: 400px !important;
+            margin: 0 auto !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 2. Branding (Centered)
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1>
+        <h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2>
+        <p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 3. The Form (No columns, just the container)
+    with st.container(border=True):
+        with st.form("login"):
+            st.markdown("### Sign in")
+            rid = st.text_input("User ID").strip().upper()
+            pin = st.text_input("PIN", type="password").strip()
+            submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+            
         if submit:
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
