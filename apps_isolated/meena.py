@@ -42,7 +42,7 @@ def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
     if db_path.exists():
         conn = sqlite3.connect(db_path)
-        df = pd.read_sql_query("SELECT sku as name, 150.0 as price, qty as stock FROM products LIMIT 100", conn)
+        df = pd.read_sql_query("SELECT sku as name, 1.0 as price, qty as stock FROM products LIMIT 100", conn)
         conn.close()
         return df
     return pd.DataFrame()

@@ -113,6 +113,6 @@ def get_products():
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute("SELECT sku, qty FROM products LIMIT 50")
-    products = [{"name": row[0], "price": 150.0, "stock": row[1]} for row in c.fetchall()]
+    products = [{"name": row[0], "price": 1.0, "stock": row[1]} for row in c.fetchall()]
     conn.close()
     return products
