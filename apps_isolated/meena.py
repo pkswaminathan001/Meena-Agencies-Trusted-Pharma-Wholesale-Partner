@@ -466,6 +466,139 @@ def location_gatekeeper(user):
     return False
 
 
+
+import json
+import os
+from datetime import datetime
+
+LOCATIONS_FILE = "sales_rep_locations.json"
+
+def load_locations():
+    """Reads the saved GPS locations from the JSON file."""
+    if os.path.exists(LOCATIONS_FILE):
+        try:
+            with open(LOCATIONS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_location(rep_id, rep_name, lat, lon):
+    """Saves the rep's GPS coordinates."""
+    data = load_locations()
+    data[rep_id] = {
+        "name": rep_name,
+        "lat": lat,
+        "lon": lon,
+        "timestamp": datetime.now().strftime("%I:%M:%S %p")
+    }
+    with open(LOCATIONS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+def page_rep_checkin(u):
+    """The UI for the Sales Rep to send their location."""
+    st.title("📍 Sales Rep Check-In")
+    st.info("Click the button below to send your live location to the Owner.")
+    
+    # HTML/JS to get GPS and redirect back to Streamlit with coordinates
+    html_code = """
+    <div style="text-align: center; margin-top: 20px;">
+        <button onclick="getLocation()" style="
+            background-color: #1D8348; 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 18px; 
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        ">
+            📍 Send My Current Location
+        </button>
+    </div>
+    <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError);
+      } else { 
+        alert("Geolocation is not supported by this browser.");
+      }
+    }
+    function showPosition(position) {
+      // Redirect to the same page with lat and lon as query parameters
+      window.location.href = "?lat=" + position.coords.latitude + "&lon=" + position.coords.longitude;
+    }
+    function showError(error) {
+      alert("Unable to retrieve location. Please allow location access.");
+    }
+    </script>
+    """
+    st.components.v1.html(html_code, height=150)
+    
+    # Check if the URL has GPS coordinates
+    query_params = st.query_params
+    if "lat" in query_params and "lon" in query_params:
+        lat = float(query_params["lat"])
+        lon = float(query_params["lon"])
+        
+        # Save the location
+        rep_name = u.get("shop", "Sales Rep")
+        save_location(u.get("id", "REP"), rep_name, lat, lon)
+        
+        st.success(f"✅ Location updated successfully at {lat:.4f}, {lon:.4f}!")
+        
+        # Clear the URL parameters
+        st.query_params.clear()
+
+def page_owner_map():
+    """The Live Auto-Refreshing Map for the Owner."""
+    import folium
+    from streamlit_folium import st_folium
+    
+    st.title("🗺️ Live Sales Rep Tracking")
+    st.caption("Auto-refreshes every 10 seconds to show live locations.")
+    
+    # Use st.fragment to auto-refresh every 10 seconds
+    @st.fragment(run_every=10)
+    def draw_live_map():
+        locations = load_locations()
+        
+        if not locations:
+            st.warning("No sales reps have checked in yet. Ask them to click 'Sales Rep Check-In'.")
+            # Show default Thanjavur map
+            m = folium.Map(location=[10.7870, 79.1378], zoom_start=12)
+            st_folium(m, use_container_width=True, height=500)
+            return
+
+        # Center map on the first rep
+        first_rep = list(locations.values())[0]
+        m = folium.Map(location=[first_rep["lat"], first_rep["lon"]], zoom_start=13)
+        
+        for rep_id, info in locations.items():
+            # Add a glowing green marker for each rep
+            folium.Marker(
+                [info["lat"], info["lon"]],
+                popup=f"<b>{info['name']}</b><br>Last Seen: {info['timestamp']}",
+                tooltip=f"{info['name']} (Updated: {info['timestamp']})",
+                icon=folium.Icon(color="green", icon="user", prefix="fa")
+            ).add_to(m)
+            
+            # Add a circle around them
+            folium.Circle(
+                [info["lat"], info["lon"]],
+                radius=200,
+                color="#1D8348",
+                fill=True,
+                fill_color="#1D8348",
+                fill_opacity=0.2
+            ).add_to(m)
+
+        st_folium(m, use_container_width=True, height=500)
+        st.caption(f"Last updated: {datetime.now().strftime('%I:%M:%S %p')}")
+
+    draw_live_map()
+
+
 def main():
     if "user" not in st.session_state:
         login_screen()
