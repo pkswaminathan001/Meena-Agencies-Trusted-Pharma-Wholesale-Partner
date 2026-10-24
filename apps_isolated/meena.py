@@ -222,7 +222,10 @@ def save_order_history(user_id, cart, total):
 
 # ── pages ─────────────────────────────────────────────────────────────
 def login_screen():
-    # Load secure config
+    import yaml
+    from yaml.loader import SafeLoader
+    import streamlit_authenticator as stauth
+
     with open('config.yaml') as file:
         config = yaml.load(file, Loader=SafeLoader)
 
@@ -233,12 +236,20 @@ def login_screen():
         config['cookie']['expiry_days']
     )
 
-    # Render login UI
-    name, auth_status, username = authenticator.login('main')
+    # v0.4.1 API: location is mandatory, fields are optional
+    authenticator.login(location='main', fields={'Form name': 'Login'})
+
+    # Retrieve status from session state
+    auth_status = st.session_state.get("authentication_status")
+    username = st.session_state.get("username")
+    name = st.session_state.get("name")
 
     if auth_status:
-        st.session_state.user = config['credentials']['usernames'][username]
-        st.session_state.user['id'] = username
+        # Build the user object from config
+        user_data = config['credentials']['usernames'].get(username, {})
+        user_data['id'] = username
+        user_data['name'] = name
+        st.session_state.user = user_data
         st.session_state.page = "home"
         st.rerun()
     elif auth_status is False:
