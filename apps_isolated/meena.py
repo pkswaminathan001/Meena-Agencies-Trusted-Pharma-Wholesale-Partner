@@ -69,27 +69,31 @@ st.markdown("""
 
 # ─── 3D ICONS ───
 def get_icon(name):
-    name = str(name).lower()
-    import os
+    from pathlib import Path
+    # Get the absolute path to the images folder
+    script_dir = Path(__file__).resolve().parent
+    img_dir = script_dir / "images"
     
-    # 1. Check if you have a REAL picture for this specific medicine
+    name = str(name).lower()
     safe_name = name.replace(" ", "_").replace("/", "_").replace("-", "_")
+    
+    # 1. Check for specific medicine image
     for ext in [".png", ".jpg", ".jpeg"]:
-        local_path = f"images/{safe_name}{ext}"
-        if os.path.exists(local_path):
-            return local_path
+        local_path = img_dir / f"{safe_name}{ext}"
+        if local_path.exists():
+            return str(local_path)
             
-    # 2. Use the downloaded REAL Amazon-style photos based on category
+    # 2. Fallback to generic Amazon-style category images
     if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return "images/real_tablet.jpg"
+        return str(img_dir / "real_tablet.jpg")
     elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
-        return "images/real_syrup.jpg"
+        return str(img_dir / "real_syrup.jpg")
     elif any(k in name for k in ["injection", "insulin"]):
-        return "images/real_injection.jpg"
+        return str(img_dir / "real_injection.jpg")
     elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return "images/real_cream.jpg"
+        return str(img_dir / "real_cream.jpg")
     else:
-        return "images/real_default.jpg"
+        return str(img_dir / "real_default.jpg")
 
 
 def load_inventory():
@@ -274,7 +278,12 @@ def page_order():
         with st.container(border=True):
             c1, c2, c3 = st.columns([1.5, 4, 2])
             with c1:
-                st.image(get_icon(name), width=80)
+                
+                try:
+                    st.image(get_icon(name), width=80)
+                except Exception:
+                    st.markdown("📦", unsafe_allow_html=True)
+
             with c2:
                 st.markdown(f"### {name}")
                 st.markdown(f"<h3 style='color:#B12704; margin:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
