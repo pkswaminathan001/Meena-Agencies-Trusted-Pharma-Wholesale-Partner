@@ -400,31 +400,29 @@ def location_gatekeeper(user):
     # --- LOCK THE SCREEN ---
     st.markdown("<h1 style='text-align: center; color: #C0392B;'>🚨 LOCATION ACCESS REQUIRED 🚨</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>As a Sales Representative, you cannot use this app without sharing your GPS location. This is for company security and tracking.</p>", unsafe_allow_html=True)
-    st.warning("Please click 'Allow' on the browser popup to proceed.")
     
-    # Request location
-    loc = get_geolocation()
+    # Use a button to trigger the location request to avoid infinite loops
+    if st.button("📍 Share My Location to Unlock App"):
+        with st.spinner("Requesting GPS location..."):
+            loc = get_geolocation(expire_time=300) # Request location only when button is clicked
+            
+            if loc:
+                if 'error' in loc:
+                    st.error(f"❌ Location blocked. Error: {loc['error']}")
+                    st.info("💡 **Fix:** Please check your browser settings, allow location for this site, and click the button again.")
+                else:
+                    # Success! Save to session and rerun to unlock
+                    st.session_state.rep_location_verified = True
+                    st.session_state.rep_lat = loc['coords']['latitude']
+                    st.session_state.rep_lon = loc['coords']['longitude']
+                    st.success("✅ Location verified! Unlocking app...")
+                    st.rerun()
+            else:
+                st.warning("⏳ No location received. Please click 'Allow' on the browser popup and try again.")
     
-    if loc:
-        if 'error' in loc:
-            st.error(f"❌ Location blocked. Error: {loc['error']}")
-            st.info("💡 **Fix:** Please check your browser settings, allow location for this site, and refresh the page.")
-            if st.button("🔄 Try Again"):
-                st.rerun()
-        else:
-            # Success! Save to session and rerun
-            st.session_state.rep_location_verified = True
-            st.session_state.rep_lat = loc['coords']['latitude']
-            st.session_state.rep_lon = loc['coords']['longitude']
-            st.success("✅ Location verified! Unlocking app...")
-            import time
-            time.sleep(1)
-            st.rerun()
-    else:
-        st.info("⏳ Waiting for GPS permission. Please click 'Allow' on your browser.")
-        
-    # Stop the app from loading anything else
+    # Stop the app from loading anything else while locked
     return False
+
 
 def main():
     if "user" not in st.session_state:
