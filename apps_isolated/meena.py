@@ -365,12 +365,7 @@ def load_locations():
         except Exception:
             pass
             
-    # FALLBACK DEMO DATA: If file is empty, show these 3 pins so the map is never blank
-    return {
-        "REP001": {"name": "Karthik (Thanjavur)", "lat": 10.7870, "lon": 79.1378, "timestamp": "10:30:00 AM"},
-        "REP002": {"name": "Suresh (Trichy)", "lat": 10.7905, "lon": 78.7047, "timestamp": "10:35:00 AM"},
-        "REP003": {"name": "Vijay (Chennai)", "lat": 13.0827, "lon": 80.2707, "timestamp": "10:40:00 AM"}
-    }
+    return {}
 
 def save_location(rep_id, rep_name, lat, lon):
     import json
@@ -379,11 +374,6 @@ def save_location(rep_id, rep_name, lat, lon):
     
     loc_file = Path("sales_rep_locations.json")
     data = load_locations()
-    
-    # Clear demo data on first real check-in
-    if rep_id not in data:
-        data = {} 
-        
     data[rep_id] = {
         "name": rep_name,
         "lat": lat,
