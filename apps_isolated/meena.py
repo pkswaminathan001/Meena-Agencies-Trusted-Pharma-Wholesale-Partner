@@ -1,3 +1,11 @@
+import os
+import streamlit as st
+try:
+    for k, v in st.secrets.items():
+        os.environ[k] = str(v)
+except Exception:
+    pass
+
 import streamlit as st
 from bulk_import import render_bulk_import
 from rep_tracker import render_rep_checkin, render_owner_map
