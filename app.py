@@ -1,4 +1,9 @@
+from datetime import datetime, timedelta
+from meena_modules.telegram_autologin import run_telegram_autologin
+run_telegram_autologin()
+
 import streamlit as st
+from meena_modules.forecast_ui import render_forecast_dashboard
 from inr import inr
 import compact_spacing
 import dense_layout
@@ -8,7 +13,10 @@ import ui
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
-from datetime import datetime, timedelta
+from meena_modules.apple_tesla_ui import render_apple_tesla_view
+from meena_modules.gps_tracker import render_owner_rep_map
+from meena_modules.qc_rating import render_qc_dashboard
+from meena_modules.upi_payment import render_upi_payment
 import json, os, hashlib, random, string, time
 from auto_tracker import inject_tracker
 # BROKEN-IMPORT-REMOVED: # (broken accounting import removed — was crashing app)
@@ -1361,7 +1369,7 @@ elif st.session_state.role in ("retailer", "customer"):
     elif used_pct > 90: st.warning(f"⚠️ {used_pct:.0f}% credit used.")
     else: st.success(f"✅ Active. Available: ₹{r['credit_limit']-r['outstanding']:,}")
 
-    # ===== AUTO BREAK TRACKER (no buttons — fully automatic) =====
+     # ===== AUTO BREAK TRACKER (no buttons — fully automatic) =====
     st.markdown("---")
     # ─── Break tracking runs silently in the background ───
     # UI removed for privacy — owner can see the data in Audit tab
@@ -1375,45 +1383,75 @@ elif st.session_state.role in ("retailer", "customer"):
     st.markdown("---")
     if st.session_state.pending_order is not None:
         po = st.session_state.pending_order
-        st.markdown("### 🔐 OTP Verification Required")
-        st.info(f"OTP sent to your registered contact via {get_active_channel()}.")
-        if get_active_channel() == "console":
-            st.markdown(f'<div class="otp-box"><div class="otp-code">{po["otp"]}</div></div>', unsafe_allow_html=True)
-        entered = st.text_input("Enter 6-digit OTP", max_chars=6, key="otp_input")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("✅ Verify & Confirm", width='stretch'):
-                if entered == po["otp"]:
-                    orders = load_orders()
-                    order = po["order"]; order["status"] = "Pending"
-                    order["otp_verified_at"] = fmt_dt(datetime.now())
-                    orders.append(order); save_orders(orders)
-                    log_activity(r["id"], "ORDER_PLACED", f"order={order['order_id']} total=₹{order['total']:.0f}")
-                    try:
-                        notifications.add(r.get("id","RET"), r.get("shop","Retailer"), "retailer", "order_placed", "New order " + order.get("order_id","") + " · ₹" + str(round(order.get("total",0),2)), severity="info", link="approvals")
-                    except Exception:
-                        pass
-                    
-                    # Send welcome (if first order) + thank you
-                    prior_count = len([o for o in orders if o.get("retailer_id") == r["id"] and o.get("status") != "Awaiting OTP"]) - 1
-                    if prior_count <= 0:
-                        notify_pro.notify_retailer(r, notify_pro.format_welcome(r), prefer_sms=False)
-                    notify_pro.notify_retailer(r, notify_pro.format_thank_you(r, order), prefer_sms=False)
-                    ret_msg = format_order_sms(order, r, include_balance=True, for_owner=False)
-                    send_notification(get_active_channel(), r.get("telegram_chat_id",""), ret_msg)
-                    owner = load_owner()
-                    own_msg = format_order_sms(order, r, include_balance=False, for_owner=True)
-                    send_notification(get_active_channel(), owner.get("telegram_chat_id",""), own_msg)
-                    st.session_state.pending_order = None
-                    st.session_state.cart = []
-                    st.success("✅ Order confirmed!")
-                    st.balloons(); st.rerun()
-                else: st.error("❌ Wrong OTP")
-        with c2:
-            if st.button("❌ Cancel", width='stretch'):
-                st.session_state.pending_order = None; st.rerun()
-        st.stop()
+        
+        # 1. Check if payment is already done
+        if not po.get("paid", False):
+            st.markdown("### 🔐 OTP Verification Required")
+            st.info(f"OTP sent to your registered contact via {get_active_channel()}.")
+            if get_active_channel() == "console":
+                st.markdown(f'<div class="otp-box"><div class="otp-code">{po["otp"]}</div></div>', unsafe_allow_html=True)
+            entered = st.text_input("Enter 6-digit OTP", max_chars=6, key="otp_input")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("✅ Verify OTP", width='stretch'):
+                    if entered == po["otp"]:
+                        po["paid"] = False # OTP correct, move to payment step
+                        st.rerun()
+                    else: 
+                        st.error("❌ Wrong OTP")
+            with c2:
+                if st.button("❌ Cancel", width='stretch'):
+                    st.session_state.pending_order = None; st.rerun()
+            st.stop()
+        
+        # 2. If OTP is verified, show UPI Payment
+        else:
+            st.markdown("### 💳 UPI Payment Required")
+            st.info("OTP Verified successfully! Please complete the payment to confirm your order.")
+            
+            # Import the zero-dependency UPI module we created
+            from meena_modules.payment_gateway import render_upi_payment
+            
+            def _on_payment_success():
+                """This runs automatically when the customer enters the Txn ID"""
+                orders = load_orders()
+                order = po["order"]
+                order["status"] = "Pending" # Pending owner approval
+                order["otp_verified_at"] = fmt_dt(datetime.now())
+                order["payment_status"] = "Paid"
+                orders.append(order)
+                save_orders(orders)
+                
+                log_activity(r["id"], "ORDER_PLACED", f"order={order['order_id']} total=₹{order['total']:.0f}")
+                try:
+                    notifications.add(r.get("id","RET"), r.get("shop","Retailer"), "retailer", "order_placed", "New order " + order.get("order_id","") + " · ₹" + str(round(order.get("total",0),2)), severity="info", link="approvals")
+                except Exception:
+                    pass
+                
+                # Send welcome (if first order) + thank you
+                prior_count = len([o for o in orders if o.get("retailer_id") == r["id"] and o.get("status") != "Awaiting OTP"]) - 1
+                if prior_count <= 0:
+                    notify_pro.notify_retailer(r, notify_pro.format_welcome(r), prefer_sms=False)
+                notify_pro.notify_retailer(r, notify_pro.format_thank_you(r, order), prefer_sms=False)
+                
+                ret_msg = format_order_sms(order, r, include_balance=True, for_owner=False)
+                send_notification(get_active_channel(), r.get("telegram_chat_id",""), ret_msg)
+                owner = load_owner()
+                own_msg = format_order_sms(order, r, include_balance=False, for_owner=True)
+                send_notification(get_active_channel(), owner.get("telegram_chat_id",""), own_msg)
+                
+                st.session_state.pending_order = None
+                st.session_state.cart = []
+                st.success("✅ Order confirmed! We will start packaging shortly.")
+                st.balloons()
+                st.rerun()
 
+            # Show the QR Code and Transaction ID input box
+            render_upi_payment(po["order"], r, record_payment, _on_payment_success)
+            
+            if st.button("❌ Cancel Order", width='stretch'):
+                st.session_state.pending_order = None; st.rerun()
+            st.stop()
     
     # ═══════════════════════════════════════════════════════════
     # QUICK DASHBOARD — fills the gap between hero and Place Order

@@ -93,6 +93,15 @@ def send_telegram_otp(chat_id, otp):
 
 import datetime
 
+try:
+    from meena_modules.apple_tesla_ui import render_apple_tesla_view
+    from meena_modules.gps_tracker import render_owner_rep_map
+    from meena_modules.qc_rating import render_qc_dashboard
+    from meena_modules.upi_payment import render_upi_payment
+except ImportError:
+    pass
+
+
 def save_order_history(user_id, cart, total):
     orders_file = BASE_DIR / "orders.json"
     orders = []
@@ -233,6 +242,15 @@ def page_home(u):
                     st.rerun()
 
 
+    
+    # ─── APPLE / TESLA UI ───
+    try:
+        my_orders = [o for o in load_orders() if o.get("retailer_id") == u.get("id")]
+        render_apple_tesla_view(u, my_orders, lambda x, y: f"₹{x:,.2f}")
+    except Exception:
+        pass
+    # ────────────────────────
+
 def page_order():
     cart_count = len(st.session_state.get("cart", []))
     if cart_count > 0:
@@ -331,6 +349,18 @@ def page_cart():
 
 
 
+    
+    # ─── UPI PAYMENT QR ───
+    st.divider()
+    st.subheader("💳 Secure Payment")
+    try:
+        cart_items = st.session_state.get("cart", [])
+        total_amount = sum(item.get("price", 0) * item.get("qty", 1) for item in cart_items)
+        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, u)
+    except Exception:
+        pass
+    # ─────────────────────
+
 def page_profile(u):
     st.title("👤 Profile")
     st.json(u)
@@ -425,6 +455,17 @@ def page_owner_map():
         st.caption(f"🟢 Live Map Updated: {datetime.now().strftime('%I:%M:%S %p')}")
 
     draw_live_map()
+
+    
+    # ─── OWNER QC & GPS ───
+    st.divider()
+    st.subheader("👑 Owner AI & Tracking Tools")
+    try:
+        render_qc_dashboard(load_activity, load_orders)
+        render_owner_rep_map()
+    except Exception as e:
+        st.error(f"Owner tools error: {e}")
+    # ──────────────────────
 
 def render_sidebar():
     with st.sidebar:

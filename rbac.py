@@ -1,3 +1,7 @@
+def get_security_mode(company=None):
+    """Fallback security mode function."""
+    return "standard"
+
 import streamlit as st
 
 def get_user_role():
@@ -33,3 +37,7 @@ def filter_menu(menu_items):
             filtered_menu.append(item)
             
     return filtered_menu
+
+    def get_security_mode(company=None):
+        """Fallback security mode function."""
+        return "standard"

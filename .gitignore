@@ -54,3 +54,8 @@ _backups/
 *.bak_*
 .env
 meena-frontend/node_modules
+.env
+bot.py
+bot.py
+*.env
+bot.py

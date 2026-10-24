@@ -11,6 +11,7 @@ import requests
 from urllib.parse import unquote
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -27,6 +28,10 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent.parent
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
+# In-memory storage for locations (clears on restart, perfect for testing)
+active_locations = {}
+
+# In-memory storage for OTPs
 active_otps = {}
 
 class TelegramAuthRequest(BaseModel):
@@ -35,29 +40,39 @@ class TelegramAuthRequest(BaseModel):
 class OTPRequest(BaseModel):
     telegram_id: str
 
-class PlaceOrderRequest(BaseModel):
-    telegram_id: str
-    otp: str
-    cart_items: list
-
 class SaveOrderRequest(BaseModel):
     telegram_id: str
     cart_items: list
     payment_id: str
 
-class StockRequest(BaseModel):
-    sku: str
-    qty: int
+class LocationUpdate(BaseModel):
+    telegram_id: str
+    name: str
+    lat: float
+    lon: float
 
+# ─── LOCATION ENDPOINTS ───
+@app.post("/api/update_location")
+def update_location(req: LocationUpdate):
+    active_locations[req.telegram_id] = {
+        "name": req.name,
+        "lat": req.lat,
+        "lon": req.lon,
+        "time": datetime.now().strftime("%I:%M:%S %p")
+    }
+    return {"status": "success"}
+
+@app.get("/api/get_locations")
+def get_locations():
+    return active_locations
+
+# ─── EXISTING ENDPOINTS ───
 def send_telegram_message(chat_id, text):
-    if not BOT_TOKEN:
-        return
+    if not BOT_TOKEN: return
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
     try:
-        requests.post(url, json=payload)
-    except:
-        pass
+        requests.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
+    except: pass
 
 def verify_telegram_init_data(init_data: str) -> dict:
     try:
@@ -65,10 +80,8 @@ def verify_telegram_init_data(init_data: str) -> dict:
         for item in init_data.split("&"):
             key, value = item.split("=", 1)
             parsed_data[key] = unquote(value)
-        
         received_hash = parsed_data.pop("hash", None)
         if not received_hash: return None
-            
         data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
         secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
@@ -80,12 +93,10 @@ def verify_telegram_init_data(init_data: str) -> dict:
                 "shop": f"{user_data.get('first_name', 'Telegram')} {user_data.get('last_name', 'User')}",
                 "role": "owner",
                 "phone": "Telegram",
-                "telegram_chat_id": user_data.get('id')
+                "telegram_chat_id": str(user_data.get('id', '123456789'))
             }
         return None
-    except Exception as e:
-        print("Verification error:", e)
-        return None
+    except: return None
 
 @app.post("/api/telegram_login")
 def telegram_login(req: TelegramAuthRequest):
@@ -105,44 +116,3 @@ def get_products():
     products = [{"name": row[0], "price": 150.0, "stock": row[1]} for row in c.fetchall()]
     conn.close()
     return products
-
-@app.post("/api/request_order_otp")
-def request_otp(req: OTPRequest):
-    otp = str(random.randint(100000, 999999))
-    active_otps[req.telegram_id] = otp
-    send_telegram_message(req.telegram_id, f"🦚 *Meena Agencies*\nYour OTP for placing the order is: *{otp}*")
-    return {"status": "success", "otp": otp}
-
-@app.post("/api/verify_otp_only")
-def verify_otp_only(req: OTPRequest):
-    stored_otp = active_otps.get(req.telegram_id)
-    if not stored_otp or stored_otp != req.otp:
-        raise HTTPException(status_code=401, detail="Invalid OTP")
-    return {"status": "success"}
-
-@app.post("/api/save_order")
-def save_order(req: SaveOrderRequest):
-    total = sum(item.get("price", 0) * item.get("qty", 1) for item in req.cart_items)
-    order_id = f"ORD-{random.randint(1000, 9999)}"
-    
-    OWNER_CHAT_ID = "8205802064"
-    owner_msg = f"🔔 *NEW ORDER RECEIVED!*\n\n*Order ID:* {order_id}\n*Amount:* ₹{total:,.2f}\n*Payment ID:* {req.payment_id}\n\nPlease check the Admin Panel to dispatch."
-    send_telegram_message(OWNER_CHAT_ID, owner_msg)
-
-    retailer_msg = f"✅ *Order Confirmed!*\n\nThank you for your order.\n*Order ID:* {order_id}\n*Total Paid:* ₹{total:,.2f}\n\nYour medicines will be packed and shipped shortly."
-    send_telegram_message(req.telegram_id, retailer_msg)
-
-    if req.telegram_id in active_otps:
-        del active_otps[req.telegram_id]
-
-    return {"status": "success", "order_id": order_id, "total": total}
-
-@app.post("/api/add_stock")
-def add_stock(req: StockRequest):
-    db_path = BASE_DIR / "meena_enterprise.db"
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("UPDATE products SET qty = qty + ? WHERE sku = ?", (req.qty, req.sku))
-    conn.commit()
-    conn.close()
-    return {"status": "success"}
