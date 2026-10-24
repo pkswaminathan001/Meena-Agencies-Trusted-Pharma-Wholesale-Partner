@@ -368,7 +368,7 @@ def page_cart():
     try:
         cart_items = st.session_state.get("cart", [])
         total_amount = sum(item.get("price", 0) * item.get("qty", 1) for item in cart_items)
-        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, u)
+        render_upi_payment({"order_id": "NEW-ORDER", "total": total_amount}, st.session_state.get("user", {}))
     except Exception as e:
         st.error(f"UPI Payment Error: {e}")
     # ─────────────────────
