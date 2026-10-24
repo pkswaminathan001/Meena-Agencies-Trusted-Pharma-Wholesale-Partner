@@ -528,19 +528,35 @@ def page_owner_map():
 
 def render_sidebar():
     with st.sidebar:
-        st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
+        # Display the actual logo
+        try:
+            st.image("logo.png", use_container_width=True)
+        except:
+            st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
+            
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
         
+        # --- ROLE-BASED MENU ---
         menu = [
             ("home", "🏠 Dashboard"),
             ("order", "🛒 Place Order"),
             ("cart", "🛍️ My Cart"),
-            ("checkin", "📍 Rep Check-In"),
-            ("owner_map", "🗺️ Live Tracking"),
-            ("profile", "👤 Profile")
         ]
+
+        # Add Owner/Staff specific items
+        if role == "OWNER":
+            menu.extend([
+                ("checkin", "📍 Rep Check-In"),
+                ("owner_map", "🗺️ Live Tracking")
+            ])
+        elif role in ["SALES_REP", "STAFF", "WORKER"]:
+            menu.append(("checkin", "📍 Rep Check-In"))
+            
+        # Everyone gets Profile
+        menu.append(("profile", "👤 Profile"))
+        # -----------------------
         
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
@@ -551,7 +567,6 @@ def render_sidebar():
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.clear()
             st.rerun()
-
 
 def location_gatekeeper(user):
     """Acts as a pass-through. The actual GPS check-in is handled on the Rep Check-In page."""
