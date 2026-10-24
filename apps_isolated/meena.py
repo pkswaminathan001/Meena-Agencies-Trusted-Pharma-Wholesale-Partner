@@ -34,16 +34,30 @@ except Exception:
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── AMAZON INDIA MOBILE GRID CSS ───
+# ─── CSS: BRING BACK HAMBURGER MENU & KEEP AMAZON GRID ───
 st.markdown("""
 <style>
-    /* Hide Streamlit chrome */
+    /* 1. Hide default Streamlit menu & footer, but keep the header transparent */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .block-container {padding-top: 0.5rem; padding-bottom: 0; max-width: 1200px;}
+    header {background: transparent !important;}
+    
+    /* 2. Force the mobile hamburger menu (sidebar toggle) to be visible & styled */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #0B3C5D !important;
+        background-color: white !important;
+        border-radius: 50% !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+        padding: 8px !important;
+        margin: 15px !important;
+        z-index: 99999 !important;
+    }
+    
+    .block-container {padding-top: 1rem; padding-bottom: 0; max-width: 1200px;}
 
-    /* 1. FORCE 2-COLUMN GRID ON MOBILE (like Amazon) */
+    /* 3. FORCE 2-COLUMN GRID ON MOBILE */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: wrap !important;
@@ -56,28 +70,27 @@ st.markdown("""
         }
     }
 
-    /* 2. KILL WHITESPACE INSIDE CARDS */
+    /* 4. KILL WHITESPACE INSIDE CARDS */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 6px !important;
         border-radius: 8px;
         border: 1px solid #e5e5e5;
         margin-bottom: 4px !important;
     }
-    /* Remove Streamlit's default vertical gaps */
     div[data-testid="stVerticalBlockBorderWrapper"] > div {
         gap: 0.05rem !important;
     }
     
-    /* 3. FIX IMAGE SIZE & RENDERING */
+    /* 5. FIX IMAGE SIZE */
     div[data-testid="stVerticalBlockBorderWrapper"] img {
-        height: 140px !important;
+        height: 130px !important;
         width: 100% !important;
         object-fit: contain !important;
         margin-bottom: 2px !important;
         border-radius: 4px;
     }
     
-    /* 4. AMAZON YELLOW BUTTON (Shorter) */
+    /* 6. AMAZON YELLOW BUTTON */
     div.stButton > button[kind="primary"] {
         background-color: #FFD814 !important;
         color: #0F1111 !important;
@@ -94,7 +107,7 @@ st.markdown("""
         background-color: #F7CA00 !important;
     }
 
-    /* 5. TIGHT TYPOGRAPHY */
+    /* 7. TIGHT TYPOGRAPHY */
     .amz-sponsored { color: #565959; font-size: 10px; font-weight: 400; margin-bottom: 2px; }
     .amz-title { 
         color: #0F1111; 
@@ -114,11 +127,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── REAL MEDICINE IMAGE GENERATOR ───
+# ─── BETTER MEDICINE IMAGE GENERATOR ───
 def get_icon(name):
     import urllib.parse
     clean_name = str(name).replace(" ", "+")
-    return f"https://placehold.co/200x200/F0F8FF/0B3C5D/png?text={clean_name}&font=Montserrat&font-size=40"
+    # Light grey background, dark text. Looks like a product package.
+    return f"https://placehold.co/300x300/e2e8f0/1e293b/png?text={clean_name}&font=Montserrat&font-size=36"
 
 @st.cache_data(ttl=60)
 def load_inventory():
@@ -220,7 +234,6 @@ def product_grid(view):
             
             with cols[j]:
                 with st.container(border=True):
-                    # Sponsored Tag (Amazon style)
                     st.markdown('<div class="amz-sponsored">Sponsored</div>', unsafe_allow_html=True)
                     
                     try: st.image(get_icon(name), use_container_width=True)
