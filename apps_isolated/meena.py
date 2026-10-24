@@ -70,28 +70,25 @@ st.markdown("""
 # ─── 3D ICONS ───
 def get_icon(name):
     name = str(name).lower()
-    
-    # 1. Check if you have a local image for this specific medicine
-    # Example: if the medicine is "Dolo 650", it looks for "images/dolo_650.png"
     import os
-    safe_name = name.replace(" ", "_").replace("/", "_")
+    
+    # 1. Check if you have a REAL picture for this specific medicine
+    # Example: if the medicine is "Dolo 650", it looks for "images/dolo_650.jpg"
+    safe_name = name.replace(" ", "_").replace("/", "_").replace("-", "_")
     for ext in [".png", ".jpg", ".jpeg"]:
         local_path = f"images/{safe_name}{ext}"
         if os.path.exists(local_path):
             return local_path
             
-    # 2. If no local image, use high-quality Real Stock Photos from Unsplash
-    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=150&h=150&fit=crop"
-    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
-        return "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=150&h=150&fit=crop"
-    elif any(k in name for k in ["injection", "insulin"]):
-        return "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=150&h=150&fit=crop"
-    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return "https://images.unsplash.com/photo-1550572017-edb387ba6ad7?w=150&h=150&fit=crop"
-    else:
-        return "https://images.unsplash.com/photo-1585435557343-3b092031a831?w=150&h=150&fit=crop"
-
+    # 2. If no real picture, generate a reliable, colored text placeholder
+    # This API generates an image and NEVER gets blocked by the browser
+    display_name = name.replace(" ", "+").replace("-", "+")
+    
+    # Rotate colors so cards look distinct
+    colors = ["0B3C5D", "1D8348", "D35400", "C0392B", "8E44AD"]
+    bg_color = colors[len(name) % len(colors)]
+    
+    return f"https://ui-avatars.com/api/?name={display_name}&background={bg_color}&color=fff&size=150&bold=true"
 # ─── DATA LOADERS ───
 @st.cache_data(ttl=60)
 def load_inventory():
