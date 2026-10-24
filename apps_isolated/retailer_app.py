@@ -4,17 +4,7 @@ import json
 import sqlite3
 import hashlib
 import requests
-
-import base64
-def get_base64_image(image_path):
-    try:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-    except:
-        return ""
-
 import random
-import time
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,16 +17,13 @@ except:
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── DAD'S CSS FIXES (No Scrolling, Hide Menus) ───
+# CSS
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* Keep the sidebar toggle visible for mobile */
-    [data-testid="collapsedControl"] { display: flex !important; }
-    header { background-color: transparent !important; }
     .block-container {padding-top: 1rem; padding-bottom: 0rem;}
-    .stButton>button { width: 100%; background-color: #1D8348; color: white; border-radius: 8px; }
+    .stButton>button { width: 100%; background-color: #1D8348; color: white; border-radius: 8px; font-weight: bold; }
     .stButton>button:hover { background-color: #145c32; color: white; }
 </style>
 """, unsafe_allow_html=True)
@@ -60,25 +47,41 @@ def load_retailers():
             return json.load(f)
     return []
 
-# ─── TELEGRAM OTP FUNCTION ───
+# ─── TELEGRAM OTP FUNCTION WITH DIAGNOSTICS ───
 def send_telegram_otp(chat_id, otp):
-    if TELEGRAM_BOT_TOKEN == "YOUR_TOKEN_HERE":
-        st.error("❌ Token not found in Streamlit Secrets.")
+    st.write("### 🔍 OTP Diagnostic Check")
+    
+    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "YOUR_TOKEN_HERE":
+        st.error("❌ **FAILED:** Token missing in Streamlit Secrets.")
         return False
+    else:
+        st.success("✅ Token loaded.")
+
+    if not chat_id:
+        st.error("❌ **FAILED:** Chat ID is empty.")
+        return False
+    else:
+        st.success(f"✅ Sending to Chat ID: `{chat_id}`")
+
+    st.info("Attempting to send OTP via Telegram API...")
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies Security\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}
+    payload = {"chat_id": chat_id, "text": f"🦚 Meena Agencies\nYour OTP is: *{otp}*", "parse_mode": "Markdown"}
+    
     try:
         res = requests.post(url, json=payload)
         if res.status_code != 200:
-            # Show the exact error from Telegram on the screen
-            st.error(f"Telegram Error: {res.text}")
+            error_desc = res.json().get('description', 'Unknown error')
+            st.error(f"❌ **Telegram API Error:** {error_desc}")
+            if "chat not found" in error_desc:
+                st.warning("💡 **Fix:** Open `@MeenaAgenciesBot` in Telegram and click 'START' first!")
             return False
+        st.success("✅ OTP sent successfully to Telegram!")
         return True
     except Exception as e:
-        st.error(f"Network Error: {e}")
+        st.error(f"❌ **Network Error:** {e}")
         return False
 
-# ─── LOGIN ───
+# ─── PAGES ───
 def login_screen():
     _, mid, _ = st.columns([1, 1.5, 1])
     with mid:
@@ -89,33 +92,18 @@ def login_screen():
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             if st.form_submit_button("Login", use_container_width=True):
-                start_time = time.time()
-                
                 users = load_retailers()
                 user = next((u for u in users if u["id"] == rid), None)
-                
                 if user:
                     input_hash = hashlib.sha256(pin.encode()).hexdigest()
                     if input_hash == user.get("pin_hash") or pin == user.get("pin"):
-                        end_time = time.time()
-                        load_time = round((end_time - start_time) * 1000, 2) # in milliseconds
-                        
                         st.session_state.user = user
                         st.session_state.page = "home"
-                        st.session_state.login_speed = load_time
                         st.rerun()
-                
                 st.error("❌ Invalid ID or PIN")
 
-# ─── PAGES ───
 def page_home(u):
     st.title(f"Welcome, {u.get('shop', 'Partner')} 👋")
-    
-    # Display login speed if available
-    if "login_speed" in st.session_state:
-        st.toast(f"⚡ Logged in securely in {st.session_state.login_speed} ms")
-        del st.session_state.login_speed
-
     
     st.markdown("### ⚡ Quick Actions")
     c1, c2 = st.columns(2)
@@ -127,13 +115,8 @@ def page_home(u):
         if st.button("🛍️ View Cart", use_container_width=True):
             st.session_state.page = "cart"
             st.rerun()
-            
-    st.divider()
-    st.info("💡 **Tip:** You can also open the sidebar menu (click the `>` icon on the top left) to access all pages.")
-
 
 def page_order():
-    # Show a big "View Cart" button if items exist
     cart_count = len(st.session_state.get("cart", []))
     if cart_count > 0:
         c1, c2 = st.columns([3, 1])
@@ -144,6 +127,7 @@ def page_order():
                 st.rerun()
     else:
         st.title("🛒 Place Order")
+
     df = load_inventory()
     if df.empty:
         st.error("Inventory DB not found.")
@@ -162,6 +146,7 @@ def page_order():
         if c3.button("Add", key=f"add_{row['name']}"):
             st.session_state.cart.append({"name": row['name'], "price": row['price'], "qty": 1})
             st.toast(f"Added {row['name']}")
+            st.rerun()
 
 def page_cart():
     st.title("🛍️ My Cart")
@@ -176,7 +161,7 @@ def page_cart():
         
     st.markdown(f"### Total: ₹{total}")
     
-    # Initialize state if not present
+    # Initialize state safely
     if "show_otp_input" not in st.session_state:
         st.session_state.show_otp_input = False
     if "order_otp" not in st.session_state:
@@ -184,22 +169,31 @@ def page_cart():
 
     if not st.session_state.show_otp_input:
         if st.button("💳 Checkout Securely", type="primary", use_container_width=True):
-            # Simulate sending OTP
-            import random
             otp = str(random.randint(100000, 999999))
             st.session_state.order_otp = otp
-            st.session_state.show_otp_input = True
-            st.success(f"✅ OTP sent to Telegram! (Demo Code: {otp})")
-            st.rerun()
+            
+            chat_id = st.session_state.user.get("telegram_chat_id", "8205802064")
+            
+            if send_telegram_otp(chat_id, otp):
+                st.session_state.show_otp_input = True
+                st.rerun()
 
     if st.session_state.show_otp_input:
         st.info("Please enter the 6-digit OTP sent to your Telegram.")
+        
+        # DEBUG MODE: Shows the OTP on screen so you can test without checking Telegram
+        st.warning(f"🛠️ DEBUG: The expected OTP is `{st.session_state.order_otp}`")
+        
         input_otp = st.text_input("Enter OTP", max_chars=6)
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Verify & Place Order", type="primary", use_container_width=True):
-                if input_otp == st.session_state.order_otp:
+                # Strip whitespaces just in case
+                clean_input = input_otp.strip() if input_otp else ""
+                expected_otp = str(st.session_state.order_otp).strip() if st.session_state.order_otp else ""
+                
+                if clean_input == expected_otp and len(clean_input) == 6:
                     st.success("🎉 Order Placed Successfully!")
                     st.session_state.cart = []
                     st.session_state.show_otp_input = False
@@ -210,7 +204,7 @@ def page_cart():
                     st.session_state.page = "home"
                     st.rerun()
                 else:
-                    st.error("❌ Invalid OTP")
+                    st.error(f"❌ Invalid OTP. You typed: '{clean_input}'")
         with col2:
             if st.button("Cancel", use_container_width=True):
                 st.session_state.show_otp_input = False
@@ -226,21 +220,7 @@ def page_profile(u):
 # ─── SIDEBAR ───
 def render_sidebar():
     with st.sidebar:
-        # Display the BIG CIRCLE logo
-        logo_b64 = get_base64_image("logo.png")
-        if logo_b64:
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
-                    <img src="data:image/png;base64,{logo_b64}" 
-                         style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 4px solid #1D8348;">
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.title("🦚 Meena")
-            
+        st.title("🦚 Meena")
         st.caption(st.session_state.user.get("role", "Retailer").upper())
         st.divider()
         
