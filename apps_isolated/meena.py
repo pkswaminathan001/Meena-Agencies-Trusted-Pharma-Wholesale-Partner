@@ -1,3 +1,5 @@
+def render_pricing_sandbox(*args, **kwargs):
+    pass
 import sys
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
