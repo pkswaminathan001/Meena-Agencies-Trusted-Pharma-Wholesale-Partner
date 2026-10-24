@@ -51,7 +51,12 @@ def render_upi_payment(order, retailer):
     st.markdown("### ✅ Confirm Your Payment")
     st.caption("After paying, enter the 12-digit UTR/Transaction ID from your app.")
     
-    txn_id = st.text_input("Enter UTR / Transaction ID", key=f"upi_utr_{order_id}")
+        # --- TEST MODE BUTTON ---
+    st.info("🧪 **TEST MODE ACTIVE:** Since you don't want to use real money, click the button below to simulate a successful payment.")
+    if st.button("🧪 Simulate Payment (Test Mode)", type="secondary", use_container_width=True):
+        st.session_state[f"test_utr_{order_id}"] = "TEST-UTR-999999"
+        
+    txn_id = st.text_input("Enter UTR / Transaction ID", value=st.session_state.get(f"test_utr_{order_id}", ""), key=f"upi_utr_{order_id}")
     
     if st.button("I have paid, confirm my order", type="primary", use_container_width=True):
         if txn_id.strip():

@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import datetime
+from meena_modules.invoice_generator import generate_invoice_pdf, send_invoice_to_telegram
 
 def render_owner_verification():
     st.markdown("## 💳 Payment Verification Center")
@@ -29,7 +30,9 @@ def render_owner_verification():
     st.warning(f"⚠️ You have **{len(pending_orders)}** orders waiting for payment verification.")
     
     for idx, order in enumerate(pending_orders):
-        with st.expander(f"Order {order.get('order_id')} - ₹{order.get('total'):,.2f} - {order.get('shop')}"):
+        is_test = "TEST" in str(order.get("utr", ""))
+        tag = "🧪 [TEST ORDER] " if is_test else ""
+        with st.expander(f"{tag}Order {order.get('order_id')} - ₹{order.get('total'):,.2f} - {order.get('shop')}"):
             st.write(f"**Retailer:** {order.get('shop')} ({order.get('retailer_id')})")
             st.write(f"**Date:** {order.get('timestamp')}")
             st.write(f"**UTR / Transaction ID:** `{order.get('utr')}`")
@@ -43,7 +46,7 @@ def render_owner_verification():
                             o["status"] = "Approved"
                     with open(orders_file, "w") as f:
                         json.dump(orders, f, indent=2)
-                    st.success("Order Approved!")
+                    st.success("Order Approved & Invoice Sent!")
                     st.rerun()
             with c2:
                 if st.button("❌ Reject (Invalid UTR)", key=f"rej_{idx}"):
