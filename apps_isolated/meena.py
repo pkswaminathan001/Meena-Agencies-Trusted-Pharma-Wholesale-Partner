@@ -6,9 +6,6 @@ sys.path.insert(0, str(BASE_DIR))
 import os, json, sqlite3, hashlib, requests, datetime, random, time
 import streamlit as st
 import pandas as pd
-import folium
-from streamlit_folium import st_folium
-from streamlit_js_eval import get_geolocation
 
 # Safely import custom modules
 try:
@@ -30,39 +27,25 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
-# ─── STATE MANAGEMENT & DIGITAL MARKETING CONFIG ───
+# ─── STATE MANAGEMENT ───
 if "page" not in st.session_state: st.session_state.page = "home"
 if "cart" not in st.session_state: st.session_state.cart = []
 if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
-if "order_otp" not in st.session_state: st.session_state.order_otp = None
 
 def go_to(page_name):
     st.session_state.page = page_name
 
 # ─── CSS: AMAZON UI, MARKETING BANNERS, & MOBILE GRID ───
 st.markdown("""
-<script>
-    // Digital Marketing: Google Analytics Injection
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-XXXXXXXXXX');
-</script>
-
 <style>
     /* Amazon Backgrounds & Layout */
     .stApp { background-color: #eaeded !important; }
     .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
     
-    /* Hide Streamlit Chrome, Keep Hamburger */
+    /* Hide Streamlit Chrome */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {background: transparent !important;}
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important; visibility: visible !important; color: #0B3C5D !important;
-        background-color: white !important; border-radius: 50% !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important; padding: 8px !important; margin: 15px !important; z-index: 99999 !important;
-    }
 
     /* 2-Column Mobile Grid */
     @media (max-width: 768px) {
@@ -70,23 +53,31 @@ st.markdown("""
         div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { flex: 1 1 48% !important; min-width: 48% !important; max-width: 48% !important; }
     }
 
-    /* Amazon Cards */
+    /* ─── AMAZON CARDS: EQUAL HEIGHT & ALIGNMENT FIX ─── */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #ffffff !important; padding: 12px !important;
         border-radius: 8px !important; border: none !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+        height: 100% !important; 
+        display: flex !important;
+        flex-direction: column !important;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div { gap: 0.1rem !important; }
+    div[data-testid="stVerticalBlockBorderWrapper"] > div { 
+        gap: 0.1rem !important; height: 100% !important; display: flex !important; flex-direction: column !important;
+    }
+    /* Pushes the last element (the button) to the absolute bottom */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div > div:last-child {
+        margin-top: auto !important; padding-top: 10px !important;
+    }
     div[data-testid="stVerticalBlockBorderWrapper"] img { height: 140px !important; width: 100% !important; object-fit: contain !important; }
     
     /* Amazon Buttons */
-    div.stButton > button[kind="primary"] {
+    div.stButton > button[kind="primary"], div[data-testid="stForm"] button {
         background-color: #FFD814 !important; color: #0F1111 !important;
-        border: 1px solid #FCD200 !important; border-radius: 20px !important;
-        font-weight: 500 !important; padding: 2px 8px !important;
-        width: 100% !important; min-height: 32px !important; font-size: 13px !important;
+        border: 1px solid #FCD200 !important; border-radius: 8px !important;
+        font-weight: bold !important; width: 100% !important; min-height: 40px !important; font-size: 14px !important;
     }
-    div.stButton > button[kind="primary"]:hover { background-color: #F7CA00 !important; }
+    div.stButton > button[kind="primary"]:hover, div[data-testid="stForm"] button:hover { background-color: #F7CA00 !important; }
 
     /* Homepage Banners & Cards */
     .amz-header { background: #131921; color: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
@@ -98,6 +89,7 @@ st.markdown("""
     .amz-price { color: #0F1111; font-size: 18px; font-weight: 700; margin-bottom: 4px;}
     .amz-decimal { font-size: 11px; position: relative; top: -3px; }
     .amz-stock-ok { color: #067d1f; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .amz-rating { color: #FFA41C; font-size: 12px; margin-bottom: 4px; }
     
     .amz-order-header { background: #f0f2f2; border-radius: 8px 8px 0 0; padding: 12px; display: flex; justify-content: space-between; color: #565959; font-size: 12px; border-bottom: 1px solid #d5d9d9; margin: -12px -12px 12px -12px; }
     .amz-order-header b { color: #0F1111; font-weight: 500; display: block; font-size: 13px;}
@@ -147,12 +139,21 @@ def save_order_history(user_id, cart, total):
 def login_screen():
     _, mid, _ = st.columns([1, 1.5, 1])
     with mid:
-        st.title("🦚 Meena Agencies")
-        st.caption("Trusted Pharma Wholesale Partner")
-        with st.form("login"):
-            rid = st.text_input("User ID").strip().upper()
-            pin = st.text_input("PIN", type="password").strip()
-            submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1>
+            <h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2>
+            <p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.container(border=True):
+            with st.form("login"):
+                st.markdown("### Sign in")
+                rid = st.text_input("User ID").strip().upper()
+                pin = st.text_input("PIN", type="password").strip()
+                submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+                
         if submit:
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
@@ -176,7 +177,7 @@ def page_home(u):
     # Digital Marketing Promo Banner
     st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
 
-    # Quick Action Cards using on_click
+    # Quick Action Cards
     c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="amz-card"><h3 style="margin-top:0;">Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
@@ -196,7 +197,7 @@ def page_home(u):
 # ─── 2. PRODUCT GRID (AMAZON MOBILE STYLE) ───
 @st.fragment
 def product_grid(view):
-    cols_per_row = 3 
+    cols_per_row = 4 
     for i in range(0, len(view.head(30)), cols_per_row):
         cols = st.columns(cols_per_row)
         for j in range(cols_per_row):
@@ -208,17 +209,19 @@ def product_grid(view):
             stock = int(row.get("stock", 0))
             
             with cols[j]:
-                with st.container(border=True):
+                with st.container(border=True, height=420):
                     st.markdown('<div style="color:#565959; font-size:10px; margin-bottom:4px;">Sponsored</div>', unsafe_allow_html=True)
                     st.image(get_icon(name), use_container_width=True)
                     st.markdown(f'<div class="amz-title">{name}</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="amz-rating">⭐⭐⭐⭐☆ (1,245)</div>', unsafe_allow_html=True)
+                    
                     if stock > 0: st.markdown(f'<div class="amz-stock-ok">✅ In stock ({stock})</div>', unsafe_allow_html=True)
                     else: st.markdown('<div style="color:#b12704; font-size:11px; font-weight:600;">❌ Out of stock</div>', unsafe_allow_html=True)
                     
                     rupees = int(price); paise = int(round((price - rupees) * 100))
                     st.markdown(f'<div class="amz-price"><span class="amz-decimal">₹</span>{rupees}<span class="amz-decimal">.{paise:02d}</span></div>', unsafe_allow_html=True)
                     
-                    if st.button("Add to Cart", key=f"add_{name}", disabled=(stock <= 0), use_container_width=True, type="primary"):
+                    if st.button("Add to Cart", key=f"add_{name}_{idx}", disabled=(stock <= 0), use_container_width=True, type="primary"):
                         st.session_state.cart.append({"name": name, "price": price, "qty": 1})
                         st.toast(f"✅ Added {name}"); st.rerun()
 
@@ -380,4 +383,5 @@ def main():
     elif st.session_state.page == "history": page_history(u)
     elif st.session_state.page == "profile": page_profile(u)
 
+# RUN APP (MUST BE THE VERY LAST LINE)
 main()
