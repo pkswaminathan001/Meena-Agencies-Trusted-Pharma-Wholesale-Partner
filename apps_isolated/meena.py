@@ -69,31 +69,56 @@ st.markdown("""
 
 # ─── 3D ICONS ───
 def get_icon(name):
-    from pathlib import Path
-    # Get the absolute path to the images folder
-    script_dir = Path(__file__).resolve().parent
-    img_dir = script_dir / "images"
+    name_lower = str(name).lower()
     
-    name = str(name).lower()
-    safe_name = name.replace(" ", "_").replace("/", "_").replace("-", "_")
+    # 1. Map famous Indian Pharma Brands to their Real Company Logos
+    brand_map = {
+        "dolo": "microlabs.in",
+        "paracetamol": "cipla.com",
+        "amoxicillin": "gsk.com",
+        "augmentin": "gsk.com",
+        "azithral": "alembicpharmaceuticals.com",
+        "pan": "alkem.com",
+        "insulin": "novonordisk.com",
+        "metformin": "usv.in",
+        "cetirizine": "drreddys.com",
+        "omeprazole": "zyduslife.com",
+        "cough": "mankindpharma.com",
+        "vitamin": "abbott.com",
+        "zinc": "sunpharma.com"
+    }
+
+    for brand, domain in brand_map.items():
+        if brand in name_lower:
+            # Fetch the REAL company logo using Clearbit API
+            return f"https://logo.clearbit.com/{domain}"
+
+    # 2. If it's an unknown brand, pick a UNIQUE high-quality image based on its name
+    # We use a hash so the same medicine always gets the same image, but different meds get different images
+    import hashlib
+    # A curated list of 15 distinct, high-quality medicine photos from Unsplash
+    unique_images = [
+        "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1550572017-edb387ba6ad7?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1585435557343-3b092031a831?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1605289982774-9a6fef564df8?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1550572017-4c9f8fcd6f2e?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=200&h=200&fit=crop",
+        "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=200&h=200&fit=crop"
+    ]
     
-    # 1. Check for specific medicine image
-    for ext in [".png", ".jpg", ".jpeg"]:
-        local_path = img_dir / f"{safe_name}{ext}"
-        if local_path.exists():
-            return str(local_path)
-            
-    # 2. Fallback to generic Amazon-style category images
-    if any(k in name for k in ["tablet", "capsule", "dolo", "paracetamol", "amoxicillin", "pan", "metformin"]):
-        return str(img_dir / "real_tablet.jpg")
-    elif any(k in name for k in ["syrup", "liquid", "suspension", "cough", "ors"]):
-        return str(img_dir / "real_syrup.jpg")
-    elif any(k in name for k in ["injection", "insulin"]):
-        return str(img_dir / "real_injection.jpg")
-    elif any(k in name for k in ["cream", "ointment", "gel", "soap"]):
-        return str(img_dir / "real_cream.jpg")
-    else:
-        return str(img_dir / "real_default.jpg")
+    # Create a deterministic hash from the name
+    hash_val = int(hashlib.md5(name_lower.encode()).hexdigest(), 16)
+    idx = hash_val % len(unique_images)
+    return unique_images[idx]
 
 
 def load_inventory():
@@ -278,12 +303,7 @@ def page_order():
         with st.container(border=True):
             c1, c2, c3 = st.columns([1.5, 4, 2])
             with c1:
-                
-                try:
-                    st.image(get_icon(name), width=80)
-                except Exception:
-                    st.markdown("📦", unsafe_allow_html=True)
-
+                                st.image(get_icon(name), width=80)
             with c2:
                 st.markdown(f"### {name}")
                 st.markdown(f"<h3 style='color:#B12704; margin:0;'>₹{price:,.2f}</h3>", unsafe_allow_html=True)
