@@ -181,8 +181,6 @@ def page_cart():
     if st.session_state.show_otp_input:
         st.info("Please enter the 6-digit OTP sent to your Telegram.")
         
-        # DEBUG MODE: Shows the OTP on screen so you can test without checking Telegram
-        st.warning(f"🛠️ DEBUG: The expected OTP is `{st.session_state.order_otp}`")
         
         input_otp = st.text_input("Enter OTP", max_chars=6)
         
