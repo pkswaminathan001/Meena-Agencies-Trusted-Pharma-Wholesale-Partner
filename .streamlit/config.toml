@@ -3,6 +3,14 @@
 enableStaticServing = true
 runOnSave = true
 
+[client]
+toolbarMode = "viewer"
+
 [theme]
-# Setting a theme can reduce some initial rendering work
 base = "light"
+# Adding these fixes the red console errors and forces Amazon colors
+primaryColor = "#FFD814"
+backgroundColor = "#eaeded"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0F1111"
+font = "sans serif"

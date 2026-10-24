@@ -385,5 +385,53 @@
     "approval_reason": "Trusted customer (15 prior orders)",
     "approved_by": "System",
     "approved_at": "18-Oct-2026 00:52"
+  },
+  {
+    "order_id": "ORD-743222",
+    "user_id": "RET001",
+    "date": "2026-10-25",
+    "items": [
+      {
+        "name": "Metformin Liquid - 0",
+        "price": 1.0,
+        "qty": 1
+      },
+      {
+        "name": "Metformin 650 - 1",
+        "price": 1.0,
+        "qty": 1
+      },
+      {
+        "name": "Metformin Liquid - 0",
+        "price": 1.0,
+        "qty": 1
+      },
+      {
+        "name": "Metformin Liquid - 0",
+        "price": 1.0,
+        "qty": 1
+      }
+    ],
+    "total": 4.0,
+    "status": "PAID (TEST)"
+  },
+  {
+    "order_id": "ORD-928405",
+    "user_id": "RET001",
+    "date": "2026-10-25",
+    "items": [
+      {
+        "name": "Metformin Liquid - 0",
+        "price": 1.0,
+        "qty": 1
+      },
+      {
+        "name": "Metformin Liquid - 0",
+        "price": 1.0,
+        "qty": 1
+      }
+    ],
+    "total": 2.0,
+    "status": "PAID (TEST)"
   }
 ]
