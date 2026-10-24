@@ -478,6 +478,11 @@ def render_sidebar():
             st.session_state.clear()
             st.rerun()
 
+
+def location_gatekeeper(user):
+    """Acts as a pass-through. The actual GPS check-in is handled on the Rep Check-In page."""
+    return True
+
 def main():
     if "user" not in st.session_state:
         login_screen()
