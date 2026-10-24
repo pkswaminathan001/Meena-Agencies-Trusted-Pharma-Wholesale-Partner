@@ -356,12 +356,18 @@ def render_sidebar():
         
         menu = [("home", "🏠 Dashboard"), ("order", "🛒 Place Order"), ("cart", "🛍️ My Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
         
+        role = str(st.session_state.user.get("role", "retailer")).lower().strip()
+        
         for key, label in menu:
-            role = st.session_state.user.get("role", "").lower()
+            # Hide Bulk Import and Map from retailers
             if key in ["bulk_import", "owner_map"] and role != "owner":
                 continue
+                
+            # Show Rep Check-in to Reps and Owners only
             if key == "rep_checkin" and role not in ["rep", "sales_rep", "owner"]:
                 continue
+                
+            # Always show Home, Order, Cart, History, Profile
             if st.button(label, use_container_width=True):
                 st.session_state.page = key
                 st.rerun()

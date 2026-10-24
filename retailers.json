@@ -18,5 +18,17 @@
     "role": "retailer",
     "status": "Active",
     "telegram_chat_id": "8205802064"
+  },
+  {
+    "id": "REP001",
+    "shop": "Chennai Sales Rep",
+    "owner": "Suresh",
+    "phone": "9876543211",
+    "pin": "2222",
+    "pin_hash": "edee29f882543b956620b26d0ee0e7e950399b1c4222f5de05e06425b4c995e9",
+    "role": "rep",
+    "telegram_chat_id": "8205802064",
+    "status": "Active",
+    "outstanding": 0
   }
 ]
