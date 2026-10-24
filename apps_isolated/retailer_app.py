@@ -163,18 +163,64 @@ def login_screen():
                 st.error(f"❌ Invalid ID or PIN (Attempt {st.session_state.failed_attempts}/5)")
 
 def page_home(u):
-    st.title(f"Welcome, {u.get('shop', 'Partner')} 👋")
+    st.title(f"Welcome back, {u.get('shop', 'Partner')} 👋")
+    st.caption("Here is your business overview for today.")
+    st.divider()
+
+    # ─── 1. KEY METRICS (KPIs) ───
+    c1, c2, c3 = st.columns(3)
     
+    # Mock data (You can replace this with real DB queries later)
+    outstanding = u.get("outstanding", 145000.0)
+    c1.metric("Outstanding Credit", f"₹{outstanding:,.0f}", delta="-5% (Good)", delta_color="normal")
+    
+    c2.metric("Total Orders", "42", "+3 this week")
+    
+    c3.metric("Pending Deliveries", "2", delta="Active", delta_color="inverse")
+
+    st.divider()
+
+    # ─── 2. QUICK ACTIONS ───
     st.markdown("### ⚡ Quick Actions")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🛒 Place Order", use_container_width=True, type="primary"):
+    a1, a2 = st.columns(2)
+    with a1:
+        if st.button("🛒 Place New Order", type="primary", use_container_width=True):
             st.session_state.page = "order"
             st.rerun()
-    with c2:
-        if st.button("🛍️ View Cart", use_container_width=True):
-            st.session_state.page = "cart"
+    with a2:
+        if st.button("📜 View Order History", use_container_width=True):
+            st.session_state.page = "history"
             st.rerun()
+
+    st.divider()
+
+    # ─── 3. RECENT ORDERS ───
+    st.markdown("### 🧾 Recent Orders")
+    
+    # Load recent orders from JSON
+    orders_file = BASE_DIR / "orders.json"
+    recent_orders = []
+    if orders_file.exists():
+        try:
+            with open(orders_file, "r") as f:
+                all_orders = json.load(f)
+                recent_orders = [o for o in all_orders if o.get("user_id") == u.get("id")][-3:] # Get last 3
+        except:
+            pass
+            
+    if not recent_orders:
+        st.info("No recent orders found. Click 'Place New Order' to get started.")
+    else:
+        for order in reversed(recent_orders):
+            with st.expander(f"Order {order['order_id']} - {order['date']} (₹{order['total']:,.2f})"):
+                st.write(f"**Status:** {order['status']}")
+                for item in order['items']:
+                    st.write(f"- {item['name']} x {item['qty']}")
+                if st.button(f"🔁 Reorder {order['order_id']}", key=f"reorder_{order['order_id']}"):
+                    st.session_state.cart = order['items']
+                    st.session_state.page = "cart"
+                    st.rerun()
+
 
 def page_order():
     cart_count = len(st.session_state.get("cart", []))
