@@ -351,7 +351,68 @@ def render_sidebar():
         st.divider()
         if st.button("🚪 Sign Out", use_container_width=True):
             st.session_state.clear(); st.rerun()
+# ─── OWNER DASHBOARD (Approvals) ───
+def page_owner_dashboard(u):
+    st.title("👑 Owner Dashboard: Approvals")
+    if u.get("role", "").lower() != "owner":
+        st.error("Access Denied."); return
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists(): st.info("No orders found."); return
+    conn = sqlite3.connect(db_path)
+    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE status = 'Paid' ORDER BY rowid DESC", conn)
+    conn.close()
+    if df_orders.empty: st.success("All caught up! No pending orders to approve."); return
 
+    for index, order in df_orders.iterrows():
+        with st.container(border=True):
+            items = json.loads(order['items'])
+            st.markdown(f"### Order {order['order_id']} | Total: ₹{order['total']:,.2f}")
+            st.caption(f"User ID: {order['user_id']} | Date: {order['date']}")
+            
+            with st.expander("View Order Items"):
+                for item in items: st.write(f"- {item['name']} (Qty: {item['qty']}) @ ₹{item['price']}")
+            
+            retailers = load_retailers()
+            retailer = next((r for r in retailers if r.get("id") == order['user_id']), None)
+            
+            if retailer:
+                if st.button(f"🤖 Run AI Gauntlet Review", key=f"gauntlet_{order['order_id']}"):
+                    with st.spinner("Running Maker-Checker Loop..."):
+                        try:
+                            from apps_isolated.ai_gauntlet import run_order_gauntlet
+                            builder_out, critic_out, boss_out = run_order_gauntlet(order.to_dict(), retailer, 185000, 200000)
+                            st.info(builder_out)
+                            st.warning(critic_out)
+                            st.success(boss_out)
+                        except Exception as e:
+                            st.error(f"AI Error: {e}")
+                
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Approve Order", key=f"app_{order['order_id']}", type="primary"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Approved' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    st.success("Order Approved!"); time.sleep(1); st.rerun()
+                    
+                if c2.button("❌ Reject Order", key=f"rej_{order['order_id']}"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Rejected' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    st.error("Order Rejected!"); time.sleep(1); st.rerun()
+
+# ─── AI AGENT HQ (Stub for now) ───
+def render_agent_hq():
+    st.title("🤖 AI Agent HQ")
+    st.info("AI Agent HQ is being set up. Check back soon for live AI business insights.")
+    st.markdown("""
+    In the meantime, this area will have:
+    - 📦 Inventory Agent (low stock alerts)
+    - 💰 Credit Agent (retailer credit limits)
+    - 🚨 Fraud Agent (unusual order patterns)
+    - 📈 Sales Forecasting Agent
+    """)
 def main():
     if "user" not in st.session_state:
         login_screen(); return
