@@ -1,3 +1,4 @@
+# VERSION_MARKER = 999
 import sys
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -361,4 +362,5 @@ def main():
         st.error("❌ Access Denied: Your account role is not recognized.")
         if st.button("Sign Out"):
             st.session_state.clear(); st.rerun()
-# Cache bust 1792921828
+# Run the app
+main()
