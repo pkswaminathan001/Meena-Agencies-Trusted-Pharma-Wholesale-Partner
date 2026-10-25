@@ -121,8 +121,9 @@ def login_screen():
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
             if user:
-                input_hash = hashlib.sha256(pin.encode()).hexdigest()
-                if input_hash == user.get("pin_hash") or pin == user.get("pin"):
+                salt = 'MEENA_PHARMA_SECURE_SALT_2026'
+                input_hash = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt.encode(), 100000).hex()
+                if input_hash == user.get("pin_hash"):
                     st.session_state.user = user
                     st.session_state.page = "home"
                     st.rerun()
