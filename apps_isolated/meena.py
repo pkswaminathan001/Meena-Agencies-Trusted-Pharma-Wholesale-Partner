@@ -287,10 +287,31 @@ def render_sidebar():
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
-        menu = [("home", "🏠 Home"), ("order", "🛒 Place Order"), ("cart", "🛍️ Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
+        
+        # Default menu for everyone
+        menu = [("home", "🏠 Home")]
+        
+        # Only Retailers and Owners see the store
+        if role in ["RETAILER", "OWNER"]:
+            menu.extend([("order", "🛒 Place Order"), ("cart", "🛍️ Cart")])
+            
+        # Only Retailers and Owners see history
+        if role in ["RETAILER", "OWNER"]:
+            menu.append(("history", "📜 Order History"))
+            
+        # Only Owners see these special tabs
+        if role == "OWNER":
+            menu.insert(1, ("owner", "👑 Owner Dashboard"))
+            menu.insert(2, ("agents", "🤖 AI Agent HQ"))
+            
+        # Everyone gets a profile (except Reps for now, they have a custom page)
+        if role in ["RETAILER", "OWNER"]:
+            menu.append(("profile", "👤 Profile"))
+            
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.page == key else "secondary", on_click=go_to, args=(key,)):
                 pass
+                
         st.divider()
         if st.button("🚪 Sign Out", use_container_width=True):
             st.session_state.clear(); st.rerun()
@@ -298,14 +319,46 @@ def render_sidebar():
 def main():
     if "user" not in st.session_state:
         login_screen(); return
+    
     render_sidebar()
     u = st.session_state.user
-    if st.session_state.page == "home": page_home(u)
-    elif st.session_state.page == "order": page_order()
-    elif st.session_state.page == "cart": page_cart()
-    elif st.session_state.page == "history": page_history(u)
-    elif st.session_state.page == "profile": page_profile(u)
-
-main()
-
+    role = u.get("role", "").lower()
+    
+    # ─── 🚨 ROLE-BASED ACCESS CONTROL (RBAC) ───
+    
+    # 1. OWNER ROUTES
+    if role == "owner":
+        if st.session_state.page == "home": page_home(u)
+        elif st.session_state.page == "owner": page_owner_dashboard(u)
+        elif st.session_state.page == "agents": render_agent_hq()
+        elif st.session_state.page == "order": page_order() # Owners can also view the store
+        elif st.session_state.page == "cart": page_cart()
+        elif st.session_state.page == "history": page_history(u)
+        elif st.session_state.page == "profile": page_profile(u)
+        else: page_home(u)
+            
+    # 2. RETAILER ROUTES
+    elif role == "retailer":
+        if st.session_state.page == "home": page_home(u)
+        elif st.session_state.page == "order": page_order()
+        elif st.session_state.page == "cart": page_cart()
+        elif st.session_state.page == "history": page_history(u)
+        elif st.session_state.page == "profile": page_profile(u)
+        else: page_home(u)
+            
+    # 3. SALES REP ROUTES
+    elif role == "rep":
+        st.title("🚚 Sales Representative Dashboard")
+        st.info(f"Welcome, {u.get('name', 'Rep')}!")
+        st.write("This is where the GPS tracking, retailer visit logs, and commission tracking will go.")
+        
+        # Add a basic sign out button for the rep
+        if st.button("Sign Out", type="primary"):
+            st.session_state.clear(); st.rerun()
+            
+    # 4. FALLBACK (Unknown role)
+    else:
+        st.error("❌ Access Denied: Your account role is not recognized.")
+        if st.button("Sign Out"):
+            st.session_state.clear(); st.rerun()
 # Cache bust 1792921828
