@@ -68,3 +68,6 @@ __pycache__/
 orders.json
 _backups/
 .streamlit/secrets.toml
+meena_enterprise.db
+apps_isolated/meena_backup_before_cleanup.py
+retailers.json
