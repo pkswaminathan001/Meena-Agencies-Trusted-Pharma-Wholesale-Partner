@@ -12,7 +12,11 @@ def call_groq_agent(system_prompt, user_prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
+<<<<<<< HEAD
         "model": "openai/gpt-oss-120b",
+=======
+        "model": "llama-3.3-70b-versatile",
+>>>>>>> 1cde11dc0cca0c5bb7eba860774919b7865e870b
         "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
         "temperature": 0.2 
     }

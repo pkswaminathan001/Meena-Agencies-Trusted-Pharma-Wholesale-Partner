@@ -14,7 +14,7 @@ def gemini_ask(prompt: str) -> dict:
     if not GEMINI_OK:
         return {"error": "google-generativeai not installed. Run: pip install --user google-generativeai"}
 
-    key = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6Kltr_AlkggXpR0_4ObooYgZCGsapZslh2_7g2UlJ7FEQ").strip()
+    key = os.getenv("GEMINI_API_KEY", "AIzaSyDFbjLud7EnT0rD68Xjuy_nQJn-z4IL-CA").strip()
     if not key:
         return {"error": "GEMINI_API_KEY missing in .env"}
 
