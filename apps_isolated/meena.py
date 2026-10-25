@@ -7,6 +7,13 @@ import os, json, sqlite3, hashlib, requests, datetime, random, time
 import streamlit as st
 import pandas as pd
 
+# Import our AI agents
+from apps_isolated.ai_workforce import render_agent_hq
+try:
+    from apps_isolated.ai_gauntlet import run_order_gauntlet
+except ImportError:
+    pass
+
 try:
     for k, v in st.secrets.items(): os.environ[k] = str(v)
 except Exception: pass
@@ -102,7 +109,7 @@ def save_order_history(user_id, cart, total):
     order_id = f"ORD-{random.randint(1000, 9999)}"
     date_str = str(datetime.date.today())
     items_json = json.dumps(cart)
-    status = "Paid"
+    status = "Pending"
     c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", (order_id, user_id, date_str, total, items_json, status))
     conn.commit()
     conn.close()
@@ -280,13 +287,69 @@ def page_profile(u):
             st.write("Track, return, or buy things again.")
             st.button("View Your Orders", type="primary", on_click=go_to, args=("history",), use_container_width=True)
 
+# --- OWNER DASHBOARD ---
+def page_owner_dashboard(u):
+    st.title("👑 Owner Dashboard: Approvals")
+    if u.get("role", "").lower() != "owner":
+        st.error("Access Denied."); return
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists(): st.info("No orders found."); return
+    conn = sqlite3.connect(db_path)
+    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE status = 'Pending' ORDER BY rowid DESC", conn)
+    conn.close()
+    if df_orders.empty: st.success("All caught up! No pending orders to approve."); return
+
+    for index, order in df_orders.iterrows():
+        with st.container(border=True):
+            items = json.loads(order['items'])
+            st.markdown(f"### Order {order['order_id']} | Total: ₹{order['total']:,.2f}")
+            st.caption(f"User ID: {order['user_id']} | Date: {order['date']}")
+            
+            with st.expander("View Order Items"):
+                for item in items: st.write(f"- {item['name']} (Qty: {item['qty']}) @ ₹{item['price']}")
+            
+            retailers = load_retailers()
+            retailer = next((r for r in retailers if r.get("id") == order['user_id']), None)
+            
+            if retailer:
+                if st.button(f"🤖 Run AI Gauntlet Review", key=f"gauntlet_{order['order_id']}"):
+                    with st.spinner("Running Maker-Checker Loop..."):
+                        try:
+                            builder_out, critic_out, boss_out = run_order_gauntlet(order.to_dict(), retailer, 185000, 200000)
+                            st.info(builder_out)
+                            st.warning(critic_out)
+                            st.success(boss_out)
+                        except Exception as e:
+                            st.error(f"AI Error: {e}")
+                
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Approve Order", key=f"app_{order['order_id']}", type="primary"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Approved' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    st.success("Order Approved!"); time.sleep(1); st.rerun()
+                    
+                if c2.button("❌ Reject Order", key=f"rej_{order['order_id']}"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Rejected' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    st.error("Order Rejected!"); time.sleep(1); st.rerun()
+
 def render_sidebar():
     with st.sidebar:
         st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
+        
         menu = [("home", "🏠 Home"), ("order", "🛒 Place Order"), ("cart", "🛍️ Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
+        
+        if st.session_state.user.get("role", "").lower() == "owner":
+            menu.insert(1, ("owner", "👑 Owner Dashboard"))
+            menu.insert(2, ("agents", "🤖 AI Agent HQ"))
+            
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.page == key else "secondary", on_click=go_to, args=(key,)):
                 pass
@@ -299,10 +362,13 @@ def main():
         login_screen(); return
     render_sidebar()
     u = st.session_state.user
+    
     if st.session_state.page == "home": page_home(u)
     elif st.session_state.page == "order": page_order()
     elif st.session_state.page == "cart": page_cart()
     elif st.session_state.page == "history": page_history(u)
     elif st.session_state.page == "profile": page_profile(u)
+    elif st.session_state.page == "owner": page_owner_dashboard(u)
+    elif st.session_state.page == "agents": render_agent_hq() 
 
 main()
