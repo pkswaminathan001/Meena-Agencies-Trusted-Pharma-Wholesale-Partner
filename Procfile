@@ -1,1 +1,1 @@
-worker: python apps_isolated/chatbot.py
+worker: python3 telegram_bot.py

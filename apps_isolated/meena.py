@@ -7,6 +7,13 @@ import os, json, sqlite3, hashlib, requests, datetime, random, time
 import streamlit as st
 import pandas as pd
 
+# Import our AI agents
+from apps_isolated.ai_workforce import render_agent_hq
+try:
+    from apps_isolated.ai_gauntlet import run_order_gauntlet
+except ImportError:
+    pass # Fallback if gauntlet not created yet
+
 try:
     for k, v in st.secrets.items(): os.environ[k] = str(v)
 except Exception: pass
@@ -19,9 +26,21 @@ st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 if "page" not in st.session_state: st.session_state.page = "home"
 if "cart" not in st.session_state: st.session_state.cart = []
 if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
-
 def go_to(page_name):
     st.session_state.page = page_name
+
+def log_audit_event(user_id, action, details=""):
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists(): return
+    try:
+        conn = sqlite3.connect(db_path)
+        timestamp = str(datetime.datetime.now())
+        conn.execute("INSERT INTO audit_logs (timestamp, user_id, action, details) VALUES (?, ?, ?, ?)", 
+                     (timestamp, user_id, action, details))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        pass
 
 st.markdown("""
 <style>
@@ -102,7 +121,7 @@ def save_order_history(user_id, cart, total):
     order_id = f"ORD-{random.randint(1000, 9999)}"
     date_str = str(datetime.date.today())
     items_json = json.dumps(cart)
-    status = "Paid"
+    status = "Pending" # CHANGED TO PENDING FOR OWNER APPROVAL
     c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", (order_id, user_id, date_str, total, items_json, status))
     conn.commit()
     conn.close()
@@ -111,42 +130,132 @@ def save_order_history(user_id, cart, total):
 def login_screen():
     st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
     st.markdown("""<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1><h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2><p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p></div>""", unsafe_allow_html=True)
+    
     with st.container(border=True):
         with st.form("login"):
             st.markdown("### Sign in")
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+            
         if submit:
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
+            
             if user:
-                input_hash = hashlib.sha256(pin.encode()).hexdigest()
-                if input_hash == user.get("pin_hash") or pin == user.get("pin"):
+                # 🚨 PHASE 2: SECURE PBKDF2 HASHING WITH SALT
+                salt = 'MEENA_PHARMA_SECURE_SALT_2026'
+                input_hash = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt.encode(), 100000).hex()
+                
+                if input_hash == user.get("pin_hash"):
+                    # 🚨 LOG SUCCESSFUL LOGIN
+                    log_audit_event(user.get("id"), "LOGIN_SUCCESS", f"User {rid} logged in.")
+                    
                     st.session_state.user = user
                     st.session_state.page = "home"
                     st.rerun()
-            st.error("❌ Invalid ID or PIN.")
-
+                else:
+                    # 🚨 LOG FAILED LOGIN (Brute Force Protection)
+                    log_audit_event(rid, "LOGIN_FAILED", "Invalid PIN attempt.")
+                    st.error("❌ Invalid ID or PIN.")
+            else:
+                st.error("❌ Invalid ID or PIN.")
 def page_home(u):
-    st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
-        st.button("View Orders", key="btn_hist", on_click=go_to, args=("history",), use_container_width=True)
-    with c2:
-        st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
-        st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
-        st.button("Go to Profile", key="btn_prof", on_click=go_to, args=("profile",), use_container_width=True)
-    with c4:
-        st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
-        st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
-
-@st.fragment
+    # ─── Header ───
+    st.markdown(f'''
+        <div class="amz-header">
+            <div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div>
+            <div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    is_owner = u.get("role", "").lower() == "owner"
+    
+    if is_owner:
+        # ==========================================
+        # 🏢 OWNER EXECUTIVE COMMAND CENTER
+        # ==========================================
+        st.markdown("### 📊 Executive Command Center")
+        
+        # Fetch live metrics from SQLite
+        db_path = BASE_DIR / "meena_enterprise.db"
+        total_revenue, pending_orders, low_stock_count = 0, 0, 0
+        
+        if db_path.exists():
+            try:
+                conn = sqlite3.connect(db_path)
+                rev_df = pd.read_sql_query("SELECT SUM(total) as rev FROM orders WHERE status = 'Approved'", conn)
+                total_revenue = rev_df.iloc[0]['rev'] or 0.0
+                
+                pend_df = pd.read_sql_query("SELECT COUNT(*) as count FROM orders WHERE status = 'Pending'", conn)
+                pending_orders = pend_df.iloc[0]['count']
+                
+                stock_df = pd.read_sql_query("SELECT COUNT(*) as count FROM products WHERE qty < 15", conn)
+                low_stock_count = stock_df.iloc[0]['count']
+                conn.close()
+            except: pass
+            
+        # 1. Live KPI Metrics
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Revenue (Approved)", f"₹{total_revenue:,.2f}")
+        m2.metric("Pending Approvals", f"{pending_orders} Orders", 
+                  delta="Action Needed" if pending_orders > 0 else "Clear", 
+                  delta_color="inverse" if pending_orders > 0 else "normal")
+        m3.metric("Low Stock Items", f"{low_stock_count} Items", 
+                  delta="Restock" if low_stock_count > 0 else "Healthy", 
+                  delta_color="inverse" if low_stock_count > 0 else "normal")
+        m4.metric("Sales Reps Online", "Live Tracking", delta="Active") 
+        
+        st.divider()
+        
+        # 2. Quick Action Cards
+        st.markdown("### ⚡ Operations")
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            st.markdown('<div class="amz-card"><h3>👑 Approvals</h3><p style="font-size:13px;">Review pending orders and run the AI Gauntlet Loop.</p></div>', unsafe_allow_html=True)
+            st.button("Open Approvals", key="btn_owner_dash", on_click=go_to, args=("owner",), type="primary", use_container_width=True)
+        with c2:
+            st.markdown('<div class="amz-card"><h3>🤖 AI Agent HQ</h3><p style="font-size:13px;">Chat with your AI staff and check inventory alerts.</p></div>', unsafe_allow_html=True)
+            st.button("Open AI HQ", key="btn_ai_hq", on_click=go_to, args=("agents",), type="primary", use_container_width=True)
+        with c3:
+            st.markdown('<div class="amz-card"><h3>🛒 Storefront View</h3><p style="font-size:13px;">See exactly what your retailers see when they order.</p></div>', unsafe_allow_html=True)
+            st.button("Enter Storefront", key="btn_store", on_click=go_to, args=("order",), use_container_width=True)
+            
+        st.divider()
+        
+        # 3. Enterprise Modules In Development (From your requirements)
+        st.markdown("### 🚧 Enterprise Modules (Roadmap)")
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.info("🚚 **GPS & Weather Tracking:** Live tracking of Sales Reps from Thanjavur to Chennai with weather API integration.")
+            st.info("🧪 **QC & Appraisals:** Automated employee scoring based on AI feedback forms and performance.")
+        with col_b:
+            st.info("🔒 **Zero-Trust Security:** JWT token authentication and immutable audit trails for FDA compliance.")
+            st.info("📦 **Expiry & FEFO:** First-Expiry-First-Out logic and automated batch recall alerts.")
+            
+    else:
+        # ==========================================
+        # 🛍️ RETAILER HOMEPAGE (Customer View)
+        # ==========================================
+        st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
+            st.button("View Orders", key="btn_hist", on_click=go_to, args=("history",), use_container_width=True)
+        with c2:
+            st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
+            st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
+            
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
+            st.button("Go to Profile", key="btn_prof", on_click=go_to, args=("profile",), use_container_width=True)
+        with c4:
+            st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
+            st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
 def product_grid(view):
     cols_per_row = 4 
     for i in range(0, len(view.head(30)), cols_per_row):
@@ -280,13 +389,76 @@ def page_profile(u):
             st.write("Track, return, or buy things again.")
             st.button("View Your Orders", type="primary", on_click=go_to, args=("history",), use_container_width=True)
 
+# --- OWNER DASHBOARD ---# --- OWNER DASHBOARD ---
+def page_owner_dashboard(u):
+    st.title("👑 Owner Dashboard: Approvals")
+    if u.get("role", "").lower() != "owner":
+        st.error("Access Denied."); return
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists(): st.info("No orders found."); return
+    conn = sqlite3.connect(db_path)
+    df_orders = pd.read_sql_query("SELECT * FROM orders WHERE status = 'Pending' ORDER BY rowid DESC", conn)
+    conn.close()
+    if df_orders.empty: st.success("All caught up! No pending orders to approve."); return
+
+    for index, order in df_orders.iterrows():
+        with st.container(border=True):
+            items = json.loads(order['items'])
+            st.markdown(f"### Order {order['order_id']} | Total: ₹{order['total']:,.2f}")
+            st.caption(f"User ID: {order['user_id']} | Date: {order['date']}")
+            
+            with st.expander("View Order Items"):
+                for item in items: st.write(f"- {item['name']} (Qty: {item['qty']}) @ ₹{item['price']}")
+            
+            retailers = load_retailers()
+            retailer = next((r for r in retailers if r.get("id") == order['user_id']), None)
+            
+            if retailer:
+                if st.button(f"🤖 Run AI Gauntlet Review", key=f"gauntlet_{order['order_id']}"):
+                    with st.spinner("Running Maker-Checker Loop..."):
+                        try:
+                            builder_out, critic_out, boss_out = run_order_gauntlet(order.to_dict(), retailer, 185000, 200000)
+                            st.info(builder_out)
+                            st.warning(critic_out)
+                            st.success(boss_out)
+                        except Exception as e:
+                            st.error(f"AI Error: {e}")
+                
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Approve Order", key=f"app_{order['order_id']}", type="primary"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Approved' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    
+                    # 🚨 AUDIT LOG: Approved
+                    log_audit_event(u.get("id"), "ORDER_APPROVED", f"Approved Order {order['order_id']} for ₹{order['total']}")
+                    
+                    st.success("Order Approved!"); time.sleep(1); st.rerun()
+                    
+                if c2.button("❌ Reject Order", key=f"rej_{order['order_id']}"):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute("UPDATE orders SET status = 'Rejected' WHERE order_id = ?", (order['order_id'],))
+                    conn.commit()
+                    conn.close()
+                    
+                    # 🚨 AUDIT LOG: Rejected
+                    log_audit_event(u.get("id"), "ORDER_REJECTED", f"Rejected Order {order['order_id']}")
+                    
+                    st.error("Order Rejected!"); time.sleep(1); st.rerun()
 def render_sidebar():
     with st.sidebar:
         st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
+        
         menu = [("home", "🏠 Home"), ("order", "🛒 Place Order"), ("cart", "🛍️ Cart"), ("history", "📜 Order History"), ("profile", "👤 Profile")]
+        
+        if st.session_state.user.get("role", "").lower() == "owner":
+            menu.insert(1, ("owner", "👑 Owner Dashboard"))
+            menu.insert(2, ("agents", "🤖 AI Agent HQ"))
+            
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.page == key else "secondary", on_click=go_to, args=(key,)):
                 pass
@@ -299,10 +471,15 @@ def main():
         login_screen(); return
     render_sidebar()
     u = st.session_state.user
+    
+    # FIXED INDENTATION HERE
     if st.session_state.page == "home": page_home(u)
     elif st.session_state.page == "order": page_order()
     elif st.session_state.page == "cart": page_cart()
     elif st.session_state.page == "history": page_history(u)
     elif st.session_state.page == "profile": page_profile(u)
+    elif st.session_state.page == "owner": page_owner_dashboard(u)
+    elif st.session_state.page == "agents": render_agent_hq() 
 
+# FIXED: MAIN CALL IS AT THE VERY BOTTOM
 main()

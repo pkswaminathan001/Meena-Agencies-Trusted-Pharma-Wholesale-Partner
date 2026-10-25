@@ -67,3 +67,4 @@ __pycache__/
 *.pyc
 orders.json
 _backups/
+.streamlit/secrets.toml
