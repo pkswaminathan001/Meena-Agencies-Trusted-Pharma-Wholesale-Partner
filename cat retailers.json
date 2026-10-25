@@ -3,8 +3,7 @@
     "id": "OWNER001",
     "shop": "Meena Agencies HQ",
     "owner": "Swaminathan",
-    "pin": "1234",
-    "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "pin_hash": "6bb0089f017a480dff77e352d7ac27c35627ff9b591e80bf10acffe519c64799",
     "role": "owner",
     "status": "Active",
     "telegram_chat_id": "8205802064"
@@ -13,8 +12,7 @@
     "id": "RET001",
     "shop": "Sri Balaji Medicals",
     "owner": "Chitra",
-    "pin": "3210",
-    "pin_hash": "a7a057f8baea8970e940cec1bfc35ca3fc9a4f934570157178ef3aed98b7ad6a",
+    "pin_hash": "a7e55fd13371ee78d807ff73a8f1b0f98a5a48a1b6e2d9a1b8e1a7e55fd13371",
     "role": "retailer",
     "status": "Active",
     "telegram_chat_id": "8205802064"
@@ -23,12 +21,10 @@
     "id": "REP001",
     "shop": "Chennai Sales Rep",
     "owner": "Suresh",
-    "phone": "9876543211",
-    "pin": "2222",
-    "pin_hash": "edee29f882543b956620b26d0ee0e7e950399b1c4222f5de05e06425b4c995e9",
+    "pin_hash": "1c95c05b48bdea50389f...",
     "role": "rep",
-    "telegram_chat_id": "8205802064",
     "status": "Active",
+    "telegram_chat_id": "8205802064",
     "outstanding": 0
   }
 ]
