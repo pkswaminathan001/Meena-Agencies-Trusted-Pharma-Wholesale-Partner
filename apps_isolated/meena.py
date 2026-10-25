@@ -588,42 +588,5 @@ def main():
         if st.button("Sign Out"):
             st.session_state.clear(); st.rerun()
    
-    # ─── 🚨 ROLE-BASED ACCESS CONTROL (RBAC) ───
-    
-    # 1. OWNER ROUTES
-    if role == "owner":
-        if st.session_state.page == "home": page_home(u)
-        elif st.session_state.page == "owner": page_owner_dashboard(u)
-        elif st.session_state.page == "agents": render_agent_hq()
-        elif st.session_state.page == "order": page_order() # Owners can also view the store
-        elif st.session_state.page == "cart": page_cart()
-        elif st.session_state.page == "history": page_history(u)
-        elif st.session_state.page == "profile": page_profile(u)
-        else: page_home(u)
-            
-    # 2. RETAILER ROUTES
-    elif role == "retailer":
-        if st.session_state.page == "home": page_home(u)
-        elif st.session_state.page == "order": page_order()
-        elif st.session_state.page == "cart": page_cart()
-        elif st.session_state.page == "history": page_history(u)
-        elif st.session_state.page == "profile": page_profile(u)
-        else: page_home(u)
-            
-    # 3. SALES REP ROUTES
-    elif role == "rep":
-        st.title("🚚 Sales Representative Dashboard")
-        st.info(f"Welcome, {u.get('name', 'Rep')}!")
-        st.write("This is where the GPS tracking, retailer visit logs, and commission tracking will go.")
-        
-        # Add a basic sign out button for the rep
-        if st.button("Sign Out", type="primary"):
-            st.session_state.clear(); st.rerun()
-            
-    # 4. FALLBACK (Unknown role)
-    else:
-        st.error("❌ Access Denied: Your account role is not recognized.")
-        if st.button("Sign Out"):
-            st.session_state.clear(); st.rerun()
 # Run the app
 main()
