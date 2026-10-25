@@ -408,14 +408,77 @@ def page_owner_dashboard(u):
 # ─── AI AGENT HQ (Stub for now) ───
 def render_agent_hq():
     st.title("🤖 AI Agent HQ")
-    st.info("AI Agent HQ is being set up. Check back soon for live AI business insights.")
-    st.markdown("""
-    In the meantime, this area will have:
-    - 📦 Inventory Agent (low stock alerts)
-    - 💰 Credit Agent (retailer credit limits)
-    - 🚨 Fraud Agent (unusual order patterns)
-    - 📈 Sales Forecasting Agent
-    """)
+    st.caption("Live agents. Each runs against your DB, critiques itself, and logs results.")
+
+    # Run-all button
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if st.button("▶️ Run All Agents", type="primary", use_container_width=True):
+            with st.spinner("Running 4 agents with boss loop..."):
+                from apps_isolated.ai_agents import run_all_agents
+                results = run_all_agents(st.session_state.user.get("id"))
+            st.success(f"✅ {len(results)} agents completed")
+            st.rerun()
+    with c2:
+        st.caption(f"Last run: {_last_agent_run()}")
+
+    # 4 agent cards in 2x2 grid
+    from apps_isolated.ai_agents import (
+        run_inventory_agent, run_credit_agent, run_fraud_agent, run_forecast_agent, run_with_boss
+    )
+    agents = [
+        ("📦 Inventory", "Low stock alerts + reorder quantities", run_inventory_agent),
+        ("💰 Credit", "Retailer outstanding vs limit", run_credit_agent),
+        ("🚨 Fraud", "Unusual order patterns", run_fraud_agent),
+        ("📈 Forecast", "7-day revenue projection", run_forecast_agent),
+    ]
+
+    for i in range(0, 4, 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx >= len(agents):
+                continue
+            emoji_title, desc, fn = agents[idx]
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"### {emoji_title}")
+                    st.caption(desc)
+                    if st.button(f"Run {emoji_title.split()[-1]}", key=f"run_{idx}", use_container_width=True):
+                        with st.spinner("Running with boss loop..."):
+                            r = run_with_boss(fn)
+                        status_emoji = "✅" if r["status"] == "passed" else "⚠️"
+                        st.markdown(f"**{status_emoji} {r['status']}** ({r['rounds']} round{'s' if r['rounds'] > 1 else ''})")
+                        for finding in r["final"]["findings"][:5]:
+                            st.markdown(f"- {finding}")
+                        st.caption(f"_{r['final']['summary']}_")
+
+    # History log
+    st.divider()
+    st.subheader("📜 Recent Agent Runs")
+    conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+    try:
+        df = pd.read_sql_query("SELECT * FROM agent_activity ORDER BY id DESC LIMIT 20", conn)
+        conn.close()
+        if df.empty:
+            st.info("No agent runs yet. Click 'Run All Agents' to start.")
+        else:
+            df_display = df[["agent", "verdict", "rounds", "summary", "timestamp"]]
+            st.dataframe(df_display, use_container_width=True)
+    except Exception:
+        conn.close()
+        st.info("No agent runs yet.")
+
+
+def _last_agent_run():
+    conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+    try:
+        row = conn.execute("SELECT timestamp FROM agent_activity ORDER BY id DESC LIMIT 1").fetchone()
+        conn.close()
+        return row[0] if row else "never"
+    except Exception:
+        conn.close()
+        return "never"
 # ─── REP DASHBOARD (Consent-Based Check-in/out) ───
 def page_rep(u):
     st.title(f"🚚 Rep Dashboard — {u.get('owner', u.get('name', 'Rep'))}")
