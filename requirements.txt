@@ -1,23 +1,6 @@
-bcrypt>=4.1.0
-# ── Core runtime ──────────────────────────────────────────────
-folium
-openpyxl
-# ── Optional: only if your code still imports streamlit_authenticator ──
+streamlit
 pandas
-PyNaCl>=1.6.2
-pypdf>=6.21.2
-PyYAML>=6.0.1
-requests>=2.32.0
-# ── Security patches (from pip-audit) ─────────────────────────
-setuptools>=84.1.0
-streamlit>=1.37.0
-streamlit-authenticator>=0.4.2
-streamlit-folium
-streamlit-js-eval
-tornado>=6.5.9
-urllib3>=2.8.0
-virtualenv>=21.14.9
-
+requests
 streamlit_js_eval
 folium
 streamlit-folium
