@@ -323,31 +323,34 @@ def render_sidebar():
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
         st.divider()
-        
-        # Default menu for everyone
+
         menu = [("home", "🏠 Home")]
-        
-        # Only Retailers and Owners see the store
-        if role in ["RETAILER", "OWNER"]:
-            menu.extend([("order", "🛒 Place Order"), ("cart", "🛍️ Cart")])
-            
-        # Only Retailers and Owners see history
-        if role in ["RETAILER", "OWNER"]:
-            menu.append(("history", "📜 Order History"))
-            
-        # Only Owners see these special tabs
+
         if role == "OWNER":
-            menu.insert(1, ("owner", "👑 Owner Dashboard"))
-            menu.insert(2, ("agents", "🤖 AI Agent HQ"))
-            
-        # Everyone gets a profile (except Reps for now, they have a custom page)
-        if role in ["RETAILER", "OWNER"]:
-            menu.append(("profile", "👤 Profile"))
-            
+            menu.extend([
+                ("owner", "👑 Owner Dashboard"),
+                ("agents", "🤖 AI Agent HQ"),
+                ("staff", "👥 Staff Monitor"),
+                ("order", "🛒 Place Order"),
+                ("history", "📜 Order History"),
+                ("profile", "👤 Profile"),
+            ])
+        elif role == "RETAILER":
+            menu.extend([
+                ("order", "🛒 Place Order"),
+                ("cart", "🛍️ Cart"),
+                ("history", "📜 Order History"),
+                ("profile", "👤 Profile"),
+            ])
+        elif role == "REP":
+            menu.append(("rep", "🚚 My Dashboard"))
+
         for key, label in menu:
-            if st.button(label, use_container_width=True, type="primary" if st.session_state.page == key else "secondary", on_click=go_to, args=(key,)):
+            if st.button(label, use_container_width=True,
+                         type="primary" if st.session_state.page == key else "secondary",
+                         on_click=go_to, args=(key,)):
                 pass
-                
+
         st.divider()
         if st.button("🚪 Sign Out", use_container_width=True):
             st.session_state.clear(); st.rerun()
@@ -413,13 +416,177 @@ def render_agent_hq():
     - 🚨 Fraud Agent (unusual order patterns)
     - 📈 Sales Forecasting Agent
     """)
+# ─── REP DASHBOARD (Consent-Based Check-in/out) ───
+def page_rep(u):
+    st.title(f"🚚 Rep Dashboard — {u.get('owner', u.get('name', 'Rep'))}")
+    st.caption(f"Rep ID: {u.get('id')} | Shop: {u.get('shop', 'N/A')}")
+    st.divider()
+
+    # Location capture (browser asks permission — visible to user)
+    from streamlit_js_eval import get_geolocation
+    loc = get_geolocation()
+    lat, lng = (None, None)
+    if loc and loc.get("coords"):
+        lat = loc["coords"]["latitude"]
+        lng = loc["coords"]["longitude"]
+        st.success(f"📍 Current location: {lat:.4f}, {lng:.4f}")
+    else:
+        st.warning("📍 Please allow location access in your browser to check in.")
+
+    db_path = BASE_DIR / "meena_enterprise.db"
+    now = str(datetime.datetime.now())
+
+    def log_activity(action, retailer_id="", notes=""):
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "INSERT INTO rep_activity (rep_id, action, timestamp, latitude, longitude, retailer_id, notes) VALUES (?,?,?,?,?,?,?)",
+            (u.get("id"), action, now, lat, lng, retailer_id, notes)
+        )
+        conn.commit()
+        conn.close()
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("☀️ Start Day", type="primary", use_container_width=True, disabled=lat is None):
+            log_activity("CHECK_IN")
+            st.success(f"✅ Checked in at {now[:19]}")
+            time.sleep(1); st.rerun()
+    with c2:
+        if st.button("🌙 End Day", use_container_width=True, disabled=lat is None):
+            log_activity("CHECK_OUT")
+            st.success(f"✅ Checked out at {now[:19]}")
+            time.sleep(1); st.rerun()
+    with c3:
+        st.write("")
+
+    with st.expander("📝 Log a Pharmacy Visit"):
+        retailers = load_retailers()
+        retailer_list = [f"{r['id']} — {r.get('shop','')}" for r in retailers if r.get('role') == 'retailer']
+        chosen = st.selectbox("Select Retailer", retailer_list) if retailer_list else None
+        notes = st.text_area("Visit Notes", placeholder="Example: Delivered order, discussed new stock...")
+        if st.button("✅ Log Visit", type="primary", use_container_width=True, disabled=(lat is None or not chosen)):
+            retailer_id = chosen.split(" — ")[0]
+            log_activity("VISIT", retailer_id=retailer_id, notes=notes)
+            st.success("✅ Visit logged!")
+            time.sleep(1); st.rerun()
+
+    st.divider()
+    st.subheader("📜 My Recent Activity")
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql_query("SELECT * FROM rep_activity WHERE rep_id = ? ORDER BY id DESC LIMIT 20", conn, params=(u.get("id"),))
+    conn.close()
+    if df.empty:
+        st.info("No activity yet.")
+    else:
+        for _, row in df.iterrows():
+            icon = "☀️" if row['action'] == "CHECK_IN" else "🌙" if row['action'] == "CHECK_OUT" else "📝"
+            with st.container(border=True):
+                st.markdown(f"**{icon} {row['action']}** — {row['timestamp'][:19]}")
+                if pd.notna(row['latitude']):
+                    st.caption(f"📍 {row['latitude']:.4f}, {row['longitude']:.4f}")
+                if row['retailer_id']:
+                    st.caption(f"🏪 Retailer: {row['retailer_id']}")
+                if row['notes']:
+                    st.caption(f"💬 {row['notes']}")
+
+
+# ─── OWNER: STAFF MONITOR ───
+def page_owner_staff_monitor(u):
+    st.title("👥 Staff Monitor")
+    st.caption("Live view of all sales reps' activity")
+
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists():
+        st.info("No data yet."); return
+
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql_query("SELECT * FROM rep_activity ORDER BY id DESC LIMIT 200", conn)
+    conn.close()
+
+    if df.empty:
+        st.info("No rep activity recorded yet.")
+        return
+
+    # Map of latest check-ins
+    st.subheader("🗺️ Live Map (Latest Check-ins)")
+    latest = df[df['latitude'].notna()].head(20)
+    if not latest.empty:
+        import folium
+        from streamlit_folium import st_folium
+        center_lat = latest['latitude'].mean()
+        center_lng = latest['longitude'].mean()
+        m = folium.Map(location=[center_lat, center_lng], zoom_start=10)
+        for _, row in latest.iterrows():
+            color = "green" if row['action'] == "CHECK_IN" else "red" if row['action'] == "CHECK_OUT" else "blue"
+            folium.Marker(
+                [row['latitude'], row['longitude']],
+                popup=f"{row['rep_id']} — {row['action']} @ {row['timestamp'][:19]}",
+                icon=folium.Icon(color=color)
+            ).add_to(m)
+        st_folium(m, width=700, height=400)
+    else:
+        st.warning("No location data available yet.")
+
+    # Hours worked per rep (check-in to check-out)
+    st.subheader("⏱️ Hours Worked (Latest Day)")
+    from datetime import datetime as _dt
+    summary = []
+    for rep_id in df['rep_id'].unique():
+        rep_df = df[df['rep_id'] == rep_id]
+        check_ins = rep_df[rep_df['action'] == "CHECK_IN"]
+        check_outs = rep_df[rep_df['action'] == "CHECK_OUT"]
+        if not check_ins.empty and not check_outs.empty:
+            try:
+                in_time = _dt.strptime(check_ins.iloc[0]['timestamp'][:19], "%Y-%m-%d %H:%M:%S")
+                out_time = _dt.strptime(check_outs.iloc[0]['timestamp'][:19], "%Y-%m-%d %H:%M:%S")
+                hours = (out_time - in_time).total_seconds() / 3600
+                summary.append({"Rep": rep_id, "Hours": round(hours, 2),
+                                "Visits": len(rep_df[rep_df['action'] == "VISIT"])})
+            except: pass
+    if summary:
+        st.dataframe(pd.DataFrame(summary), use_container_width=True)
+    else:
+        st.info("Not enough check-in/out data yet to compute hours.")
+
+    st.divider()
+    st.subheader("📜 Recent Activity Log")
+    df_display = df[['rep_id', 'action', 'timestamp', 'retailer_id', 'notes']].head(30)
+    st.dataframe(df_display, use_container_width=True)
 def main():
     if "user" not in st.session_state:
         login_screen(); return
-    
+
     render_sidebar()
     u = st.session_state.user
     role = u.get("role", "").lower()
+
+    if role == "owner":
+        if st.session_state.page == "home": page_home(u)
+        elif st.session_state.page == "owner": page_owner_dashboard(u)
+        elif st.session_state.page == "agents": render_agent_hq()
+        elif st.session_state.page == "staff": page_owner_staff_monitor(u)
+        elif st.session_state.page == "order": page_order()
+        elif st.session_state.page == "cart": page_cart()
+        elif st.session_state.page == "history": page_history(u)
+        elif st.session_state.page == "profile": page_profile(u)
+        else: page_home(u)
+
+    elif role == "retailer":
+        if st.session_state.page == "home": page_home(u)
+        elif st.session_state.page == "order": page_order()
+        elif st.session_state.page == "cart": page_cart()
+        elif st.session_state.page == "history": page_history(u)
+        elif st.session_state.page == "profile": page_profile(u)
+        else: page_home(u)
+
+    elif role == "rep":
+        if st.session_state.page == "rep": page_rep(u)
+        else: page_rep(u)
+
+    else:
+        st.error("❌ Access Denied.")
+        if st.button("Sign Out"):
+            st.session_state.clear(); st.rerun()
     
     # ─── 🚨 ROLE-BASED ACCESS CONTROL (RBAC) ───
     
