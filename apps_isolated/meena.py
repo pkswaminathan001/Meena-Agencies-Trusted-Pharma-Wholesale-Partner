@@ -129,26 +129,61 @@ def login_screen():
                     st.session_state.page = "home"
                     st.rerun()
             st.error("❌ Invalid ID or PIN.")
-
 def page_home(u):
-    st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
-        st.button("View Orders", key="btn_hist", on_click=go_to, args=("history",), use_container_width=True)
-    with c2:
-        st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
-        st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
-        st.button("Go to Profile", key="btn_prof", on_click=go_to, args=("profile",), use_container_width=True)
-    with c4:
-        st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
-        st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
-
-@st.fragment
+    is_owner = u.get("role", "").lower() == "owner"
+    
+    if is_owner:
+        # ─── OWNER: EXECUTIVE COMMAND CENTER ───
+        st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena HQ</div><div style="font-size: 13px;">Executive View</div></div>', unsafe_allow_html=True)
+        
+        db_path = BASE_DIR / "meena_enterprise.db"
+        revenue, pending, low_stock = 0.0, 0, 0
+        if db_path.exists():
+            try:
+                conn = sqlite3.connect(db_path)
+                revenue = pd.read_sql_query("SELECT SUM(total) as rev FROM orders WHERE status = 'Paid'", conn).iloc[0]['rev'] or 0.0
+                pending = pd.read_sql_query("SELECT COUNT(*) as c FROM orders WHERE status = 'Paid'", conn).iloc[0]['c']
+                low_stock = pd.read_sql_query("SELECT COUNT(*) as c FROM products WHERE qty < 15", conn).iloc[0]['c']
+                conn.close()
+            except: pass
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("💰 Total Revenue", f"₹{revenue:,.2f}")
+        m2.metric("📦 Pending Orders", f"{pending}")
+        m3.metric("⚠️ Low Stock Items", f"{low_stock}")
+        
+        st.divider()
+        st.markdown("### ⚡ Quick Actions")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown('<div class="amz-card"><h3>👑 Owner Dashboard</h3><p style="font-size:13px;">Approve orders & AI Gauntlet.</p></div>', unsafe_allow_html=True)
+            st.button("Open Dashboard", key="btn_owner_home", on_click=go_to, args=("owner",), type="primary", use_container_width=True)
+        with c2:
+            st.markdown('<div class="amz-card"><h3>🤖 AI Agent HQ</h3><p style="font-size:13px;">Chat with your AI staff.</p></div>', unsafe_allow_html=True)
+            st.button("Open AI HQ", key="btn_ai_home", on_click=go_to, args=("agents",), type="primary", use_container_width=True)
+        with c3:
+            st.markdown('<div class="amz-card"><h3>🛒 Storefront</h3><p style="font-size:13px;">See what retailers see.</p></div>', unsafe_allow_html=True)
+            st.button("Browse Store", key="btn_shop_home", on_click=go_to, args=("order",), use_container_width=True)
+    else:
+        # ─── RETAILER: AMAZON STOREFRONT ───
+        st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="promo-banner">🚀 MEGA SALE: Use code <b>MEENA10</b> at checkout for 10% off!</div>', unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('<div class="amz-card"><h3>Your Orders</h3><p style="font-size:13px;">Track, return, or buy again.</p></div>', unsafe_allow_html=True)
+            st.button("View Orders", key="btn_hist", on_click=go_to, args=("history",), use_container_width=True)
+        with c2:
+            st.markdown('<div class="amz-card"><h3>Shop Medicines</h3><p style="font-size:13px;">Browse the latest inventory.</p></div>', unsafe_allow_html=True)
+            st.button("Start Shopping", key="btn_shop", on_click=go_to, args=("order",), type="primary", use_container_width=True)
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown('<div class="amz-card"><h3>Your Account</h3><p style="font-size:13px;">Manage profile and security.</p></div>', unsafe_allow_html=True)
+            st.button("Go to Profile", key="btn_prof", on_click=go_to, args=("profile",), use_container_width=True)
+        with c4:
+            st.markdown('<div class="amz-card"><h3>Cart</h3><p style="font-size:13px;">Review cart and checkout.</p></div>', unsafe_allow_html=True)
+            st.button("Go to Cart", key="btn_cart", on_click=go_to, args=("cart",), use_container_width=True)
 def product_grid(view):
     cols_per_row = 4 
     for i in range(0, len(view.head(30)), cols_per_row):
