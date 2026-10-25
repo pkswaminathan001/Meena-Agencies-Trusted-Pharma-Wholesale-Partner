@@ -12,7 +12,7 @@
     "id": "RET001",
     "shop": "Sri Balaji Medicals",
     "owner": "Chitra",
-    "pin_hash": "a7e55fd13371ee78d807ff73a8f1b0f98a5a48a1b6e2d9a1b8e1a7e55fd13371",
+    "pin_hash": "a7e55fd13371ee78d8072244f5d28d6c1016d38ca01aa8dffdb775d3d9e7a3a5",
     "role": "retailer",
     "status": "Active",
     "telegram_chat_id": "8205802064"
@@ -21,7 +21,8 @@
     "id": "REP001",
     "shop": "Chennai Sales Rep",
     "owner": "Suresh",
-    "pin_hash": "1c95c05b48bdea50389f...",
+    "phone": "9876543211",
+    "pin_hash": "1c95c05b48bdea50389fd2c17ee9c7d5d6349911b42c0e0570c4f9a6908fde3b",
     "role": "rep",
     "status": "Active",
     "telegram_chat_id": "8205802064",
