@@ -1232,12 +1232,74 @@ def render_ai_dots(user=None):
             
             st.markdown('</div>', unsafe_allow_html=True)
 
+# ═══════════════════════════════════════════════════════
+#  TELEGRAM LAUNCHER — web_app button + URL helper
+# ═══════════════════════════════════════════════════════
+def get_app_url():
+    """Get the public PWA URL from secrets or fallback."""
+    try:
+        url = st.secrets.get("APP_URL", "")
+    except Exception:
+        url = ""
+    return url or "https://meena-agencies.streamlit.app"
+
+
+def render_telegram_launcher(user=None):
+    """Render Telegram launch button in the sidebar."""
+    app_url = get_app_url()
+    with st.sidebar:
+        st.divider()
+        st.markdown("#### 📱 Open as App")
+        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" '
+                    f'style="display:inline-block;padding:8px 14px;background:#FFD814;'
+                    f'color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;'
+                    f'width:100%;text-align:center;">🚀 Launch PWA</a>',
+                    unsafe_allow_html=True)
+        if "localhost" in app_url or not app_url.startswith("https://"):
+            st.caption("⚠️ Set APP_URL in secrets for production")
+
+
+def send_telegram_app_button(chat_id, bot_token=None):
+    """Send a Telegram message with a web_app inline button (for bot integration)."""
+    import requests as _r
+    if bot_token is None:
+        try:
+            bot_token = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+        except Exception:
+            bot_token = ""
+    if not bot_token:
+        return False
+    
+    app_url = get_app_url()
+    if not app_url.startswith("https://"):
+        return False
+    
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": "🦚 *Meena Agencies*\n\nTap below to open the app:",
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [[{
+                "text": "📱 Open Meena App",
+                "web_app": {"url": app_url}
+            }]]
+        }
+    }
+    try:
+        r = _r.post(url, json=payload, timeout=15)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
 
     render_sidebar()
     u = st.session_state.user
+    render_telegram_launcher(u)
     render_ai_dots(u)
     role = u.get("role", "").lower()
 
