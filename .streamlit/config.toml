@@ -1,9 +1,16 @@
 [server]
 enableStaticServing = true
 runOnSave = true
+enableCORS = false
+enableXsrfProtection = true
+headless = true
 
 [client]
 toolbarMode = "viewer"
+showErrorDetails = false
+
+[browser]
+gatherUsageStats = false
 
 [theme]
 base = "light"

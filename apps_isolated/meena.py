@@ -156,6 +156,39 @@ def save_order_history(user_id, cart, total):
     conn.close()
     return {"order_id": order_id}
 
+
+# ═══════════════════════════════════════════════════════
+#  SECURITY: Login rate limiting + timing attack defense
+# ═══════════════════════════════════════════════════════
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300  # 5 minutes
+
+def _check_login_rate_limit():
+    """Returns (allowed, seconds_remaining)."""
+    if "login_attempts" not in st.session_state:
+        st.session_state.login_attempts = 0
+    if "login_lockout_until" not in st.session_state:
+        st.session_state.login_lockout_until = 0
+    
+    now = time.time()
+    if st.session_state.login_lockout_until > now:
+        return (False, int(st.session_state.login_lockout_until - now))
+    if st.session_state.login_attempts >= MAX_LOGIN_ATTEMPTS:
+        st.session_state.login_attempts = 0
+    return (True, 0)
+
+def _record_failed_login():
+    """Increment counter, apply lockout if threshold hit, add delay."""
+    st.session_state.login_attempts = st.session_state.get("login_attempts", 0) + 1
+    time.sleep(0.5 + (0.25 * st.session_state.login_attempts))  # escalating delay
+    if st.session_state.login_attempts >= MAX_LOGIN_ATTEMPTS:
+        st.session_state.login_lockout_until = time.time() + LOCKOUT_SECONDS
+
+def _record_successful_login():
+    st.session_state.login_attempts = 0
+    st.session_state.login_lockout_until = 0
+
+
 def login_screen():
     st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
     st.markdown("""<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1><h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2><p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p></div>""", unsafe_allow_html=True)
@@ -165,17 +198,26 @@ def login_screen():
             rid = st.text_input("User ID").strip().upper()
             pin = st.text_input("PIN", type="password").strip()
             submit = st.form_submit_button("Login", use_container_width=True, type="primary")
-        if submit:
+        allowed, wait_secs = _check_login_rate_limit()
+        if not allowed:
+            st.error(f"🚫 Too many failed attempts. Try again in {wait_secs}s.")
+        elif submit:
             users = load_retailers()
             user = next((u for u in users if u.get("id") == rid), None)
+            matched = False
             if user:
                 salt = 'MEENA_PHARMA_SECURE_SALT_2026'
                 input_hash = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt.encode(), 100000).hex()
                 if input_hash == user.get("pin_hash"):
+                    matched = True
+                    _record_successful_login()
                     st.session_state.user = user
                     st.session_state.page = "home"
                     st.rerun()
-            st.error("❌ Invalid ID or PIN.")
+            if not matched:
+                _record_failed_login()
+                attempts_left = MAX_LOGIN_ATTEMPTS - st.session_state.login_attempts
+                st.error(f"❌ Invalid ID or PIN. {attempts_left} attempt(s) left.")
 
 def render_add_stock_form():
     """One-shot Add Stock form for owner."""
