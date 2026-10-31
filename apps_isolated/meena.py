@@ -345,41 +345,38 @@ def page_profile(u):
 def render_sidebar():
     with st.sidebar:
         st.markdown("<h2 style='text-align: center; color: #0B3C5D;'>🦚 Meena</h2>", unsafe_allow_html=True)
+        
+        # D6: Show logged in user
+        shop_name = st.session_state.user.get("shop", "Retailer")
         role = st.session_state.user.get("role", "Retailer").upper()
         st.markdown(f"<p style='text-align: center; color: #1D8348; font-weight: 600;'>{role}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-size: 12px; color: gray;'>Logged in as: {shop_name}</p>", unsafe_allow_html=True)
         st.divider()
-
-        menu = [("home", "🏠 Home")]
-
+        
+        menu = [
+            ("home", "🏠 Dashboard"),
+            ("order", "🛒 Place Order"),
+            ("cart", "🛍️ My Cart"),
+            ("history", "📜 Order History"),
+            ("profile", "👤 Profile")
+        ]
+        
         if role == "OWNER":
-            menu.extend([
-                ("owner", "👑 Owner Dashboard"),
-                ("agents", "🤖 AI Agent HQ"),
-                ("staff", "👥 Staff Monitor"),
-                ("order", "🛒 Place Order"),
-                ("history", "📜 Order History"),
-                ("profile", "👤 Profile"),
-            ])
-        elif role == "RETAILER":
-            menu.extend([
-                ("order", "🛒 Place Order"),
-                ("cart", "🛍️ Cart"),
-                ("history", "📜 Order History"),
-                ("profile", "👤 Profile"),
-            ])
-        elif role == "REP":
-            menu.append(("rep", "🚚 My Dashboard"))
-
+            menu.append(("owner_map", "🗺️ Live Tracking & Owner Tools"))
+        
         for key, label in menu:
-            if st.button(label, use_container_width=True,
-                         type="primary" if st.session_state.page == key else "secondary",
-                         on_click=go_to, args=(key,)):
-                pass
-
+            if st.button(label, use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
+                st.session_state.page = key
+                st.rerun()
+                
         st.divider()
-        if st.button("🚪 Sign Out", use_container_width=True):
-            st.session_state.clear(); st.rerun()
-# ─── OWNER DASHBOARD (Approvals) ───
+        # D4/D5: Single Logout button
+        if st.button("🚪 Logout", use_container_width=True, type="primary"):
+            st.session_state.clear()
+            st.rerun()
+
+
+
 def page_owner_dashboard(u):
     st.title("👑 Owner Dashboard: Approvals")
     if u.get("role", "").lower() != "owner":
