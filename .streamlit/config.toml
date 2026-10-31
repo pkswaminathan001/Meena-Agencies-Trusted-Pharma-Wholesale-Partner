@@ -15,3 +15,6 @@ secondaryBackgroundColor = "#ffffff"
 textColor = "#0F1111"
 font = "sans serif"
 # Cache bust 1792922137
+
+[server]
+enableStaticServing = true
