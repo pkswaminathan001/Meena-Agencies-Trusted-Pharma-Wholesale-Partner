@@ -38,6 +38,9 @@ def go_to(page_name):
 
 st.markdown("""
 <style>
+    /* D3: Hide back button and streamlit headers */
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="collapsedControl"] {display: none !important;}
     .stApp { background-color: #eaeded !important; }
     .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
     #MainMenu { visibility: hidden !important; display: none !important; }
