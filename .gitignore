@@ -79,3 +79,7 @@ apps_isolated/*.bak
 !static/manifest.json
 !static/sw.js
 !static/*.png
+
+# Data files — allow assignments.json through *.json block
+!assignments.json
+!sales_rep_locations.json
