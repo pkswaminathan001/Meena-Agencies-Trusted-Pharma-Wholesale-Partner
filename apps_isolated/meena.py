@@ -29,6 +29,25 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
+# ─── PWA: Manifest + Service Worker injection ───
+import streamlit.components.v1 as _pwa_components
+_pwa_components.html(
+    """
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Meena">
+    <meta name="theme-color" content="#131921">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(e => console.warn('SW reg failed', e));
+      }
+    </script>
+    """,
+    height=0, width=0
+)
+
+
 if "page" not in st.session_state: st.session_state.page = "home"
 if "cart" not in st.session_state: st.session_state.cart = []
 if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
