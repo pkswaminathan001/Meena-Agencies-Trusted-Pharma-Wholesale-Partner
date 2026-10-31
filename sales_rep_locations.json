@@ -1,0 +1,20 @@
+{
+  "REP001": {
+    "name": "Karthik (Thanjavur)",
+    "lat": 10.787,
+    "lon": 79.1378,
+    "timestamp": "11:51:39 AM"
+  },
+  "REP002": {
+    "name": "Suresh (Trichy)",
+    "lat": 10.7905,
+    "lon": 78.7047,
+    "timestamp": "11:51:39 AM"
+  },
+  "REP003": {
+    "name": "Vijay (Chennai)",
+    "lat": 13.0827,
+    "lon": 80.2707,
+    "timestamp": "11:51:39 AM"
+  }
+}
