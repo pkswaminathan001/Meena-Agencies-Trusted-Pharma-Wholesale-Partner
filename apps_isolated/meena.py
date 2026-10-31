@@ -1079,6 +1079,95 @@ def _ai_dots_css():
     """, unsafe_allow_html=True)
 
 
+# ─── Groq Brain for AI Dots ───
+def _meena_context_snapshot():
+    """Build a compact text snapshot of Meena data for the AI."""
+    lines = []
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(db_path)
+            rev = conn.execute("SELECT COALESCE(SUM(total),0) FROM orders WHERE status='Paid'").fetchone()[0]
+            pend = conn.execute("SELECT COUNT(*) FROM orders WHERE status='Paid'").fetchone()[0]
+            low = conn.execute("SELECT COUNT(*) FROM products WHERE qty < 15").fetchone()[0]
+            conn.close()
+            lines.append(f"Revenue (Paid): ₹{rev:,.2f}")
+            lines.append(f"Pending orders: {pend}")
+            lines.append(f"Low-stock products: {low}")
+        except Exception:
+            pass
+    rj = BASE_DIR / "retailers.json"
+    if rj.exists():
+        try:
+            import json as _j
+            retailers = _j.loads(rj.read_text())
+            lines.append(f"Retailers in system: {len(retailers)}")
+        except Exception:
+            pass
+    return "\n".join(lines) if lines else "No data yet."
+
+
+def _groq_chat(messages, system_prompt, api_key):
+    """Call Groq chat completions. Returns reply string or error message."""
+    import json as _j
+    import requests as _r
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "system", "content": system_prompt}] + messages,
+        "temperature": 0.4,
+        "max_tokens": 500,
+    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    try:
+        r = _r.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            return data["choices"][0]["message"]["content"].strip()
+        return f"⚠️ Groq API error {r.status_code}: {r.text[:200]}"
+    except Exception as e:
+        return f"⚠️ Groq connection error: {e}"
+
+
+def groq_ask(prompt, user=None):
+    """Ask Meena AI a question using Groq with data context."""
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    try:
+        api_key = st.secrets.get("GROQ_API_KEY", api_key)
+    except Exception:
+        pass
+    
+    if not api_key:
+        return "🔑 GROQ_API_KEY not set. Please add it in Streamlit Cloud → Settings → Secrets."
+    
+    role = (user or {}).get("role", "retailer").lower() if user else "retailer"
+    role_hint = "You are speaking to the shop owner — give detailed business insights." if role == "owner" else "You are speaking to a retailer — give friendly, concise answers."
+    
+    system = f"""You are Meena AI, a helpful assistant for Meena Agencies, a pharma wholesale business in Tamil Nadu, India.
+
+Live data snapshot:
+{_meena_context_snapshot()}
+
+{role_hint}
+
+Rules:
+- Be concise (under 100 words unless asked for detail).
+- For prices or stock numbers, only quote from the data snapshot above — never invent.
+- If you don't know, say so and suggest the user check the dashboard.
+- Respond in the same language the user wrote (English or Tamil).
+"""
+    
+    # Convert prior messages (trim to last 6 for context)
+    history = st.session_state.get("ai_dots_messages", [])[-6:]
+    convo = [
+        {"role": m["role"], "content": m["content"]}
+        for m in history if m.get("role") in ("user", "assistant")
+    ]
+    convo.append({"role": "user", "content": prompt})
+    
+    return _groq_chat(convo, system, api_key)
+
+
 def render_ai_dots(user=None):
     """Render floating AI Dots chat button + drawer."""
     _ai_dots_css()
@@ -1133,9 +1222,11 @@ def render_ai_dots(user=None):
             if prompt:
                 st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
                 # Placeholder reply — Step 5 wires Groq
+                with st.spinner("Meena AI thinking..."):
+                    reply = groq_ask(prompt, user)
                 st.session_state.ai_dots_messages.append({
                     "role": "assistant",
-                    "content": "🤖 (Groq brain arrives in Step 5 — wiring next!)"
+                    "content": reply
                 })
                 st.rerun()
             
