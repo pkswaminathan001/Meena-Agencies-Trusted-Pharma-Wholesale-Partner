@@ -1003,12 +1003,151 @@ def page_owner_staff_monitor(u):
                 st.success(f"✅ Assigned '{name}' to rep {rep_id}")
                 st.rerun()
 
+
+# ═══════════════════════════════════════════════════════
+#  AI DOTS — Floating ChatGPT-style Chat Widget
+# ═══════════════════════════════════════════════════════
+def _ai_dots_css():
+    st.markdown("""
+    <style>
+    .ai-dots-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 62px;
+        height: 62px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%);
+        box-shadow: 0 4px 20px rgba(0,212,255,0.5);
+        color: white;
+        font-size: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 99999;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+    }
+    .ai-dots-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 28px rgba(0,212,255,0.7);
+    }
+    .chat-window {
+        position: fixed;
+        bottom: 105px;
+        right: 30px;
+        width: 380px;
+        max-width: calc(100vw - 60px);
+        height: 520px;
+        max-height: calc(100vh - 150px);
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+        z-index: 99998;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .chat-window-header {
+        background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%);
+        color: white;
+        padding: 14px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+    }
+    .chat-window-body {
+        flex: 1;
+        padding: 12px;
+        overflow-y: auto;
+        background: #fafafa;
+    }
+    @media (max-width: 480px) {
+        .chat-window {
+            width: calc(100vw - 20px);
+            right: 10px;
+            bottom: 90px;
+        }
+        .ai-dots-btn {
+            right: 20px;
+            bottom: 20px;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def render_ai_dots(user=None):
+    """Render floating AI Dots chat button + drawer."""
+    _ai_dots_css()
+    
+    if "ai_dots_open" not in st.session_state:
+        st.session_state.ai_dots_open = False
+    if "ai_dots_messages" not in st.session_state:
+        st.session_state.ai_dots_messages = [
+            {"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI. Ask me about orders, stock, retailers, or anything."}
+        ]
+    
+    # ─── Floating toggle button ───
+    # We use a Streamlit button styled as the floating circle
+    # Position it via CSS targeting the button container
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stButton"]:has(button[kind="primary"][aria-label="ai_dots_toggle"]) {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            z-index: 99999 !important;
+            width: 62px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    
+    # Button to toggle
+    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
+    if st.button(btn_label, key="ai_dots_btn", type="primary", help="Ask Meena AI"):
+        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
+        st.rerun()
+    
+    # ─── Chat drawer (only when open) ───
+    if st.session_state.ai_dots_open:
+        with st.container():
+            st.markdown('<div class="chat-window">', unsafe_allow_html=True)
+            st.markdown('<div class="chat-window-header"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="chat-window-body">', unsafe_allow_html=True)
+            
+            # Render history
+            for msg in st.session_state.ai_dots_messages:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Input
+            prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
+            if prompt:
+                st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
+                # Placeholder reply — Step 5 wires Groq
+                st.session_state.ai_dots_messages.append({
+                    "role": "assistant",
+                    "content": "🤖 (Groq brain arrives in Step 5 — wiring next!)"
+                })
+                st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
 
     render_sidebar()
     u = st.session_state.user
+    render_ai_dots(u)
     role = u.get("role", "").lower()
 
     if role == "owner":
