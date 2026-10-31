@@ -1,0 +1,16 @@
+{
+  "Sun Pharma":        {"code": "SUN", "origin": "Mumbai",    "tier": "premium"},
+  "Cipla":             {"code": "CIP", "origin": "Mumbai",    "tier": "premium"},
+  "Dr. Reddy's":       {"code": "DRL", "origin": "Hyderabad", "tier": "premium"},
+  "Zydus":             {"code": "ZYD", "origin": "Ahmedabad", "tier": "mid"},
+  "Aurobindo":         {"code": "AUR", "origin": "Hyderabad", "tier": "mid"},
+  "Lupin":             {"code": "LUP", "origin": "Mumbai",    "tier": "mid"},
+  "Torrent Pharma":    {"code": "TOR", "origin": "Ahmedabad", "tier": "premium"},
+  "Alkem Labs":        {"code": "ALK", "origin": "Mumbai",    "tier": "mid"},
+  "Mankind Pharma":    {"code": "MAN", "origin": "New Delhi", "tier": "mid"},
+  "Intas Pharma":      {"code": "INT", "origin": "Ahmedabad", "tier": "mid"},
+  "Glenmark":          {"code": "GLE", "origin": "Mumbai",    "tier": "premium"},
+  "Abbott India":      {"code": "ABB", "origin": "Mumbai",    "tier": "premium"},
+  "Hetero Labs":       {"code": "HET", "origin": "Hyderabad", "tier": "value"},
+  "Acme Generics":     {"code": "ACM", "origin": "Chandigarh","tier": "value"}
+}

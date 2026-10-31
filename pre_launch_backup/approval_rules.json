@@ -1,0 +1,13 @@
+{
+  "auto_approve_enabled": true,
+  "auto_approve_max_value": 5000.0,
+  "trusted_min_orders": 3,
+  "restricted_categories": [
+    "Injection",
+    "Insulin"
+  ],
+  "block_overdue_days": 60,
+  "manual_approvers": [
+    "OWNER"
+  ]
+}

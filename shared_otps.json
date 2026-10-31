@@ -1,0 +1,97 @@
+{
+  "OTP-eeb53afa007a": {
+    "code": "955783",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "cart": [
+      {
+        "name": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33
+      }
+    ],
+    "total": 146.64999999999998,
+    "status": "pending",
+    "attempts": 0,
+    "created_at": "2026-10-18T00:52:33",
+    "expires_at": "2026-10-18T00:57:33",
+    "verified_at": null,
+    "verified_via": null
+  },
+  "OTP-52aa5d7c8ea7": {
+    "code": "379195",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "cart": [
+      {
+        "name": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33
+      }
+    ],
+    "total": 146.64999999999998,
+    "status": "pending",
+    "attempts": 0,
+    "created_at": "2026-10-18T00:52:36",
+    "expires_at": "2026-10-18T00:57:36",
+    "verified_at": null,
+    "verified_via": null
+  },
+  "OTP-01bb93a0277c": {
+    "code": "119682",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "cart": [
+      {
+        "name": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33
+      }
+    ],
+    "total": 146.64999999999998,
+    "status": "pending",
+    "attempts": 0,
+    "created_at": "2026-10-18T00:52:38",
+    "expires_at": "2026-10-18T00:57:38",
+    "verified_at": null,
+    "verified_via": null
+  },
+  "OTP-bc253ebb7d30": {
+    "code": "666516",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "cart": [
+      {
+        "name": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33
+      }
+    ],
+    "total": 146.64999999999998,
+    "status": "pending",
+    "attempts": 0,
+    "created_at": "2026-10-18T00:52:38",
+    "expires_at": "2026-10-18T00:57:38",
+    "verified_at": null,
+    "verified_via": null
+  },
+  "OTP-cbefed4f199e": {
+    "code": "351740",
+    "retailer_id": "RET001",
+    "shop": "Sri Balaji Medicals",
+    "cart": [
+      {
+        "name": "Metformin 500mg",
+        "qty": 5,
+        "price": 29.33
+      }
+    ],
+    "total": 146.64999999999998,
+    "status": "verified",
+    "attempts": 0,
+    "created_at": "2026-10-18T00:52:38",
+    "expires_at": "2026-10-18T00:57:38",
+    "verified_at": "2026-10-18T00:52:48.070285",
+    "verified_via": "web"
+  }
+}

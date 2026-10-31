@@ -1,0 +1,22 @@
+[
+  {
+    "idx": 0,
+    "timestamp": "26-SEP-2026 23:38:49",
+    "iso": "2026-09-26T23:38:49.118611",
+    "user": "TEST",
+    "action": "INIT",
+    "details": "system test",
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "hash": "2bd9f3a27a4b85349401494e713c327892450380fa4a3bcfe871c3ce850e5a54"
+  },
+  {
+    "idx": 1,
+    "timestamp": "26-SEP-2026 23:50:30",
+    "iso": "2026-09-26T23:50:30.751396",
+    "user": "SYSTEM",
+    "action": "SEED_STARTED",
+    "details": "Inserted 13 demo journal entries",
+    "prev_hash": "2bd9f3a27a4b85349401494e713c327892450380fa4a3bcfe871c3ce850e5a54",
+    "hash": "9dc7a9701a5647ea876f25b949eb848a3cee545f035302dcf17a3870a5cd0e07"
+  }
+]

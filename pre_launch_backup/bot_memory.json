@@ -1,0 +1,54 @@
+{
+  "953358258": [
+    {
+      "ts": "2026-10-10T08:12:50.760421",
+      "user": "ask how many orders do we have",
+      "bot": "We have 0 orders today.  \nNo pending approvals either.  \nLet me know if you\u2019d like a cumulative sales report. \ud83d\udcca\ud83d\ude9a"
+    },
+    {
+      "ts": "2026-10-10T08:12:52.515677",
+      "user": "ask how many orders do we have",
+      "bot": "Orders today: 0. No pending approvals or deliveries. \ud83d\ude9a"
+    },
+    {
+      "ts": "2026-10-10T08:13:15.559712",
+      "user": "Just tested with slash \u2014 works",
+      "bot": "Great to hear the slash command worked! \ud83d\ude80 Let me know if there\u2019s anything else you\u2019d like to check."
+    },
+    {
+      "ts": "2026-10-10T08:13:15.966256",
+      "user": "Just tested with slash \u2014 works",
+      "bot": "Glad to hear it! Let me know if there\u2019s anything else you\u2019d like to check. \ud83d\ude80"
+    },
+    {
+      "ts": "2026-10-10T08:13:23.941586",
+      "user": "Applied the fallback fix \u2014 bot PID <paste>",
+      "bot": "Nice! Let me know if the bot\u2019s responding correctly now. \ud83d\ude80"
+    },
+    {
+      "ts": "2026-10-10T13:15:00.894760",
+      "user": "hi",
+      "bot": "Hi Swaminathan! How can I help you today? \ud83d\ude0a"
+    },
+    {
+      "ts": "2026-10-10T13:15:01.893281",
+      "user": "hi",
+      "bot": "Hi Swaminathan! How can I assist you today? \ud83d\ude9a"
+    },
+    {
+      "ts": "2026-10-10T23:56:23.933499",
+      "user": "Hi",
+      "bot": "Hey Swaminathan! How can I help you today? If you\u2019d like a quick snapshot of today\u2019s revenue, pending orders, or anything else, just let me know. \ud83d\ude80"
+    },
+    {
+      "ts": "2026-10-11T01:49:46.495350",
+      "user": "Approve",
+      "bot": "Sure thing, Swaminathan! Which pending order would you like to approve?  \nHere\u2019s a quick list of the current pending orders for reference:\n\n- ORD-20260927190532-591 \u00b7 Sri Balaji Medicals \u00b7 \u20b95,403  \n- ORD-20260927190911-916 \u00b7 Sri Balaji Medicals \u00b7 \u20b916,209  \n- ORD-20261003003029-914 \u00b7 Sri Balaji Medicals \u00b7 \u20b90  \n\nLet me know the order ID, and I\u2019ll take care of it! \ud83d\ude9a\u2705"
+    },
+    {
+      "ts": "2026-10-11T18:02:40.564816",
+      "user": "Hi",
+      "bot": "Hey Swaminathan! How can I help you today? \ud83d\ude80"
+    }
+  ]
+}

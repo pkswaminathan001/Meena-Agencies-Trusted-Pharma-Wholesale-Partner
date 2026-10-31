@@ -1,105 +1,105 @@
-.env
-*.json
-*.log
-__pycache__/
-.venv/
+# ═══════════════════════════════════════════════════════
+# Python
+# ═══════════════════════════════════════════════════════
 venv/
 .venv/
+.venv.*/
+env/
+ENV/
 __pycache__/
-venv/
-.venv/
-__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Testing / runtime artifacts
-apps_isolated/*.bak_*
-*.py.bak_*
-scripts/__pycache__/
-/tmp/
-orders.json
-audit.jsonl
-.env.before_notify_pro
-.streamlit/secrets.toml
-
-# Never track real secrets
-.streamlit/secrets.toml
+# ═══════════════════════════════════════════════════════
+# Secrets — NEVER commit these
+# ═══════════════════════════════════════════════════════
 .env
 .env.*
+.env.bak_*
+*.env
 !.env.example
-
-# ── Secrets ──
 .streamlit/secrets.toml
 .streamlit/secrets.toml.*
-.env
-.env.*
-.env.local
-!.env.example
-*_token.txt
-*_secret.txt
+secrets.toml
+*.key
+*.pem
+*.token
+telegram_config.json
+app_secrets.toml
+.env.bak*
+.env.backup*
 
-# ── Historical corruption dumps ──
-KNOWN_GOOD/
-_backups/
+# ═══════════════════════════════════════════════════════
+# Backups — these are junk
+# ═══════════════════════════════════════════════════════
+*.bak
+*.bak_*
+*.bak.*
+*.backup
+*.backup_*
+*.old
+*.orig
+*.rej
+*.save
+*.save.*
+*.ORPHAN_*
+.backup/
 backups/
-*.bak
-*.bak_*
-*.py.bak_*
-tests/run_tests.py.broken_*
-scripts/fix_all.sh
+*~
+*.swp
+meena.py.WAS_*
+meena.py.BEFORE_*
 
-# Ignore virtual environments and old backups
-venv/
-.venv/
-KNOWN_GOOD/
-_backups/
-*.bak_*
-.env
-meena-frontend/node_modules
-.env
-bot.py
-bot.py
-*.env
-bot.py
-.env
-__pycache__/
-*.pyc
-orders.json
-__pycache__/
-*.pyc
-orders.json
-_backups/
-.streamlit/secrets.toml
-apps_isolated/meena_backup_before_cleanup.py
-retailers.json
-bot.py
-apps_isolated/meena_backup_*.py
-apps_isolated/meena_broken_*.py
-apps_isolated/*.bak
+# ═══════════════════════════════════════════════════════
+# Local database & runtime data
+# ═══════════════════════════════════════════════════════
+*.db
+*.sqlite
+*.sqlite3
+sales_rep_locations.json
+assignments.json
+agent_activity.json
+ai_action_history.json
+ai_permission_queue.json
 
-# PWA — allow manifest.json (overrides *.json)
-!static/manifest.json
-!static/sw.js
-!static/*.png
+# ═══════════════════════════════════════════════════════
+# IDE
+# ═══════════════════════════════════════════════════════
+.vscode/
+.idea/
+*.code-workspace
 
-# Data files — allow assignments.json through *.json block
-!assignments.json
-!sales_rep_locations.json
+# ═══════════════════════════════════════════════════════
+# OS
+# ═══════════════════════════════════════════════════════
+.DS_Store
+Thumbs.db
+*.log
 
-# Security — real secrets must never be committed
-.env.*.local
-!*.env.example
-**/secrets.toml
-
-# PWA files in apps_isolated/static/
-!apps_isolated/static/
-!apps_isolated/static/manifest.json
-!apps_isolated/static/sw.js
-!apps_isolated/static/*.png
-
-# Backup files (never commit)
-*.broken
-*.broken2
-*.bak
-*.bak_*
-apps_isolated/*.bak_*
-.streamlit/*.broken*
-.streamlit/*.bak*
+# ═══════════════════════════════════════════════════════
+# Streamlit
+# ═══════════════════════════════════════════════════════
+.streamlit/
+!.streamlit/config.toml

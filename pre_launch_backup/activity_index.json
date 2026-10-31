@@ -1,0 +1,231 @@
+{
+  "OWNER": {
+    "26-SEP-2026": {
+      "events": 8663,
+      "clicks": 3,
+      "pages": {
+        "login": 91,
+        "Approvals": 961,
+        "Health": 950,
+        "Fraud": 950,
+        "AutoPOs": 950,
+        "Forecast": 950,
+        "WhatIf": 950,
+        "Intelligence": 950,
+        "Settings": 950,
+        "Audit": 490,
+        "heartbeat": 3,
+        "signout": 5,
+        "Operations": 452,
+        "Accounting": 11
+      }
+    },
+    "27-SEP-2026": {
+      "events": 606,
+      "clicks": 0,
+      "pages": {
+        "login": 58,
+        "Approvals": 51,
+        "Health": 50,
+        "Fraud": 50,
+        "AutoPOs": 50,
+        "Forecast": 50,
+        "WhatIf": 50,
+        "Intelligence": 51,
+        "Settings": 50,
+        "Audit": 50,
+        "Operations": 48,
+        "Accounting": 48
+      }
+    },
+    "02-OCT-2026": {
+      "events": 272,
+      "clicks": 0,
+      "pages": {
+        "login": 20,
+        "Approvals": 23,
+        "Health": 23,
+        "Fraud": 23,
+        "AutoPOs": 23,
+        "Forecast": 23,
+        "WhatIf": 23,
+        "Intelligence": 23,
+        "Settings": 23,
+        "Audit": 23,
+        "Operations": 23,
+        "Accounting": 22
+      }
+    },
+    "10-OCT-2026": {
+      "events": 336,
+      "clicks": 0,
+      "pages": {
+        "login": 34,
+        "Approvals": 28,
+        "Health": 27,
+        "Fraud": 27,
+        "AutoPOs": 27,
+        "Forecast": 27,
+        "WhatIf": 27,
+        "Intelligence": 27,
+        "Settings": 28,
+        "Audit": 28,
+        "Operations": 28,
+        "Accounting": 28
+      }
+    },
+    "11-OCT-2026": {
+      "events": 118,
+      "clicks": 0,
+      "pages": {
+        "login": 8,
+        "Approvals": 10,
+        "Health": 10,
+        "Fraud": 10,
+        "AutoPOs": 10,
+        "Forecast": 10,
+        "WhatIf": 10,
+        "Intelligence": 10,
+        "Settings": 10,
+        "Audit": 10,
+        "Operations": 10,
+        "Accounting": 10
+      }
+    }
+  },
+  "TEST": {
+    "26-SEP-2026": {
+      "events": 2,
+      "clicks": 2,
+      "pages": {
+        "test_page": 1,
+        "test": 1
+      }
+    }
+  },
+  "RET001": {
+    "26-SEP-2026": {
+      "events": 76,
+      "clicks": 1,
+      "pages": {
+        "Orders": 1,
+        "RetailerOrders": 5,
+        "login": 64,
+        "signout": 6
+      }
+    },
+    "27-SEP-2026": {
+      "events": 78,
+      "clicks": 0,
+      "pages": {
+        "login": 70,
+        "signout": 4,
+        "RetailerOrders": 4
+      }
+    },
+    "02-OCT-2026": {
+      "events": 23,
+      "clicks": 0,
+      "pages": {
+        "login": 22,
+        "signout": 1
+      }
+    },
+    "03-OCT-2026": {
+      "events": 25,
+      "clicks": 0,
+      "pages": {
+        "login": 25
+      }
+    },
+    "10-OCT-2026": {
+      "events": 165,
+      "clicks": 0,
+      "pages": {
+        "login": 164,
+        "signout": 1
+      }
+    },
+    "11-OCT-2026": {
+      "events": 25,
+      "clicks": 0,
+      "pages": {
+        "login": 25
+      }
+    }
+  },
+  "DIAG": {
+    "26-SEP-2026": {
+      "events": 1,
+      "clicks": 1,
+      "pages": {
+        "test": 1
+      }
+    }
+  },
+  "ret001": {
+    "26-SEP-2026": {
+      "events": 26,
+      "clicks": 0,
+      "pages": {
+        "login": 26
+      }
+    },
+    "27-SEP-2026": {
+      "events": 2,
+      "clicks": 0,
+      "pages": {
+        "login": 2
+      }
+    }
+  },
+  "RET003": {
+    "26-SEP-2026": {
+      "events": 3,
+      "clicks": 0,
+      "pages": {
+        "login": 2,
+        "signout": 1
+      }
+    },
+    "10-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
+        "login": 1
+      }
+    }
+  },
+  "STAFF001": {
+    "02-OCT-2026": {
+      "events": 20,
+      "clicks": 0,
+      "pages": {
+        "login": 20
+      }
+    },
+    "10-OCT-2026": {
+      "events": 4,
+      "clicks": 0,
+      "pages": {
+        "login": 4
+      }
+    }
+  },
+  "SYSTEM": {
+    "02-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
+        "signout": 1
+      }
+    },
+    "10-OCT-2026": {
+      "events": 1,
+      "clicks": 0,
+      "pages": {
+        "signout": 1
+      }
+    }
+  }
+}

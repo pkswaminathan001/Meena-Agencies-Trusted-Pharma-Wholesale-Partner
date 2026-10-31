@@ -1,0 +1,92 @@
+{
+  "215f4ee9437ebdffa4a47072c1c7c8cf": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T02:51:22.672977",
+    "created_at": "2026-10-11T18:51:22"
+  },
+  "f8ec4fd0dc516228f35ac62e4b2c35a4": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:21:51.376815",
+    "created_at": "2026-10-11T19:21:51"
+  },
+  "3be0d56d5db7bf9be566c686b8dd8789": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:40:49.006419",
+    "created_at": "2026-10-11T19:40:49"
+  },
+  "1c8a1b6807c6b310583bb31f63e4abeb": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:42:00.682459",
+    "created_at": "2026-10-11T19:42:00"
+  },
+  "f93ea4e03568eb841e3425ba8a9ca8e2": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:46:27.065785",
+    "created_at": "2026-10-11T19:46:27"
+  },
+  "f2f22123e72fc651cc8258a9ce04e8f1": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:48:11.510992",
+    "created_at": "2026-10-11T19:48:11"
+  },
+  "fa8fd906aac0fe8ecbcb9ec180d47743": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:50:10.029335",
+    "created_at": "2026-10-11T19:50:10"
+  },
+  "239fef61370ce290d2929cb77813882e": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:55:03.716621",
+    "created_at": "2026-10-11T19:55:03"
+  },
+  "7c7da61c3f1bc8b9c76a3935f9d24a29": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T03:56:15.280399",
+    "created_at": "2026-10-11T19:56:15"
+  },
+  "9b8fe58b7d3b0a1504041888a4b8bb58": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T04:01:06.610194",
+    "created_at": "2026-10-11T20:01:06"
+  },
+  "1af834aa2ca6250652dbf67bce5dd035": {
+    "user_id": "OWNER",
+    "role": "owner",
+    "expires_at": "2026-10-12T04:08:26.980108",
+    "created_at": "2026-10-11T20:08:26"
+  },
+  "2a0ecff0b61c634449c7329f073f95d2": {
+    "user_id": "RET001",
+    "role": "retailer",
+    "expires_at": "2026-10-12T04:19:51.613955",
+    "created_at": "2026-10-11T20:19:51"
+  },
+  "3f8a1c38b06ce910b835a7f698518c86": {
+    "user_id": "RET001",
+    "role": "retailer",
+    "expires_at": "2026-10-12T04:25:56.260898",
+    "created_at": "2026-10-11T20:25:56"
+  },
+  "cd84eb44abca15958a6712430a2db8ca": {
+    "user_id": "RET001",
+    "role": "retailer",
+    "expires_at": "2026-10-12T04:28:46.396626",
+    "created_at": "2026-10-11T20:28:46"
+  },
+  "9f7fbdb068d9a8272d5ad69595d930b6": {
+    "user_id": "RET001",
+    "role": "retailer",
+    "expires_at": "2026-10-12T04:30:49.234480",
+    "created_at": "2026-10-11T20:30:49"
+  }
+}

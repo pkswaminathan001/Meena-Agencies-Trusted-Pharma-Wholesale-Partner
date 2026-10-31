@@ -1,0 +1,65 @@
+[
+  {
+    "id": "OFF001",
+    "type": "reorder",
+    "title": "\ud83d\udd01 Reorder Bonus",
+    "subtitle": "Order 2\u00d7 within 15 days",
+    "discount_pct": 2.0,
+    "min_qty": 0,
+    "sku_filter": [],
+    "valid_from": "2026-10-10",
+    "valid_to": "2026-11-09",
+    "enabled": true,
+    "views": [
+      {
+        "rid": "RET001",
+        "at": "2026-10-10T17:10:42"
+      }
+    ],
+    "claims": []
+  },
+  {
+    "id": "OFF002",
+    "type": "bulk",
+    "title": "\ud83d\udc8a Bulk Deal",
+    "subtitle": "Buy 50 boxes of any SKU \u2014 get 1 box free",
+    "discount_pct": 2.0,
+    "min_qty": 50,
+    "sku_filter": [],
+    "valid_from": "2026-10-10",
+    "valid_to": "2026-11-09",
+    "enabled": true,
+    "views": [
+      {
+        "rid": "RET001",
+        "at": "2026-10-10T17:10:42"
+      }
+    ],
+    "claims": []
+  },
+  {
+    "id": "OFF003",
+    "type": "expiry",
+    "title": "\ud83d\udcc5 Expiry Saver",
+    "subtitle": "Special prices on near-expiry stock",
+    "discount_pct": 15.0,
+    "min_qty": 0,
+    "sku_filter": [],
+    "valid_from": "2026-10-10",
+    "valid_to": "2026-10-31",
+    "enabled": true,
+    "views": [
+      {
+        "rid": "RET001",
+        "at": "2026-10-10T17:10:42"
+      }
+    ],
+    "claims": [
+      {
+        "rid": "RET001",
+        "at": "2026-10-10T17:12:22",
+        "items": []
+      }
+    ]
+  }
+]

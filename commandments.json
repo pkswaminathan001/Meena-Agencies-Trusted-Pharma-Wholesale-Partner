@@ -1,0 +1,6 @@
+{
+  "soft_block_at_pct": 90,
+  "aging_soft_warn_days": 60,
+  "auto_flag_overdue": true,
+  "ai_assist_enabled": true
+}

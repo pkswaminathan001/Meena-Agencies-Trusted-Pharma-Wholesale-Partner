@@ -1,0 +1,17 @@
+{
+  "Amoxicillin 125mg":       {"sell": 125, "mrp": 130},
+  "Amoxicillin 250mg":       {"sell": 293, "mrp": 305},
+  "Amoxicillin 500mg":       {"sell": 225, "mrp": 234},
+  "Amoxicillin Syrup 100ml": {"sell": 119, "mrp": 124},
+  "Atorvastatin 10mg":       {"sell": 301, "mrp": 313},
+  "Azithromycin 500mg":      {"sell": 358, "mrp": 372},
+  "Cetirizine 10mg":         {"sell": 295, "mrp": 307},
+  "Cough Syrup 100ml":       {"sell": 187, "mrp": 195},
+  "Ibuprofen 400mg":         {"sell": 290, "mrp": 302},
+  "Insulin Glargine":        {"sell": 353, "mrp": 367},
+  "Metformin 500mg":         {"sell": 320, "mrp": 333},
+  "ORS Powder":              {"sell": 292, "mrp": 304},
+  "Omeprazole 20mg":         {"sell": 314, "mrp": 326},
+  "Paracetamol 500mg":       {"sell": 303, "mrp": 316},
+  "Salbutamol Inhaler":      {"sell": 448, "mrp": 466}
+}

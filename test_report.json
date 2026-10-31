@@ -1,0 +1,344 @@
+{
+  "ts": "2026-10-11T20:37:39.971183",
+  "total": 48,
+  "passed": 46,
+  "failed": 2,
+  "results": [
+    {
+      "cat": "infra",
+      "test": "meena.py exists",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "infra",
+      "test": "security_layer.py exists",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "infra",
+      "test": "meena.py compiles",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "infra",
+      "test": "security_layer.py compiles",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "infra",
+      "test": "App responds on 8501",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "retailers.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "orders.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "users.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "approval_rules.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "inventory.csv mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "sessions.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": "rate_limit.json mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "perms",
+      "test": ".meena_salt mode=600",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "users.json parses",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "STAFF001 has pin_hash",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "STAFF001 hash not plaintext",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "STAFF001 hash length >= 40",
+      "pass": true,
+      "detail": "len=64",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "OWNER has pin_hash",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "OWNER hash not plaintext",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "auth",
+      "test": "OWNER hash length >= 40",
+      "pass": true,
+      "detail": "len=64",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No hardcoded passwords",
+      "pass": true,
+      "detail": "Found 0",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No f-string SQL",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No eval/exec/__import__",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No pickle",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No shell execution",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "code",
+      "test": "No bare except:",
+      "pass": true,
+      "detail": "Found 0",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "retailers.json parses",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "RET001 outstanding <= limit",
+      "pass": true,
+      "detail": "out=145000 lim=200000",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "RET002 outstanding <= limit",
+      "pass": true,
+      "detail": "out=180000 lim=180000",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "RET003 outstanding <= limit",
+      "pass": true,
+      "detail": "out=35000 lim=100000",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "orders.json parses",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "All orders numeric total",
+      "pass": true,
+      "detail": "0 bad",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "inventory.csv parses",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "data",
+      "test": "inventory has required columns",
+      "pass": true,
+      "detail": "cols=['item_id', 'medicine_name', 'batch_number', 'expiry_date', 'quantity', 'cost_price', 'supplier']",
+      "sev": "info"
+    },
+    {
+      "cat": "logic",
+      "test": "Approval: Low value auto",
+      "pass": true,
+      "detail": "got=auto exp=auto",
+      "sev": "info"
+    },
+    {
+      "cat": "logic",
+      "test": "Approval: High value manual",
+      "pass": true,
+      "detail": "got=manual exp=manual",
+      "sev": "info"
+    },
+    {
+      "cat": "logic",
+      "test": "Approval: Injection manual",
+      "pass": true,
+      "detail": "got=manual exp=manual",
+      "sev": "info"
+    },
+    {
+      "cat": "logic",
+      "test": "Approval: Overdue manual",
+      "pass": true,
+      "detail": "got=manual exp=manual",
+      "sev": "info"
+    },
+    {
+      "cat": "net",
+      "test": "X-Frame-Options set",
+      "pass": false,
+      "detail": "",
+      "sev": "medium"
+    },
+    {
+      "cat": "net",
+      "test": "X-Content-Type-Options set",
+      "pass": false,
+      "detail": "",
+      "sev": "medium"
+    },
+    {
+      "cat": "net",
+      "test": "No exposed .env",
+      "pass": true,
+      "detail": "FILE PRESENT",
+      "sev": "info"
+    },
+    {
+      "cat": "net",
+      "test": "No exposed .env.local",
+      "pass": true,
+      "detail": "FILE PRESENT",
+      "sev": "info"
+    },
+    {
+      "cat": "net",
+      "test": "No exposed secrets.json",
+      "pass": true,
+      "detail": "FILE PRESENT",
+      "sev": "info"
+    },
+    {
+      "cat": "phish",
+      "test": "Domain unpkg.com",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "phish",
+      "test": "Domain api.groq.com",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "phish",
+      "test": "Domain wa.me",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "phish",
+      "test": "Domain server.arcgisonline.com",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    },
+    {
+      "cat": "phish",
+      "test": "Domain www.dhl.com",
+      "pass": true,
+      "detail": "",
+      "sev": "info"
+    }
+  ]
+}
