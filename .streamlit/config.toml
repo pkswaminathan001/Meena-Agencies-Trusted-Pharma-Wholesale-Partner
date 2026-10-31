@@ -1,5 +1,4 @@
 [server]
-# Pings the server to prevent it from sleeping
 enableStaticServing = true
 runOnSave = true
 
@@ -8,13 +7,8 @@ toolbarMode = "viewer"
 
 [theme]
 base = "light"
-# Adding these fixes the red console errors and forces Amazon colors
 primaryColor = "#FFD814"
 backgroundColor = "#eaeded"
 secondaryBackgroundColor = "#ffffff"
 textColor = "#0F1111"
 font = "sans serif"
-# Cache bust 1792922137
-
-[server]
-enableStaticServing = true
