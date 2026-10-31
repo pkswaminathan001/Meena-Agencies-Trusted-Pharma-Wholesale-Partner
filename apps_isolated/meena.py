@@ -157,6 +157,33 @@ def login_screen():
                     st.session_state.page = "home"
                     st.rerun()
             st.error("❌ Invalid ID or PIN.")
+
+def render_add_stock_form():
+    """One-shot Add Stock form for owner."""
+    st.subheader("➕ Add Stock")
+    with st.form("add_stock_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        sku = c1.text_input("SKU / Product Name")
+        qty = c2.number_input("Quantity to Add", min_value=1, value=10)
+        price = st.number_input("Unit Price (₹)", min_value=0.0, value=10.0)
+        submitted = st.form_submit_button("✅ Add to Inventory", type="primary", use_container_width=True)
+        if submitted and sku.strip():
+            try:
+                conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+                cur = conn.cursor()
+                # Try to update existing, else insert
+                cur.execute("SELECT qty FROM products WHERE sku = ?", (sku.strip(),))
+                row = cur.fetchone()
+                if row:
+                    cur.execute("UPDATE products SET qty = qty + ? WHERE sku = ?", (int(qty), sku.strip()))
+                else:
+                    cur.execute("INSERT INTO products (sku, qty) VALUES (?, ?)", (sku.strip(), int(qty)))
+                conn.commit()
+                conn.close()
+                st.success(f"✅ Added {qty} units of '{sku}' to inventory")
+            except Exception as e:
+                st.error(f"DB error: {e}")
+
 def page_home(u):
     is_owner = u.get("role", "").lower() == "owner"
     
