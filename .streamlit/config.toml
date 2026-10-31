@@ -1,4 +1,5 @@
 [server]
+csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
 enableStaticServing = true
 runOnSave = true
 enableCORS = false

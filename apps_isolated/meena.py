@@ -20,6 +20,15 @@ except ImportError:
 
 import pandas as pd
 
+import html as _html_module
+
+def sanitize_input(text):
+    """Escapes HTML special characters to prevent XSS attacks."""
+    if not isinstance(text, str):
+        return text
+    return _html_module.escape(text, quote=True)
+
+
 # Only copy specific secrets that child modules read via os.environ.
 # Do NOT bulk-copy ALL secrets — reduces cross-session exposure surface.
 try:
@@ -212,7 +221,11 @@ def login_screen():
             user = next((u for u in users if u.get("id") == rid), None)
             matched = False
             if user:
-                salt = 'MEENA_PHARMA_SECURE_SALT_2026'
+                
+# Use a per-user salt derived from the User ID for stronger defense.
+# This still uses PBKDF2 but makes each hash unique even for identical PINs.
+salt = f"MEENA_PHARMA_SALT_{rid}"
+
                 input_hash = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt.encode(), 100000).hex()
                 if input_hash == user.get("pin_hash"):
                     matched = True
