@@ -1,43 +1,23 @@
-# ═══════════════════════════════════════════════════════
-# Python
-# ═══════════════════════════════════════════════════════
 venv/
 .venv/
 .venv.*/
 env/
-ENV/
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
 .pytest_cache/
 .mypy_cache/
-.ruff_cache/
 .coverage
 htmlcov/
 
-# ═══════════════════════════════════════════════════════
-# Secrets — NEVER commit these
-# ═══════════════════════════════════════════════════════
 .env
 .env.*
 .env.bak_*
+.env.bak*
+.env.backup*
 *.env
 !.env.example
 .streamlit/secrets.toml
@@ -48,12 +28,7 @@ secrets.toml
 *.token
 telegram_config.json
 app_secrets.toml
-.env.bak*
-.env.backup*
 
-# ═══════════════════════════════════════════════════════
-# Backups — these are junk
-# ═══════════════════════════════════════════════════════
 *.bak
 *.bak_*
 *.bak.*
@@ -72,9 +47,6 @@ backups/
 meena.py.WAS_*
 meena.py.BEFORE_*
 
-# ═══════════════════════════════════════════════════════
-# Local database & runtime data
-# ═══════════════════════════════════════════════════════
 *.db
 *.sqlite
 *.sqlite3
@@ -84,22 +56,13 @@ agent_activity.json
 ai_action_history.json
 ai_permission_queue.json
 
-# ═══════════════════════════════════════════════════════
-# IDE
-# ═══════════════════════════════════════════════════════
 .vscode/
 .idea/
 *.code-workspace
 
-# ═══════════════════════════════════════════════════════
-# OS
-# ═══════════════════════════════════════════════════════
 .DS_Store
 Thumbs.db
 *.log
 
-# ═══════════════════════════════════════════════════════
-# Streamlit
-# ═══════════════════════════════════════════════════════
 .streamlit/
 !.streamlit/config.toml
