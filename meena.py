@@ -22,6 +22,11 @@ import pandas as pd
 
 import html as _html_module
 
+# Suppress Streamlit deprecation warnings
+import warnings
+warnings.filterwarnings("ignore", message=".*components.v1.html.*")
+warnings.filterwarnings("ignore", message=".*will be removed after 2026.*")
+
 def sanitize_input(text):
     """Escapes HTML special characters to prevent XSS attacks."""
     if not isinstance(text, str):
