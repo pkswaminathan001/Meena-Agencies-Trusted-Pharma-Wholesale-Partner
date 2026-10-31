@@ -88,3 +88,18 @@ apps_isolated/*.bak
 .env.*.local
 !*.env.example
 **/secrets.toml
+
+# PWA files in apps_isolated/static/
+!apps_isolated/static/
+!apps_isolated/static/manifest.json
+!apps_isolated/static/sw.js
+!apps_isolated/static/*.png
+
+# Backup files (never commit)
+*.broken
+*.broken2
+*.bak
+*.bak_*
+apps_isolated/*.bak_*
+.streamlit/*.broken*
+.streamlit/*.bak*
