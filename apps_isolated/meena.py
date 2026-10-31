@@ -175,12 +175,18 @@ def render_add_stock_form():
                 cur.execute("SELECT qty FROM products WHERE sku = ?", (sku.strip(),))
                 row = cur.fetchone()
                 if row:
-                    cur.execute("UPDATE products SET qty = qty + ? WHERE sku = ?", (int(qty), sku.strip()))
+                    cur.execute(
+                        "UPDATE products SET qty = qty + ?, price = ? WHERE sku = ?",
+                        (int(qty), float(price), sku.strip())
+                    )
                 else:
-                    cur.execute("INSERT INTO products (sku, qty) VALUES (?, ?)", (sku.strip(), int(qty)))
+                    cur.execute(
+                        "INSERT INTO products (sku, price, qty) VALUES (?, ?, ?)",
+                        (sku.strip(), float(price), int(qty))
+                    )
                 conn.commit()
                 conn.close()
-                st.success(f"✅ Added {qty} units of '{sku}' to inventory")
+                st.success(f"✅ Added {qty} units of '{sku}' @ ₹{price:.2f} to inventory")
             except Exception as e:
                 st.error(f"DB error: {e}")
 
@@ -220,6 +226,10 @@ def page_home(u):
         with c3:
             st.markdown('<div class="amz-card"><h3>🛒 Storefront</h3><p style="font-size:13px;">See what retailers see.</p></div>', unsafe_allow_html=True)
             st.button("Browse Store", key="btn_shop_home", on_click=go_to, args=("order",), use_container_width=True)
+
+        st.divider()
+        with st.expander("➕ Add Stock (One-Shot)", expanded=False):
+            render_add_stock_form()
     else:
         # ─── RETAILER: AMAZON STOREFRONT ───
         st.markdown(f'<div class="amz-header"><div style="font-size: 20px; font-weight: bold; color: #febd69;">🦚 Meena</div><div style="font-size: 13px;">Hello, {u.get("shop", "Partner")}</div></div>', unsafe_allow_html=True)
