@@ -6,6 +6,18 @@ sys.path.insert(0, str(BASE_DIR))
 
 import os, json, sqlite3, hashlib, requests, datetime, random, time
 import streamlit as st
+
+import hashlib
+import requests
+try:
+    from meena_modules.owner_verification import render_owner_verification
+    from meena_modules.gps_tracker import render_owner_rep_map
+    from meena_modules.qc_rating import render_qc_dashboard
+    from meena_modules.upi_payment import render_upi_payment
+    from meena_modules.pricing_ai import render_pricing_sandbox
+except ImportError:
+    pass
+
 import pandas as pd
 
 try:
@@ -74,6 +86,19 @@ def get_icon(name):
     return f"https://placehold.co/300x300/e2e8f0/1e293b/png?text={urllib.parse.quote(str(name))}&font=Montserrat&font-size=36"
 
 @st.cache_data(ttl=60)
+
+def send_telegram_otp(chat_id, otp):
+    try:
+        TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+    except:
+        return False
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    try:
+        res = requests.post(url, json={"chat_id": chat_id, "text": f"Your OTP is {otp}"})
+        return res.status_code == 200
+    except:
+        return False
+
 def load_inventory():
     db_path = BASE_DIR / "meena_enterprise.db"
     if not db_path.exists(): return pd.DataFrame()
@@ -222,7 +247,7 @@ def page_order():
     if df.empty:
         st.warning("Inventory database is not available yet. Please try again later.")
         return
-    search = st.text_input("🔍 Search", placeholder="Search medicines...").lower()
+    search = st.text_input("🔍 Search", placeholder="🔍 Search Amazons...").lower()
     view = df[df["name"].str.lower().str.contains(search)] if search else df
     if view.empty: st.warning("No results found."); return
     product_grid(view)
