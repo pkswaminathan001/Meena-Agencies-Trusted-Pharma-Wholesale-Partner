@@ -666,6 +666,38 @@ def capture_gps_from_query_params():
         pass
     return True
 
+
+def request_gps_and_log(rep_id, action, retailer_id="", notes=""):
+    """Request GPS, save it, and log the activity with coordinates."""
+    from streamlit_js_eval import get_geolocation
+    loc = get_geolocation()
+    lat, lng = None, None
+    if loc and loc.get("coords"):
+        lat = loc["coords"]["latitude"]
+        lng = loc["coords"]["longitude"]
+        save_rep_location(rep_id, lat, lng, address=action)
+    
+    now_str = str(datetime.datetime.now())
+    try:
+        conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+        conn.execute(
+            "INSERT INTO rep_activity (rep_id, action, timestamp, latitude, longitude, retailer_id, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (rep_id, action, now_str, lat, lng, retailer_id, notes)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Log error: {e}")
+        return False
+    
+    if lat is not None:
+        st.success(f"✅ {action} logged with GPS: {lat:.4f}, {lng:.4f}")
+    else:
+        st.warning(f"⚠️ {action} logged WITHOUT GPS (browser permission denied)")
+    return True
+
+
 def page_rep(u):
     st.title(f"🚚 Rep Dashboard — {u.get('owner', u.get('name', 'Rep'))}")
     st.caption(f"Rep ID: {u.get('id')} | Shop: {u.get('shop', 'N/A')}")
@@ -696,13 +728,13 @@ def page_rep(u):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("☀️ Start Day", type="primary", use_container_width=True, disabled=lat is None):
-            log_activity("CHECK_IN")
+        if st.button("☀️ Start Day", type="primary", use_container_width=True):
+            request_gps_and_log(u.get("id"), "CHECK_IN")
             st.success(f"✅ Checked in at {now[:19]}")
             time.sleep(1); st.rerun()
     with c2:
-        if st.button("🌙 End Day", use_container_width=True, disabled=lat is None):
-            log_activity("CHECK_OUT")
+        if st.button("🌙 End Day", use_container_width=True):
+            request_gps_and_log(u.get("id"), "CHECK_OUT")
             st.success(f"✅ Checked out at {now[:19]}")
             time.sleep(1); st.rerun()
     with c3:
@@ -724,9 +756,9 @@ def page_rep(u):
         retailer_list = [f"{r['id']} — {r.get('shop','')}" for r in retailers if r.get('role') == 'retailer']
         chosen = st.selectbox("Select Retailer", retailer_list) if retailer_list else None
         notes = st.text_area("Visit Notes", placeholder="Example: Delivered order, discussed new stock...")
-        if st.button("✅ Log Visit", type="primary", use_container_width=True, disabled=(lat is None or not chosen)):
+        if st.button("✅ Log Visit", type="primary", use_container_width=True, disabled=not chosen):
             retailer_id = chosen.split(" — ")[0]
-            log_activity("VISIT", retailer_id=retailer_id, notes=notes)
+            request_gps_and_log(u.get("id"), "VISIT", retailer_id=retailer_id, notes=notes)
             st.success("✅ Visit logged!")
             time.sleep(1); st.rerun()
 
