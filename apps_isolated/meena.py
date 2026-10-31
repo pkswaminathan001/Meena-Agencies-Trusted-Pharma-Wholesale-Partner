@@ -33,14 +33,14 @@ st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 import streamlit.components.v1 as _pwa_components
 _pwa_components.html(
     """
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="/app/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Meena">
     <meta name="theme-color" content="#131921">
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/static/sw.js').catch(e => console.warn('SW reg failed', e));
+        navigator.serviceWorker.register('/app/static/sw.js').catch(e => console.warn('SW reg failed', e));
       }
     </script>
     """,
@@ -561,6 +561,111 @@ def _last_agent_run():
         conn.close()
         return "never"
 # ─── REP DASHBOARD (Consent-Based Check-in/out) ───
+
+# ═══════════════════════════════════════════════════════
+#  GPS TRACKING — Real HTML5 Geolocation
+# ═══════════════════════════════════════════════════════
+GPS_FILE = BASE_DIR / "sales_rep_locations.json"
+
+def save_rep_location(rep_id, lat, lon, address=""):
+    """Save a rep's GPS coordinates to JSON + rep_activity table."""
+    import json as _json
+    from datetime import datetime as _dt
+    
+    # 1. Save to JSON
+    data = {}
+    if GPS_FILE.exists():
+        try:
+            data = _json.loads(GPS_FILE.read_text())
+        except Exception:
+            data = {}
+    
+    if rep_id not in data:
+        data[rep_id] = []
+    
+    data[rep_id].append({
+        "timestamp": _dt.now().isoformat(),
+        "lat": float(lat),
+        "lon": float(lon),
+        "address": address
+    })
+    GPS_FILE.write_text(_json.dumps(data, indent=2))
+    
+    # 2. Also log into rep_activity table
+    try:
+        conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+        conn.execute(
+            "INSERT INTO rep_activity (rep_id, action, timestamp, latitude, longitude, retailer_id, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (rep_id, "GPS_CAPTURE", _dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+             float(lat), float(lon), "", address)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"DB save failed: {e}")
+    
+    return True
+
+
+def inject_geolocation_js():
+    """Inject HTML5 geolocation JS that posts lat/lon back via query params."""
+    st.markdown("""
+    <script>
+    (function() {
+        function pushGPS(lat, lon) {
+            const url = new URL(window.parent.location.href);
+            url.searchParams.set('gps_lat', lat.toFixed(6));
+            url.searchParams.set('gps_lon', lon.toFixed(6));
+            url.searchParams.set('gps_ts', Date.now());
+            window.parent.location.href = url.toString();
+        }
+        window.getMeenaGPS = function() {
+            if (!navigator.geolocation) {
+                alert('Geolocation not supported by this browser');
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    pushGPS(pos.coords.latitude, pos.coords.longitude);
+                },
+                function(err) {
+                    alert('Location error: ' + err.message);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        };
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+
+
+def capture_gps_from_query_params():
+    """Read lat/lon from st.query_params after JS redirect; save + clear."""
+    try:
+        qp = st.query_params
+    except Exception:
+        return False
+    
+    lat = qp.get("gps_lat")
+    lon = qp.get("gps_lon")
+    if not lat or not lon:
+        return False
+    
+    rep_id = st.session_state.get("user", {}).get("id", "UNKNOWN")
+    try:
+        save_rep_location(rep_id, float(lat), float(lon), address="browser-capture")
+        st.success(f"📍 Location saved: {float(lat):.4f}, {float(lon):.4f}")
+    except Exception as e:
+        st.error(f"GPS save error: {e}")
+    
+    # Clear query params so it doesn't re-save on next rerun
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    return True
+
 def page_rep(u):
     st.title(f"🚚 Rep Dashboard — {u.get('owner', u.get('name', 'Rep'))}")
     st.caption(f"Rep ID: {u.get('id')} | Shop: {u.get('shop', 'N/A')}")
@@ -603,6 +708,17 @@ def page_rep(u):
     with c3:
         st.write("")
 
+    # GPS test button
+    capture_gps_from_query_params()
+    inject_geolocation_js()
+    st.markdown("### 📍 Location Test")
+    if st.button("📍 Get My Location", type="primary", use_container_width=True):
+        st.markdown(
+            "<script>window.getMeenaGPS && window.getMeenaGPS();</script>",
+            unsafe_allow_html=True
+        )
+        st.info("📍 Requesting GPS... If nothing happens, check browser permissions.")
+    
     with st.expander("📝 Log a Pharmacy Visit"):
         retailers = load_retailers()
         retailer_list = [f"{r['id']} — {r.get('shop','')}" for r in retailers if r.get('role') == 'retailer']
