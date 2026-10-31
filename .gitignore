@@ -75,4 +75,7 @@ apps_isolated/meena_backup_*.py
 apps_isolated/meena_broken_*.py
 apps_isolated/*.bak
 
-# PWA — allow manifest.json (overrides broader *.json patterns)
+# PWA — allow manifest.json (overrides *.json)
+!static/manifest.json
+!static/sw.js
+!static/*.png
