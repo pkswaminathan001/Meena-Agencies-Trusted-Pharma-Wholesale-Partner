@@ -783,6 +783,75 @@ def page_rep(u):
 
 
 # ─── OWNER: STAFF MONITOR ───
+
+# ═══════════════════════════════════════════════════════
+#  ASSIGNMENT VERIFICATION — Haversine distance check
+# ═══════════════════════════════════════════════════════
+ASSIGNMENTS_FILE = BASE_DIR / "assignments.json"
+
+
+def load_assignments():
+    if not ASSIGNMENTS_FILE.exists():
+        return {}
+    try:
+        return json.loads(ASSIGNMENTS_FILE.read_text())
+    except Exception:
+        return {}
+
+
+def save_assignments(data):
+    ASSIGNMENTS_FILE.write_text(json.dumps(data, indent=2))
+
+
+def haversine_m(lat1, lon1, lat2, lon2):
+    """Distance in meters between two lat/lon points."""
+    from math import radians, sin, cos, sqrt, atan2
+    R = 6371000  # Earth radius in meters
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dlam = radians(lon2 - lon1)
+    a = sin(dphi/2)**2 + cos(phi1) * cos(phi2) * sin(dlam/2)**2
+    return 2 * R * atan2(sqrt(a), sqrt(1 - a))
+
+
+def latest_rep_location(rep_id):
+    """Returns (lat, lon, timestamp) or None."""
+    if not GPS_FILE.exists():
+        return None
+    try:
+        data = json.loads(GPS_FILE.read_text())
+        points = data.get(rep_id, [])
+        if not points:
+            return None
+        last = points[-1]
+        return (last["lat"], last["lon"], last.get("timestamp", ""))
+    except Exception:
+        return None
+
+
+def verify_assignment(rep_id, retailer_id):
+    """Returns dict with distance and visited status."""
+    assignments = load_assignments()
+    rep_assignments = assignments.get(rep_id, [])
+    assignment = next((a for a in rep_assignments if a.get("retailer_id") == retailer_id), None)
+    if not assignment:
+        return {"assigned": False, "visited": None, "distance_m": None}
+
+    loc = latest_rep_location(rep_id)
+    if not loc:
+        return {"assigned": True, "visited": None, "distance_m": None, "note": "no GPS"}
+
+    lat, lon, ts = loc
+    d = haversine_m(lat, lon, assignment["lat"], assignment["lon"])
+    return {
+        "assigned": True,
+        "visited": d <= assignment.get("radius_m", 200),
+        "distance_m": round(d, 1),
+        "rep_lat": lat, "rep_lon": lon,
+        "retailer_lat": assignment["lat"], "retailer_lon": assignment["lon"],
+        "last_gps_ts": ts,
+    }
+
 def page_owner_staff_monitor(u):
     st.title("👥 Staff Monitor")
     st.caption("Live view of all sales reps' activity")
@@ -844,6 +913,96 @@ def page_owner_staff_monitor(u):
     st.subheader("📜 Recent Activity Log")
     df_display = df[['rep_id', 'action', 'timestamp', 'retailer_id', 'notes']].head(30)
     st.dataframe(df_display, use_container_width=True)
+
+    # ─── GPS: Tamil Nadu Map — Assignments ───
+    st.divider()
+    st.subheader("📍 Tamil Nadu Map — Assignments & Verification")
+    
+    assignments = load_assignments()
+    if not assignments:
+        st.info("📋 No assignments yet. Add one below to start tracking rep visits.")
+    else:
+        import folium
+        from streamlit_folium import st_folium
+        
+        # Build verification rows
+        rows = []
+        for rep_id, reps_assignments in assignments.items():
+            loc = latest_rep_location(rep_id)
+            for a in reps_assignments:
+                v = verify_assignment(rep_id, a.get("retailer_id"))
+                rows.append({
+                    "Rep": rep_id,
+                    "Retailer": a.get("name", a.get("retailer_id")),
+                    "Status": "✅ Visited" if v.get("visited") else ("⚠️ No GPS" if v.get("visited") is None else "❌ Not visited"),
+                    "Distance (m)": v.get("distance_m", "—"),
+                    "Last GPS": v.get("last_gps_ts", "—")[:16] if v.get("last_gps_ts") else "—",
+                })
+        
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        
+        # Map centered on Tamil Nadu
+        m = folium.Map(location=[11.1271, 78.6569], zoom_start=7, tiles="OpenStreetMap")
+        
+        # Add rep pins (blue)
+        if GPS_FILE.exists():
+            try:
+                gps_data = json.loads(GPS_FILE.read_text())
+                for rep_id, points in gps_data.items():
+                    if not points:
+                        continue
+                    last = points[-1]
+                    folium.Marker(
+                        [last["lat"], last["lon"]],
+                        popup=f"👤 {rep_id}<br>Last: {last.get('timestamp','')[:16]}",
+                        icon=folium.Icon(color="blue", icon="user", prefix="fa"),
+                    ).add_to(m)
+            except Exception:
+                pass
+        
+        # Add retailer pins (green = visited, red = not visited)
+        for rep_id, reps_assignments in assignments.items():
+            for a in reps_assignments:
+                v = verify_assignment(rep_id, a.get("retailer_id"))
+                color = "green" if v.get("visited") else "red"
+                folium.Marker(
+                    [a["lat"], a["lon"]],
+                    popup=f"🏪 {a.get('name','?')}<br>Rep: {rep_id}<br>{'✅ Visited' if v.get('visited') else '❌ Not visited'}",
+                    icon=folium.Icon(color=color, icon="shopping-cart", prefix="fa"),
+                ).add_to(m)
+        
+        st_folium(m, width=900, height=500, key="tn_assignments_map")
+    
+    # Add new assignment form
+    with st.expander("➕ Assign Pharmacy to Rep"):
+        with st.form("new_assignment", clear_on_submit=True):
+            retailers = load_retailers()
+            rep_options = [u for u in retailers if u.get("role") == "rep"]
+            rep_choice = st.selectbox(
+                "Rep",
+                [f"{r['id']} — {r.get('name', r.get('shop',''))}" for r in rep_options]
+            ) if rep_options else None
+            name = st.text_input("Pharmacy Name", placeholder="e.g., Sri Balaji Medicals")
+            c1, c2, c3 = st.columns(3)
+            lat = c1.number_input("Latitude", value=13.0827, format="%.6f")
+            lon = c2.number_input("Longitude", value=80.2707, format="%.6f")
+            radius = c3.number_input("Radius (m)", min_value=50, max_value=2000, value=200)
+            submitted = st.form_submit_button("💾 Save Assignment", type="primary", use_container_width=True)
+            if submitted and rep_choice and name.strip():
+                rep_id = rep_choice.split(" — ")[0]
+                data = load_assignments()
+                data.setdefault(rep_id, []).append({
+                    "retailer_id": f"ASSIGN-{len(data.get(rep_id, [])) + 1:03d}",
+                    "name": name.strip(),
+                    "lat": float(lat),
+                    "lon": float(lon),
+                    "radius_m": int(radius),
+                })
+                save_assignments(data)
+                st.success(f"✅ Assigned '{name}' to rep {rep_id}")
+                st.rerun()
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
