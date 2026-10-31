@@ -20,9 +20,15 @@ except ImportError:
 
 import pandas as pd
 
+# Only copy specific secrets that child modules read via os.environ.
+# Do NOT bulk-copy ALL secrets — reduces cross-session exposure surface.
 try:
-    for k, v in st.secrets.items(): os.environ[k] = str(v)
-except Exception: pass
+    _SAFE_ENV_KEYS = ("GROQ_API_KEY", "TELEGRAM_BOT_TOKEN", "APP_URL")
+    for _k in _SAFE_ENV_KEYS:
+        if _k in st.secrets:
+            os.environ[_k] = str(st.secrets[_k])
+except Exception:
+    pass
 
 try: TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 except Exception: TELEGRAM_BOT_TOKEN = ""

@@ -83,3 +83,8 @@ apps_isolated/*.bak
 # Data files — allow assignments.json through *.json block
 !assignments.json
 !sales_rep_locations.json
+
+# Security — real secrets must never be committed
+.env.*.local
+!*.env.example
+**/secrets.toml
