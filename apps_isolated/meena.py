@@ -222,9 +222,8 @@ def login_screen():
             matched = False
             if user:
                 
-# Use a per-user salt derived from the User ID for stronger defense.
-# This still uses PBKDF2 but makes each hash unique even for identical PINs.
-salt = f"MEENA_PHARMA_SALT_{rid}"
+                # Use a per-user salt derived from the User ID for stronger defense.
+                salt = f"MEENA_PHARMA_SALT_{rid}"
 
                 input_hash = hashlib.pbkdf2_hmac('sha256', pin.encode(), salt.encode(), 100000).hex()
                 if input_hash == user.get("pin_hash"):
