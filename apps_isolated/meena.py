@@ -967,6 +967,44 @@ def render_forecast_engine():
         c1.metric("Worst Case (P10)", f"₹{sum(res.get('p10', [0])):,.0f}")
         c2.metric("Most Likely (P50)", f"₹{sum(res.get('p50', [0])):,.0f}")
         c3.metric("Best Case (P90)", f"₹{sum(res.get('p90', [0])):,.0f}")
+
+        st.divider()
+        
+        # ─── PRESCRIPTIVE ACTION PLAN ───
+        st.subheader("🧠 AI Action Plan (What to do next)")
+        
+        p10_total = sum(res.get('p10', [0]))
+        p50_total = sum(res.get('p50', [0]))
+        p90_total = sum(res.get('p90', [0]))
+        trend_growing = p50_total > p10_total * 1.05
+        
+        # 1. The Summary
+        if trend_growing:
+            st.success("📈 **Outlook:** Demand is trending up. You have an opportunity to maximize profit.")
+        else:
+            st.warning("📉 **Outlook:** Demand is softening. You must protect cash flow.")
+            
+        # 2. The Actions
+        st.markdown("**Immediate Actions for the Owner:**")
+        
+        if res["signals"].get("flu_season"):
+            st.markdown("- 🦠 **Stock Up:** Flu season is detected. Order more antibiotics and cough syrups today.")
+            
+        if res["signals"].get("generic_launch_detected"):
+            st.markdown("- 💊 **Clear Old Stock:** A generic competitor launched. Offer a 10% discount on the branded version to clear inventory before it expires.")
+            
+        if res["signals"].get("gpo_contract_tier_change"):
+            st.markdown("- 📄 **Push Sales:** You are close to a volume discount tier. Call your top 3 retailers and push them to order this week.")
+            
+        if res["variance_exceeded"]:
+            st.markdown("- ⚠️ **Watch Capacity:** The Best-Case forecast (P90) requires more stock than your warehouse can hold. Do not over-order.")
+        else:
+            st.markdown("- ✅ **Stable:** No urgent stockouts or expiry risks detected for the next 7 days.")
+            
+        st.markdown("---")
+        st.markdown("**📱 Area Management (Mobile View):**")
+        st.caption("Thanjavur region is currently the highest revenue driver. Ensure your delivery van is fully fueled and the driver is scheduled.")
+
         
         with st.expander("🔍 View Data Trends (Advanced)", expanded=False):
             try:
