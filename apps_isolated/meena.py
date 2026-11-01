@@ -1466,9 +1466,10 @@ def render_forecast_engine():
         st.divider()
         
         # ─── THE AI ANALYST (Plain English) ───
-        st.subheader(f"{res['status_color']} AI Business Analyst Summary")
+        status_display = res.get("status_color", "ℹ️")
+        st.subheader(f"{status_display} AI Business Analyst Summary")
         
-        for point in res["business_summary"]:
+        for point in res.get("business_summary", ["No summary generated. Please click Run SCOT Analysis again."]):
             st.markdown(point)
             st.write("") # Spacing
             
