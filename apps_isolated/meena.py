@@ -1066,6 +1066,62 @@ def render_forecast_engine():
 
 
 
+def render_ai_dots(user=None):
+    """Floating AI Dots chat button + drawer."""
+    if "ai_dots_open" not in st.session_state:
+        st.session_state.ai_dots_open = False
+    if "ai_dots_messages" not in st.session_state:
+        st.session_state.ai_dots_messages = [
+            {"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI. Ask me about orders, stock, retailers, or anything."}
+        ]
+    
+    st.markdown("""
+    <style>
+    .ai-dots-btn {
+        position: fixed; bottom: 30px; right: 30px; width: 62px; height: 62px;
+        border-radius: 50%; background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%);
+        box-shadow: 0 4px 20px rgba(0,212,255,0.5); color: white; font-size: 28px;
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        z-index: 99999; transition: transform 0.2s; border: none;
+    }
+    .ai-dots-btn:hover { transform: scale(1.1); }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
+    if st.button(btn_label, key="ai_dots_btn", type="primary"):
+        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
+        st.rerun()
+    
+    if st.session_state.ai_dots_open:
+        st.markdown("""
+        <style>
+        div[data-testid="stVerticalBlock"]:has(> div > div > div > .chat-drawer-anchor) {
+            position: fixed !important; bottom: 100px !important; right: 30px !important;
+            width: 380px !important; max-width: calc(100vw - 60px) !important;
+            height: 500px !important; max-height: calc(100vh - 150px) !important;
+            background: white !important; border-radius: 16px !important;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important; z-index: 99998 !important;
+            padding: 16px !important; overflow-y: auto !important; border: 1px solid #e0e0e0 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<div class="chat-drawer-anchor"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%); color: white; padding: 10px; border-radius: 8px 8px 0 0; margin: -16px -16px 10px -16px; font-weight: bold; display: flex; justify-content: space-between;"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
+        
+        for msg in st.session_state.ai_dots_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+        
+        prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
+        if prompt:
+            st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
+            with st.spinner("Meena AI thinking..."):
+                reply = groq_ask(prompt, user)
+            st.session_state.ai_dots_messages.append({"role": "assistant", "content": reply})
+            st.rerun()
+
 def render_telegram_launcher(user=None):
     """Render Telegram launch button in the sidebar."""
     try:
