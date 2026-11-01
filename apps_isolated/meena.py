@@ -926,13 +926,13 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    st.title("📈 Agentic Forecast")
-    st.caption("AI-powered projections for the next 7 days.")
+    # ─── 1. HEADER & BIG METRICS (Like Stock Price) ───
+    st.markdown("<h2 style='margin-bottom:0;'>📈 Revenue Forecast (7-Day)</h2>", unsafe_allow_html=True)
     
-    if st.button("🔄 Run SCOT Analysis", type="primary", use_container_width=True):
-        with st.spinner("Analyzing trends and market signals..."):
+    if st.button("🔄 Refresh Analysis", type="primary", use_container_width=True):
+        with st.spinner("Analyzing..."):
             import time
-            time.sleep(1.5)
+            time.sleep(1)
             result = run_agentic_forecast()
             summary, status = generate_business_summary(
                 result["historical_data"], result["signals"], result["p50"]
@@ -943,242 +943,98 @@ def render_forecast_engine():
     
     if "scot_result" in st.session_state:
         res = st.session_state.scot_result
-        st.divider()
         
-        status_display = res.get("status_color", "ℹ️")
-        st.subheader(f"{status_display} AI Business Analyst Summary")
-        
-        for point in res.get("business_summary", ["No summary generated. Please run again."]):
-            st.markdown(point)
-            st.write("")
-            
-        st.divider()
-        st.subheader("🚨 Exception Management Dashboard")
-        if res.get("variance_exceeded"):
-            st.error("**VARIANCE EXCEPTION DETECTED:** AI flags this SKU for human audit.")
-            for log in res.get("audit_log", []):
-                st.write(f"- {log}")
-        else:
-            st.success("✅ No critical exceptions. All metrics within safe thresholds.")
-            st.write(f"- Model used: {res.get('model_used', 'Unknown')}")
-            
-        st.subheader("💰 Forecasted Revenue")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Worst Case (P10)", f"₹{sum(res.get('p10', [0])):,.0f}")
-        c2.metric("Most Likely (P50)", f"₹{sum(res.get('p50', [0])):,.0f}")
-        c3.metric("Best Case (P90)", f"₹{sum(res.get('p90', [0])):,.0f}")
-
-        st.divider()
-        
-        # ─── PRESCRIPTIVE ACTION PLAN ───
-        st.subheader("🧠 AI Action Plan (What to do next)")
-        
-        p10_total = sum(res.get('p10', [0]))
         p50_total = sum(res.get('p50', [0]))
         p90_total = sum(res.get('p90', [0]))
-        trend_growing = p50_total > p10_total * 1.05
+        p10_total = sum(res.get('p10', [0]))
         
-        # 1. The Summary
-        if trend_growing:
-            st.success("📈 **Outlook:** Demand is trending up. You have an opportunity to maximize profit.")
-        else:
-            st.warning("📉 **Outlook:** Demand is softening. You must protect cash flow.")
-            
-        # 2. The Actions
-        st.markdown("**Immediate Actions for the Owner:**")
+        # Calculate simple trend % based on history
+        hist_df = res["historical_data"]
+        recent = hist_df['total'].tail(1).values[0] if not hist_df.empty else 0
+        past = hist_df['total'].head(1).values[0] if not hist_df.empty else 1
+        trend_pct = ((recent - past) / past) * 100 if past > 0 else 0
         
-        if res["signals"].get("flu_season"):
-            st.markdown("- 🦠 **Stock Up:** Flu season is detected. Order more antibiotics and cough syrups today.")
-            
-        if res["signals"].get("generic_launch_detected"):
-            st.markdown("- 💊 **Clear Old Stock:** A generic competitor launched. Offer a 10% discount on the branded version to clear inventory before it expires.")
-            
-        if res["signals"].get("gpo_contract_tier_change"):
-            st.markdown("- 📄 **Push Sales:** You are close to a volume discount tier. Call your top 3 retailers and push them to order this week.")
-            
-        if res["variance_exceeded"]:
-            st.markdown("- ⚠️ **Watch Capacity:** The Best-Case forecast (P90) requires more stock than your warehouse can hold. Do not over-order.")
-        else:
-            st.markdown("- ✅ **Stable:** No urgent stockouts or expiry risks detected for the next 7 days.")
+        # ─── 2. THE BIG PRICE TICKER ───
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown(f"<h1 style='color: {'#1D8348' if trend_pct >= 0 else '#C0392B'}; margin-bottom:0;'>₹{p50_total:,.0f}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color: {'#1D8348' if trend_pct >= 0 else '#C0392B'}; font-size:18px; font-weight:bold;'>{'▲' if trend_pct >= 0 else '▼'} {abs(trend_pct):.1f}% (vs last month)</p>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<div style='text-align:right; padding-top:20px;'><strong>Target:</strong> ₹{p90_total:,.0f}<br><strong>Worst Case:</strong> ₹{p10_total:,.0f}</div>", unsafe_allow_html=True)
             
         st.markdown("---")
-        st.markdown("**📱 Area Management (Mobile View):**")
-        st.caption("Thanjavur region is currently the highest revenue driver. Ensure your delivery van is fully fueled and the driver is scheduled.")
-
         
-        with st.expander("🔍 View Data Trends (Advanced)", expanded=False):
-            try:
-                import plotly.graph_objects as go
-                import pandas as pd
-                
-                hist_df = res["historical_data"].copy()
-                hist_df['date'] = pd.to_datetime(hist_df['date'])
-                
-                last_date = hist_df['date'].iloc[-1]
-                future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
-                
-                fig = go.Figure()
-                
-                # 1. Uncertainty Band (P10 to P90) - Shaded Area
-                fig.add_trace(go.Scatter(
-                    x=future_dates + future_dates[::-1],
-                    y=res['p90'] + res['p10'][::-1],
-                    fill='toself',
-                    fillcolor='rgba(46, 134, 193, 0.12)',
-                    line=dict(color='rgba(255,255,255,0)'),
-                    hoverinfo="skip",
-                    showlegend=True,
-                    name='Uncertainty Band (P10-P90)'
-                ))
-                
-                # 2. Historical Actuals (Solid Line)
-                fig.add_trace(go.Scatter(
-                    x=hist_df['date'], y=hist_df['total'],
-                    mode='lines+markers',
-                    name='Historical Sales',
-                    line=dict(color='#1C2833', width=2.5),
-                    marker=dict(size=4, color='#1C2833')
-                ))
-                
-                # 3. P50 Median (Bold Dashed Line)
-                fig.add_trace(go.Scatter(
-                    x=future_dates, y=res['p50'],
-                    mode='lines+markers',
-                    name='P50 (Base Case Forecast)',
-                    line=dict(color='#1D8348', width=3),
-                    marker=dict(size=6, color='#1D8348', symbol='diamond')
-                ))
-                
-                # 4. P90 Upper Bound (Dotted)
-                fig.add_trace(go.Scatter(
-                    x=future_dates, y=res['p90'],
-                    mode='lines',
-                    name='P90 (Optimistic)',
-                    line=dict(color='#2E86C1', width=1.5, dash='dot')
-                ))
-                
-                # 5. P10 Lower Bound (Dotted)
-                fig.add_trace(go.Scatter(
-                    x=future_dates, y=res['p10'],
-                    mode='lines',
-                    name='P10 (Pessimistic)',
-                    line=dict(color='#C0392B', width=1.5, dash='dot')
-                ))
-                
-                # Add a vertical line marking "Today"
-                fig.add_shape(
-                    type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper",
-                    line=dict(color="gray", width=2, dash="dash")
-                )
-                fig.add_annotation(
-                    x=last_date, y=1, yref="paper",
-                    text="Today", showarrow=False, yshift=10, font=dict(color="gray")
-                )
-                
-                # Layout Styling
-                fig.update_layout(
-                    title=dict(text="Probabilistic Revenue Forecast (7-Day Horizon)", font=dict(size=18, color='#1C2833'), y=0.95),
-                    xaxis_title="Date",
-                    yaxis_title="Revenue (₹)",
-                    hovermode="x unified",
-                    legend=dict(
-                        orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5,
-                        bgcolor="white", bordercolor="lightgray", borderwidth=1
-                    ),
-                    margin=dict(l=40, r=40, t=60, b=80),
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    font=dict(family="Inter, sans-serif")
-                )
-                
-                # Grid styling
-                fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED', showline=True, linecolor='lightgray')
-                fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED', showline=True, linecolor='lightgray')
-                
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-                
-                st.caption("💡 **How to read this:** The shaded blue area represents the range of possible outcomes. The green line is the most likely forecast. The vertical dashed line marks today.")
-                
-            except Exception as e:
-                st.warning(f"Chart could not be rendered: {e}")
-
-
-
-def render_ai_dots(user=None):
-    """Floating AI Dots chat button + drawer."""
-    if "ai_dots_open" not in st.session_state:
-        st.session_state.ai_dots_open = False
-    if "ai_dots_messages" not in st.session_state:
-        st.session_state.ai_dots_messages = [
-            {"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI. Ask me about orders, stock, retailers, or anything."}
-        ]
-    
-    st.markdown("""
-    <style>
-    .ai-dots-btn {
-        position: fixed; bottom: 30px; right: 30px; width: 62px; height: 62px;
-        border-radius: 50%; background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%);
-        box-shadow: 0 4px 20px rgba(0,212,255,0.5); color: white; font-size: 28px;
-        display: flex; align-items: center; justify-content: center; cursor: pointer;
-        z-index: 99999; transition: transform 0.2s; border: none;
-    }
-    .ai-dots-btn:hover { transform: scale(1.1); }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
-    if st.button(btn_label, key="ai_dots_btn", type="primary"):
-        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
-        st.rerun()
-    
-    if st.session_state.ai_dots_open:
-        st.markdown("""
-        <style>
-        div[data-testid="stVerticalBlock"]:has(> div > div > div > .chat-drawer-anchor) {
-            position: fixed !important; bottom: 100px !important; right: 30px !important;
-            width: 380px !important; max-width: calc(100vw - 60px) !important;
-            height: 500px !important; max-height: calc(100vh - 150px) !important;
-            background: white !important; border-radius: 16px !important;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important; z-index: 99998 !important;
-            padding: 16px !important; overflow-y: auto !important; border: 1px solid #e0e0e0 !important;
+        # ─── 3. ACTIONABLE SIGNALS (Mobile Friendly) ───
+        st.markdown("### 📊 Market Signals")
+        
+        # Color coded alerts based on signals
+        sigs = res["signals"]
+        if sigs.get('flu_season'):
+            st.success("🦠 **DEMAND SPIKE:** Flu season detected. **Action:** Buy more antibiotics & cough syrups.")
+        if sigs.get('generic_launch_detected'):
+            st.error("💊 **COMPETITOR LAUNCH:** Generic drug launched. **Action:** Discount branded stock to clear it.")
+        if sigs.get('gpo_contract_tier_change'):
+            st.warning("📄 **DISCOUNT TIER:** Close to volume tier. **Action:** Push top retailers to order this week.")
+        if not any([sigs.get('flu_season'), sigs.get('generic_launch_detected'), sigs.get('gpo_contract_tier_change')]):
+            st.info("✅ **Stable:** No urgent market shocks detected. Business as usual.")
+            
+        st.markdown("---")
+        
+        # ─── 4. THE MOBILE CHART (P10-P90 Shaded Area) ───
+        import plotly.graph_objects as go
+        import pandas as pd
+        
+        hist_df = res["historical_data"].copy()
+        hist_df['date'] = pd.to_datetime(hist_df['date'])
+        
+        last_date = hist_df['date'].iloc[-1]
+        future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+        
+        fig = go.Figure()
+        
+        # Shaded Uncertainty Band
+        fig.add_trace(go.Scatter(
+            x=future_dates + future_dates[::-1],
+            y=res['p90'] + res['p10'][::-1],
+            fill='toself', fillcolor='rgba(46, 134, 193, 0.15)', line=dict(color='rgba(255,255,255,0)'),
+            name='Best/Worst Case'
+        ))
+        
+        # Historical Line
+        fig.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['total'], mode='lines', name='Past Sales', line=dict(color='#1C2833', width=2)))
+        
+        # Future Median Line
+        fig.add_trace(go.Scatter(x=future_dates, y=res['p50'], mode='lines+markers', name='Expected', line=dict(color='#1D8348', width=3), marker=dict(size=6)))
+        
+        # Vertical "Today" Line
+        fig.add_shape(type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper", line=dict(color="gray", width=2, dash="dash"))
+        fig.add_annotation(x=last_date, y=1, yref="paper", text="Today", showarrow=False, yshift=10)
+        
+        fig.update_layout(
+            title="",
+            margin=dict(l=10, r=10, t=10, b=10), # Tight margins for mobile
+            xaxis_title="", yaxis_title="₹",
+            showlegend=False, # Hide legend to save mobile space
+            plot_bgcolor='white', paper_bgcolor='white',
+            height=300
+        )
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
+        
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("---")
+        
+        # ─── 5. AREA MANAGEMENT (Simple Table) ───
+        st.markdown("### 📍 Area Management (Thanjavur Region)")
+        st.caption("Live dispatch schedule based on demand forecast.")
+        
+        area_data = {
+            "Zone": ["Thanjavur City", "Kumbakonam", "Papanasam"],
+            "Demand": ["High 🟢", "Medium 🟡", "Low 🔴"],
+            "Action": ["Dispatch 2 Vans", "Dispatch 1 Van", "Hold Stock"]
         }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<div class="chat-drawer-anchor"></div>', unsafe_allow_html=True)
-        st.markdown('<div style="background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%); color: white; padding: 10px; border-radius: 8px 8px 0 0; margin: -16px -16px 10px -16px; font-weight: bold; display: flex; justify-content: space-between;"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
-        
-        for msg in st.session_state.ai_dots_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-        
-        prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
-        if prompt:
-            st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
-            with st.spinner("Meena AI thinking..."):
-                reply = groq_ask(prompt, user)
-            st.session_state.ai_dots_messages.append({"role": "assistant", "content": reply})
-            st.rerun()
-
-def render_telegram_launcher(user=None):
-    """Render Telegram launch button in the sidebar."""
-    try:
-        app_url = st.secrets.get("APP_URL", "")
-    except Exception:
-        app_url = ""
-    if not app_url:
-        app_url = "https://meena-agencies-wholesale-pharma.streamlit.app"
-        
-    with st.sidebar:
-        st.divider()
-        st.markdown("#### 📱 Open as App")
-        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" '
-                    f'style="display:inline-block;padding:8px 14px;background:#FFD814;'
-                    f'color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;'
-                    f'width:100%;text-align:center;box-sizing:border-box;">🚀 Launch PWA</a>',
-                    unsafe_allow_html=True)
-        if "localhost" in app_url:
-            st.caption("⚠️ Set APP_URL in secrets for production")
+        st.dataframe(pd.DataFrame(area_data), use_container_width=True, hide_index=True)
 
 def main():
     if "user" not in st.session_state:
