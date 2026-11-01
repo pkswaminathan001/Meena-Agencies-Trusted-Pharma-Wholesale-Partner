@@ -968,243 +968,102 @@ def render_forecast_engine():
         c2.metric("Most Likely (P50)", f"₹{sum(res.get('p50', [0])):,.0f}")
         c3.metric("Best Case (P90)", f"₹{sum(res.get('p90', [0])):,.0f}")
         
-        with st.expander("🔍 View Data Trends (Advanced)"):
+        with st.expander("🔍 View Data Trends (Advanced)", expanded=False):
             try:
                 import plotly.graph_objects as go
-                hist_df = res["historical_data"]
-                last_date = pd.to_datetime(hist_df['date'].iloc[-1])
+                import pandas as pd
+                
+                hist_df = res["historical_data"].copy()
+                hist_df['date'] = pd.to_datetime(hist_df['date'])
+                
+                last_date = hist_df['date'].iloc[-1]
                 future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
                 
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['total'], mode='lines', name='Historical Actuals', line=dict(color='#1C2833', width=2)))
-                fig.add_trace(go.Scatter(x=future_dates, y=res['p90'], mode='lines', name='P90 (Best Case)', line=dict(color='#2E86C1', width=1, dash='dot')))
-                fig.add_trace(go.Scatter(x=future_dates, y=res['p50'], mode='lines', name='P50 (Likely)', line=dict(color='#1D8348', width=3)))
-                fig.add_trace(go.Scatter(x=future_dates, y=res['p10'], mode='lines', name='P10 (Worst Case)', line=dict(color='#C0392B', width=1, dash='dot')))
-                fig.add_trace(go.Scatter(x=future_dates + future_dates[::-1], y=res['p90'] + res['p10'][::-1], fill='toself', fillcolor='rgba(46, 134, 193, 0.15)', line=dict(color='rgba(255,255,255,0)'), name='Uncertainty Band'))
                 
-                fig.update_layout(title="Probabilistic Forecast", xaxis_title="Date", yaxis_title="Revenue (₹)", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor='white', paper_bgcolor='white')
-                st.plotly_chart(fig, use_container_width=True)
+                # 1. Uncertainty Band (P10 to P90) - Shaded Area
+                fig.add_trace(go.Scatter(
+                    x=future_dates + future_dates[::-1],
+                    y=res['p90'] + res['p10'][::-1],
+                    fill='toself',
+                    fillcolor='rgba(46, 134, 193, 0.12)',
+                    line=dict(color='rgba(255,255,255,0)'),
+                    hoverinfo="skip",
+                    showlegend=True,
+                    name='Uncertainty Band (P10-P90)'
+                ))
+                
+                # 2. Historical Actuals (Solid Line)
+                fig.add_trace(go.Scatter(
+                    x=hist_df['date'], y=hist_df['total'],
+                    mode='lines+markers',
+                    name='Historical Sales',
+                    line=dict(color='#1C2833', width=2.5),
+                    marker=dict(size=4, color='#1C2833')
+                ))
+                
+                # 3. P50 Median (Bold Dashed Line)
+                fig.add_trace(go.Scatter(
+                    x=future_dates, y=res['p50'],
+                    mode='lines+markers',
+                    name='P50 (Base Case Forecast)',
+                    line=dict(color='#1D8348', width=3),
+                    marker=dict(size=6, color='#1D8348', symbol='diamond')
+                ))
+                
+                # 4. P90 Upper Bound (Dotted)
+                fig.add_trace(go.Scatter(
+                    x=future_dates, y=res['p90'],
+                    mode='lines',
+                    name='P90 (Optimistic)',
+                    line=dict(color='#2E86C1', width=1.5, dash='dot')
+                ))
+                
+                # 5. P10 Lower Bound (Dotted)
+                fig.add_trace(go.Scatter(
+                    x=future_dates, y=res['p10'],
+                    mode='lines',
+                    name='P10 (Pessimistic)',
+                    line=dict(color='#C0392B', width=1.5, dash='dot')
+                ))
+                
+                # Add a vertical line marking "Today"
+                fig.add_shape(
+                    type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper",
+                    line=dict(color="gray", width=2, dash="dash")
+                )
+                fig.add_annotation(
+                    x=last_date, y=1, yref="paper",
+                    text="Today", showarrow=False, yshift=10, font=dict(color="gray")
+                )
+                
+                # Layout Styling
+                fig.update_layout(
+                    title=dict(text="Probabilistic Revenue Forecast (7-Day Horizon)", font=dict(size=18, color='#1C2833')),
+                    xaxis_title="Date",
+                    yaxis_title="Revenue (₹)",
+                    hovermode="x unified",
+                    legend=dict(
+                        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                        bgcolor="white", bordercolor="lightgray", borderwidth=1
+                    ),
+                    margin=dict(l=40, r=40, t=80, b=40),
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    font=dict(family="Inter, sans-serif")
+                )
+                
+                # Grid styling
+                fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED', showline=True, linecolor='lightgray')
+                fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED', showline=True, linecolor='lightgray')
+                
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                
+                st.caption("💡 **How to read this:** The shaded blue area represents the range of possible outcomes. The green line is the most likely forecast. The vertical dashed line marks today.")
+                
             except Exception as e:
-                st.warning(f"Chart error: {e}")
+                st.warning(f"Chart could not be rendered: {e}")
 
-def page_owner_staff_monitor(u):
-    st.title("👥 Staff Monitor & Live Tracking")
-    st.caption("Live view of all sales reps' activity across Tamil Nadu")
-
-    db_path = BASE_DIR / "meena_enterprise.db"
-    if not db_path.exists():
-        st.info("No data yet."); return
-
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql_query("SELECT * FROM rep_activity ORDER BY id DESC LIMIT 200", conn)
-    conn.close()
-
-    if df.empty:
-        st.info("📭 No rep activity recorded yet. Ask your sales reps to click 'Start Day' on their phone.")
-        st.divider()
-        st.subheader("📍 Base Location (Thanjavur, Tamil Nadu)")
-        try:
-            import folium
-            from streamlit_folium import st_folium
-            m = folium.Map(location=[10.7870, 79.1378], zoom_start=10)
-            st_folium(m, width=700, height=400)
-        except Exception:
-            pass
-        return
-
-    st.subheader("🗺️ Live Map (Latest Check-ins)")
-    latest = df[df['latitude'].notna()].head(20)
-    
-    if not latest.empty:
-        try:
-            import folium
-            from streamlit_folium import st_folium
-            center_lat = latest['latitude'].mean() if not latest['latitude'].isnull().all() else 10.7870
-            center_lng = latest['longitude'].mean() if not latest['longitude'].isnull().all() else 79.1378
-            
-            m = folium.Map(location=[center_lat, center_lng], zoom_start=10)
-            for _, row in latest.iterrows():
-                color = "green" if row['action'] == "CHECK_IN" else "red" if row['action'] == "CHECK_OUT" else "blue"
-                folium.Marker(
-                    [row['latitude'], row['longitude']],
-                    popup=f"{row['rep_id']} — {row['action']} @ {row['timestamp'][:19]}",
-                    icon=folium.Icon(color=color)
-                ).add_to(m)
-            st_folium(m, width=700, height=400)
-        except Exception as e:
-            st.warning(f"Map rendering failed: {e}")
-    else:
-        st.info("📍 No GPS data available yet.")
-
-    st.subheader("⏱️ Hours Worked (Latest Day)")
-    from datetime import datetime as _dt
-    summary = []
-    for rep_id in df['rep_id'].unique():
-        rep_df = df[df['rep_id'] == rep_id]
-        check_ins = rep_df[rep_df['action'] == "CHECK_IN"]
-        check_outs = rep_df[rep_df['action'] == "CHECK_OUT"]
-        if not check_ins.empty and not check_outs.empty:
-            try:
-                in_time = _dt.strptime(check_ins.iloc[0]['timestamp'][:19], "%Y-%m-%d %H:%M:%S")
-                out_time = _dt.strptime(check_outs.iloc[0]['timestamp'][:19], "%Y-%m-%d %H:%M:%S")
-                hours = (out_time - in_time).total_seconds() / 3600
-                summary.append({"Rep": rep_id, "Hours": round(hours, 2),
-                                "Visits": len(rep_df[rep_df['action'] == "VISIT"])})
-            except: pass
-    if summary:
-        st.dataframe(pd.DataFrame(summary), use_container_width=True)
-    else:
-        st.info("Not enough check-in/out data yet to compute hours.")
-
-    st.divider()
-    st.subheader("📜 Recent Activity Log")
-    df_display = df[['rep_id', 'action', 'timestamp', 'retailer_id', 'notes']].head(30)
-    st.dataframe(df_display, use_container_width=True)
-
-
-def render_telegram_launcher(user=None):
-    """Render Telegram launch button in the sidebar."""
-    app_url = get_app_url()
-    with st.sidebar:
-        st.divider()
-        st.markdown("#### 📱 Open as App")
-        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" '
-                    f'style="display:inline-block;padding:8px 14px;background:#FFD814;'
-                    f'color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;'
-                    f'width:100%;text-align:center;">🚀 Launch PWA</a>',
-                    unsafe_allow_html=True)
-        if "localhost" in app_url or not app_url.startswith("https://"):
-            st.caption("⚠️ Set APP_URL in secrets for production")
-
-def get_app_url():
-    try:
-        url = st.secrets.get("APP_URL", "")
-    except Exception:
-        url = ""
-    return url or "https://meena-agencies-wholesale-pharma.streamlit.app"
-
-
-def groq_ask(prompt, user=None):
-    """Ask Meena AI a question using Groq with live data."""
-    import requests as _r
-    api_key = os.environ.get("GROQ_API_KEY", "")
-    try:
-        api_key = st.secrets.get("GROQ_API_KEY", api_key)
-    except Exception:
-        pass
-    
-    if not api_key:
-        return "🔑 GROQ_API_KEY not set in secrets."
-    
-    role = (user or {}).get("role", "retailer").lower() if user else "retailer"
-    role_hint = "You are speaking to the shop owner." if role == "owner" else "You are speaking to a retailer."
-    
-    system = f"""You are Meena AI, a helpful assistant for Meena Agencies, a pharma wholesale business in Tamil Nadu, India.
-{role_hint}
-Rules:
-- Be concise (under 100 words).
-- Respond in the same language the user wrote (English or Tamil).
-"""
-    
-    history = st.session_state.get("ai_dots_messages", [])[-6:]
-    convo = [{"role": m["role"], "content": m["content"]} for m in history if m.get("role") in ("user", "assistant")]
-    convo.append({"role": "user", "content": prompt})
-    
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    # Discover working model
-    model = "llama3-70b-8192"
-    try:
-        r = _r.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
-        if r.status_code == 200:
-            for m in r.json().get("data", []):
-                if "whisper" not in m.get("id","") and "guard" not in m.get("id",""):
-                    model = m.get("id")
-                    break
-    except Exception:
-        pass
-    
-    payload = {
-        "model": model,
-        "messages": [{"role": "system", "content": system}] + convo,
-        "temperature": 0.4,
-        "max_tokens": 500,
-    }
-    
-    try:
-        r = _r.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        return f"⚠️ Groq API error {r.status_code}"
-    except Exception as e:
-        return f"⚠️ Groq connection error: {e}"
-
-
-def render_ai_dots(user=None):
-    """Floating AI Dots chat button + drawer."""
-    
-    if "ai_dots_open" not in st.session_state:
-        st.session_state.ai_dots_open = False
-    if "ai_dots_messages" not in st.session_state:
-        st.session_state.ai_dots_messages = [
-            {"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI. Ask me about orders, stock, retailers, or anything."}
-        ]
-    
-    # CSS for the floating button
-    st.markdown("""
-    <style>
-    div[data-testid="stButton"]:has(button[kind="primary"][aria-label="ai_dots_toggle"]) {
-        position: fixed !important;
-        bottom: 30px !important;
-        right: 30px !important;
-        z-index: 99999 !important;
-        width: 62px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Toggle button
-    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
-    if st.button(btn_label, key="ai_dots_btn", type="primary", help="Ask Meena AI"):
-        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
-        st.rerun()
-    
-    # Drawer
-    if st.session_state.ai_dots_open:
-        st.markdown("""
-        <style>
-        div[data-testid="stVerticalBlock"]:has(> div > div > div > .chat-drawer-anchor) {
-            position: fixed !important;
-            bottom: 100px !important;
-            right: 30px !important;
-            width: 380px !important;
-            max-width: calc(100vw - 60px) !important;
-            height: 500px !important;
-            max-height: calc(100vh - 150px) !important;
-            background: white !important;
-            border-radius: 16px !important;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important;
-            z-index: 99998 !important;
-            padding: 16px !important;
-            overflow-y: auto !important;
-            border: 1px solid #e0e0e0 !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<div class="chat-drawer-anchor"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="chat-window-header" style="background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%); color: white; padding: 10px; border-radius: 8px 8px 0 0; margin: -16px -16px 10px -16px; font-weight: bold; display: flex; justify-content: space-between;"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
-        
-        for msg in st.session_state.ai_dots_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-        
-        prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
-        if prompt:
-            st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
-            with st.spinner("Meena AI thinking..."):
-                reply = groq_ask(prompt, user)
-            st.session_state.ai_dots_messages.append({"role": "assistant", "content": reply})
-            st.rerun()
 
 def main():
     if "user" not in st.session_state:
