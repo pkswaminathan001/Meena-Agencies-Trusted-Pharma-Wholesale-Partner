@@ -110,6 +110,34 @@ def _record_successful_login():
     st.session_state.login_attempts = 0
     st.session_state.login_lockout_until = 0
 
+
+def load_retailers():
+    # 1. Try to load from Streamlit Cloud Secrets (Production)
+    try:
+        if "RETAILERS_JSON" in st.secrets:
+            return json.loads(st.secrets["RETAILERS_JSON"])
+    except Exception:
+        pass
+        
+    # 2. Fallback to local file (Development)
+    rj_path = BASE_DIR / "retailers.json"
+    if rj_path.exists():
+        with open(rj_path, "r") as f: return json.load(f)
+    return []
+
+def save_order_history(user_id, cart, total):
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    order_id = f"ORD-{random.randint(1000, 9999)}"
+    date_str = str(datetime.date.today())
+    items_json = json.dumps(cart)
+    status = "Paid"
+    c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", (order_id, user_id, date_str, total, items_json, status))
+    conn.commit()
+    conn.close()
+    return {"order_id": order_id}
+
 def login_screen():
     st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
     st.markdown("""<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1><h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2><p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p></div>""", unsafe_allow_html=True)
