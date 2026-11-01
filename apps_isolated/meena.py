@@ -48,7 +48,7 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 # ═══════════════════════════════════════════════════════
 #  GLOBAL DATABASE INITIALIZER (Fixes Cloud Crashes)
 # ═══════════════════════════════════════════════════════
-def _init_db()
+def _init_db():
 
 def _seed_test_products():
     """Adds test products to the DB if it's empty."""
