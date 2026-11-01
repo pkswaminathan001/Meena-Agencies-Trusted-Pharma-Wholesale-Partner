@@ -49,13 +49,23 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 #  GLOBAL DATABASE INITIALIZER (Fixes Cloud Crashes)
 # ═══════════════════════════════════════════════════════
 def _init_db():
+    """Initializes database tables safely."""
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, qty INTEGER, price REAL)")
+    c.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT PRIMARY KEY, user_id TEXT, date TEXT, total REAL, items TEXT, status TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS rep_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, rep_id TEXT, action TEXT, timestamp TEXT, latitude REAL, longitude REAL, retailer_id TEXT, notes TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS product_batches (batch_id TEXT PRIMARY KEY, sku TEXT, qty INTEGER, expiry_date DATE, mfg_date DATE)")
+    c.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
+    conn.commit()
+    conn.close()
 
 def _seed_test_products():
     """Adds test products to the DB if it's empty."""
     db_path = BASE_DIR / "meena_enterprise.db"
     conn = sqlite3.connect(db_path)
     try:
-        # Check if products exist
         cursor = conn.execute("SELECT COUNT(*) FROM products")
         if cursor.fetchone()[0] == 0:
             test_products = [
@@ -67,201 +77,13 @@ def _seed_test_products():
             ]
             conn.executemany("INSERT INTO products (sku, qty, price) VALUES (?, ?, ?)", test_products)
             conn.commit()
-            print("✅ Seeded 5 test products.")
-    except Exception as e:
-        print(f"Seed error: {e}")
+    except Exception:
+        pass
     finally:
         conn.close()
 
-_seed_test_products()
-
-_seed_test_products():
-    db_path = BASE_DIR / "meena_enterprise.db"
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    # Core tables
-    c.execute("CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, qty INTEGER, price REAL)")
-    c.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT PRIMARY KEY, user_id TEXT, date TEXT, total REAL, items TEXT, status TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS rep_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, rep_id TEXT, action TEXT, timestamp TEXT, latitude REAL, longitude REAL, retailer_id TEXT, notes TEXT)")
-    # Batch & Expiry table
-    c.execute("CREATE TABLE IF NOT EXISTS product_batches (batch_id TEXT PRIMARY KEY, sku TEXT, qty INTEGER, expiry_date DATE, mfg_date DATE)")
-    # Agent Activity table
-    c.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
-    conn.commit()
-    conn.close()
-
 _init_db()
-# ═══════════════════════════════════════════════════════
-
-st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
-
-# ─── PWA: Manifest + Service Worker injection ───
-import streamlit.components.v1 as _pwa_components
-_pwa_components.html(
-    """
-    <link rel="manifest" href="/app/static/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Meena">
-    <meta name="theme-color" content="#131921">
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/app/static/sw.js').catch(e => console.warn('SW reg failed', e));
-      }
-    </script>
-    """,
-    height=0, width=0
-)
-
-
-if "page" not in st.session_state: st.session_state.page = "home"
-if "cart" not in st.session_state: st.session_state.cart = []
-if "show_otp_input" not in st.session_state: st.session_state.show_otp_input = False
-
-def go_to(page_name):
-    st.session_state.page = page_name
-
-st.markdown("""
-<style>
-    /* D3: Hide back button and streamlit headers */
-    [data-testid="stHeader"] {display: none !important;}
-    [data-testid="collapsedControl"] {display: none !important;}
-    .stApp { background-color: #eaeded !important; }
-    .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1200px; }
-    #MainMenu { visibility: hidden !important; display: none !important; }
-    footer { visibility: hidden !important; display: none !important; }
-    header { background: transparent !important; visibility: hidden !important; }
-    [data-testid="stToolbar"] { display: none !important; visibility: hidden !important; height: 0px !important; }
-    .stDeployButton, .stAppDeployButton { display: none !important; }
-    @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 0.5rem !important; }
-        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { flex: 1 1 48% !important; min-width: 48% !important; max-width: 48% !important; }
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #ffffff !important; padding: 12px !important;
-        border-radius: 8px !important; border: none !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-        height: 100% !important; display: flex !important; flex-direction: column !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div { 
-        gap: 0.1rem !important; height: 100% !important; display: flex !important; flex-direction: column !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div > div:last-child {
-        margin-top: auto !important; padding-top: 10px !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] img { height: 140px !important; width: 100% !important; object-fit: contain !important; }
-    div.stButton > button[kind="primary"], div[data-testid="stForm"] button {
-        background-color: #FFD814 !important; color: #0F1111 !important;
-        border: 1px solid #FCD200 !important; border-radius: 8px !important;
-        font-weight: bold !important; width: 100% !important; min-height: 40px !important; font-size: 14px !important;
-    }
-    div.stButton > button[kind="primary"]:hover, div[data-testid="stForm"] button:hover { background-color: #F7CA00 !important; }
-    .amz-header { background: #131921; color: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-    .promo-banner { background: linear-gradient(90deg, #ff9900 0%, #ff5500 100%); color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 15px;}
-    .amz-card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px;}
-    .amz-title { color: #0F1111; font-size: 13px; font-weight: 600; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 2px; }
-    .amz-price { color: #0F1111; font-size: 18px; font-weight: 700; margin-bottom: 4px;}
-    .amz-decimal { font-size: 11px; position: relative; top: -3px; }
-    .amz-stock-ok { color: #067d1f; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-    .amz-rating { color: #FFA41C; font-size: 12px; margin-bottom: 4px; }
-    .amz-order-header { background: #f0f2f2; border-radius: 8px 8px 0 0; padding: 12px; display: flex; justify-content: space-between; color: #565959; font-size: 12px; border-bottom: 1px solid #d5d9d9; margin: -12px -12px 12px -12px; }
-    .amz-order-header b { color: #0F1111; font-weight: 500; display: block; font-size: 13px;}
-</style>
-""", unsafe_allow_html=True)
-
-def get_icon(name):
-    import urllib.parse
-    return f"https://placehold.co/300x300/e2e8f0/1e293b/png?text={urllib.parse.quote(str(name))}&font=Montserrat&font-size=36"
-
-@st.cache_data(ttl=60)
-
-def send_telegram_otp(chat_id, otp):
-    try:
-        TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
-    except:
-        return False
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    try:
-        res = requests.post(url, json={"chat_id": chat_id, "text": f"Your OTP is {otp}"})
-        return res.status_code == 200
-    except:
-        return False
-
-def load_inventory():
-    db_path = BASE_DIR / "meena_enterprise.db"
-    if not db_path.exists(): return pd.DataFrame()
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products';")
-        if not cursor.fetchone():
-            conn.close()
-            return pd.DataFrame()
-        df = pd.read_sql_query("SELECT sku as name, 1.0 as price, qty as stock FROM products LIMIT 100", conn)
-        conn.close()
-        return df
-    except Exception: return pd.DataFrame()
-
-@st.cache_data(ttl=60)
-def load_retailers():
-    # 1. Try to load from Streamlit Cloud Secrets (Production)
-    try:
-        if "RETAILERS_JSON" in st.secrets:
-            return json.loads(st.secrets["RETAILERS_JSON"])
-    except Exception:
-        pass
-        
-    # 2. Fallback to local file (Development)
-    rj_path = BASE_DIR / "retailers.json"
-    if rj_path.exists():
-        with open(rj_path, "r") as f: return json.load(f)
-    return []
-
-def save_order_history(user_id, cart, total):
-    db_path = BASE_DIR / "meena_enterprise.db"
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    order_id = f"ORD-{random.randint(1000, 9999)}"
-    date_str = str(datetime.date.today())
-    items_json = json.dumps(cart)
-    status = "Paid"
-    c.execute("INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)", (order_id, user_id, date_str, total, items_json, status))
-    conn.commit()
-    conn.close()
-    return {"order_id": order_id}
-
-
-# ═══════════════════════════════════════════════════════
-#  SECURITY: Login rate limiting + timing attack defense
-# ═══════════════════════════════════════════════════════
-MAX_LOGIN_ATTEMPTS = 5
-LOCKOUT_SECONDS = 300  # 5 minutes
-
-def _check_login_rate_limit():
-    """Returns (allowed, seconds_remaining)."""
-    if "login_attempts" not in st.session_state:
-        st.session_state.login_attempts = 0
-    if "login_lockout_until" not in st.session_state:
-        st.session_state.login_lockout_until = 0
-    
-    now = time.time()
-    if st.session_state.login_lockout_until > now:
-        return (False, int(st.session_state.login_lockout_until - now))
-    if st.session_state.login_attempts >= MAX_LOGIN_ATTEMPTS:
-        st.session_state.login_attempts = 0
-    return (True, 0)
-
-def _record_failed_login():
-    """Increment counter, apply lockout if threshold hit, add delay."""
-    st.session_state.login_attempts = st.session_state.get("login_attempts", 0) + 1
-    time.sleep(0.5 + (0.25 * st.session_state.login_attempts))  # escalating delay
-    if st.session_state.login_attempts >= MAX_LOGIN_ATTEMPTS:
-        st.session_state.login_lockout_until = time.time() + LOCKOUT_SECONDS
-
-def _record_successful_login():
-    st.session_state.login_attempts = 0
-    st.session_state.login_lockout_until = 0
-
+_seed_test_products()
 
 def login_screen():
     st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
