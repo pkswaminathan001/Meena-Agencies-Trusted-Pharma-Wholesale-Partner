@@ -1321,6 +1321,12 @@ def render_forecast_engine():
             """, unsafe_allow_html=True)
 
 def main():
+    # ─── INITIALIZE SESSION STATE SAFELY ───
+    if "cart" not in st.session_state:
+        st.session_state.cart = []
+    if "page" not in st.session_state:
+        st.session_state.page = "home"
+
     if "user" not in st.session_state:
         login_screen(); return
 
