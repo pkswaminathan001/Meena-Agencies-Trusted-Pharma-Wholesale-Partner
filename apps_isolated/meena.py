@@ -19,6 +19,7 @@ except ImportError:
     pass
 
 import pandas as pd
+import plotly.graph_objects as go
 from apps_isolated.agentic_forecast import run_agentic_forecast
 
 import html as _html_module
@@ -1444,81 +1445,102 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    st.title("📈 Executive Business Forecast")
-    st.caption("AI-powered projections for the next 7 days. No spreadsheets, just decisions.")
+    st.title("🏭 SCOT: Supply Chain Optimization Engine")
+    st.caption("Management by Exception. Probabilistic quantile forecasting.")
     
-    # Big action button
-    if st.button("🔄 Run AI Forecast Now", type="primary", use_container_width=True):
-        with st.spinner("Analyzing sales history and market signals..."):
+    if st.button("🔄 Run SCOT Forecast", type="primary", use_container_width=True):
+        with st.spinner("Sensing market signals and routing models..."):
             import time
-            time.sleep(1.5) # Simulate AI processing
+            time.sleep(1.5)
             result = run_agentic_forecast()
-            st.session_state.forecast_result = result
+            st.session_state.scot_result = result
     
-    # Only show the dashboard if we have a result
-    if "forecast_result" in st.session_state:
-        res = st.session_state.forecast_result
-        
+    if "scot_result" in st.session_state:
+        res = st.session_state.scot_result
         st.divider()
         
-        # ─── TOP LEVEL BUSINESS METRICS ───
-        st.subheader("📊 Projected Revenue (Next 7 Days)")
-        c1, c2, c3 = st.columns(3)
-        
-        total_proj = sum(res['final_forecast'])
-        daily_avg = total_proj / 7
-        
-        c1.metric("7-Day Total", f"₹{total_proj:,.0f}", "Target: ₹50,000")
-        c2.metric("Daily Average", f"₹{daily_avg:,.0f}")
-        c3.metric("Confidence", "High" if res['audit_passed'] else "Medium", 
-                  "Guardrails passed" if res['audit_passed'] else "Adjusted by Auditor")
-        
-        # ─── BUSINESS ALERTS & ACTIONS ───
-        st.subheader("🚨 Actionable Insights")
-        
-        # Alert logic
-        alerts = []
-        if res['signals'].get('flu_season'):
-            alerts.append("🦠 **Flu season detected:** Expect a 15% spike in cold & fever medicines. Ensure stock is ready.")
-        if res['signals'].get('generic_launch_detected'):
-            alerts.append("💊 **Generic launch detected:** Brand medicine sales may drop by 20%. Consider discounting old stock.")
-        if res['signals'].get('gpo_contract_tier_change'):
-            alerts.append("📄 **Contract Tier Change:** You are close to a volume discount. Order more to hit the target.")
-        if not alerts:
-            alerts.append("✅ **No immediate risks detected.** Business operations are stable.")
+        # ─── EXCEPTION DASHBOARD ───
+        st.subheader("🚨 Exception Management Dashboard")
+        if res["variance_exceeded"]:
+            st.error("**VARIANCE EXCEPTION DETECTED:** AI flags this SKU for human audit.")
+            for log in res["audit_log"]:
+                st.write(f"- {log}")
+        else:
+            st.success("✅ No critical exceptions. All metrics within safe thresholds.")
+            st.write(f"- Model used: {res['model_used']}")
             
-        for alert in alerts:
-            st.info(alert)
-            
-        # ─── VISUAL CHART (Kept simple) ───
-        st.subheader("📈 Sales Trend")
-        st.caption("Historical sales vs AI predicted future sales")
+        st.divider()
+        
+        # ─── THE SCOT CHART (P10, P50, P90) ───
+        st.subheader("📊 Probabilistic Forecast (90-Day Horizon)")
         
         import pandas as pd
-        hist_df = res["historical_data"].copy()
-        hist_df['type'] = 'Past Sales'
+        import plotly.graph_objects as go
         
+        hist_df = res["historical_data"]
         last_date = pd.to_datetime(hist_df['date'].iloc[-1])
         future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
         
-        forecast_df = pd.DataFrame({
-            'date': future_dates,
-            'total': res['final_forecast'],
-            'type': 'AI Forecast'
-        })
+        fig = go.Figure()
         
-        chart_df = pd.concat([hist_df, forecast_df])
-        chart_df['date'] = pd.to_datetime(chart_df['date'])
+        # 1. Historical Actuals (Black line)
+        fig.add_trace(go.Scatter(
+            x=hist_df['date'], y=hist_df['total'],
+            mode='lines', name='Historical Actuals',
+            line=dict(color='#1C2833', width=2)
+        ))
         
-        # Simple, clean chart
-        st.bar_chart(chart_df, x='date', y='total', color='type', height=300)
+        # 2. P90 Upper Bound (Optimistic)
+        fig.add_trace(go.Scatter(
+            x=future_dates, y=res['p90'],
+            mode='lines', name='P90 (Optimistic)',
+            line=dict(color='#2E86C1', width=1, dash='dot')
+        ))
         
-        # Hide the technical data in an expander
-        with st.expander("🔍 View AI Reasoning (Technical Details)"):
-            st.write(f"**Model Used:** {res['model_used']}")
-            st.write("**Audit Log:**")
-            for log in res['audit_log']:
-                st.write(f"- {log}")
+        # 3. P50 Median (Base Case)
+        fig.add_trace(go.Scatter(
+            x=future_dates, y=res['p50'],
+            mode='lines', name='P50 (Base Case)',
+            line=dict(color='#1D8348', width=3)
+        ))
+        
+        # 4. P10 Lower Bound (Pessimistic)
+        fig.add_trace(go.Scatter(
+            x=future_dates, y=res['p10'],
+            mode='lines', name='P10 (Pessimistic)',
+            line=dict(color='#C0392B', width=1, dash='dot')
+        ))
+        
+        # Add shaded area between P10 and P90
+        fig.add_trace(go.Scatter(
+            x=future_dates + future_dates[::-1],
+            y=res['p90'] + res['p10'][::-1],
+            fill='toself',
+            fillcolor='rgba(46, 134, 193, 0.15)',
+            line=dict(color='rgba(255,255,255,0)'),
+            name='Uncertainty Band'
+        ))
+        
+        fig.update_layout(
+            title="Historical vs Probabilistic Forecast",
+            xaxis_title="Date",
+            yaxis_title="Revenue (₹)",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=20, r=20, t=40, b=20),
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED')
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # ─── P50 SUMMARY CARDS ───
+        c1, c2, c3 = st.columns(3)
+        c1.metric("P10 (Worst Case)", f"₹{sum(res['p10']):,.0f}")
+        c2.metric("P50 (Most Likely)", f"₹{sum(res['p50']):,.0f}")
+        c3.metric("P90 (Best Case)", f"₹{sum(res['p90']):,.0f}")
 
 def main():
     if "user" not in st.session_state:

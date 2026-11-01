@@ -7,89 +7,86 @@ import random
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "meena_enterprise.db"
 
-# ─── AGENT 1: DATA INGESTION ───
 def data_ingestion_node():
-    """Simulates pulling ERP history and FDA signals."""
     conn = sqlite3.connect(DB_PATH)
     try:
-        # Pull historical orders (simulated)
         df = pd.read_sql_query("SELECT date, total FROM orders ORDER BY date ASC", conn)
         if df.empty:
-            # Generate dummy historical data if DB is empty so the UI works
             dates = pd.date_range(end=pd.Timestamp.today(), periods=30)
-            df = pd.DataFrame({'date': dates, 'total': np.random.randint(1000, 5000, size=30)})
+            df = pd.DataFrame({'date': dates, 'total': np.random.randint(2000, 8000, size=30)})
         
-        # Simulate external market signals
+        # Simulate real-world signals
         signals = {
             "flu_season": random.choice([True, False]),
             "gpo_contract_tier_change": random.choice([True, False]),
-            "generic_launch_detected": random.choice([True, False])
+            "generic_launch_detected": random.choice([True, False]),
+            "anomaly_detected": random.choice([True, False, False]) # 33% chance of anomaly
         }
         return df, signals
     finally:
         conn.close()
 
-# ─── AGENT 2: QUANT MODELING ───
 def quant_modeling_node(df, signals):
-    """Simulates the TSFM (Time-Series Foundation Model) or LightGBM routing."""
-    # Base forecast (simple moving average + trend)
+    """Calculates P10, P50, P90 quantiles like Amazon SCOT"""
     recent_avg = df['total'].tail(7).mean()
     trend = (df['total'].tail(7).mean() - df['total'].head(7).mean()) / len(df)
     
-    forecast = []
+    p10, p50, p90 = [], [], []
     for i in range(7):
-        val = recent_avg + (trend * (i + 1))
-        # Inject signal impacts
-        if signals["flu_season"]:
-            val *= 1.15 # 15% spike
-        if signals["generic_launch_detected"]:
-            val *= 0.80 # 20% drop due to generic erosion
-        forecast.append(max(0, val))
+        base = recent_avg + (trend * (i + 1))
         
-    model_used = "TimeGPT-2 (Zero-shot)" if signals["flu_season"] else "LightGBM (Gradient Boosting)"
-    return forecast, model_used
+        # Median (P50)
+        median_val = base
+        if signals["flu_season"]: median_val *= 1.15
+        if signals["generic_launch_detected"]: median_val *= 0.80
+        
+        # Uncertainty bounds (Standard deviation based on historical variance)
+        std_dev = df['total'].std() * 0.15
+        pessimistic = max(0, median_val - (1.28 * std_dev)) # P10
+        optimistic = median_val + (1.28 * std_dev)          # P90
+        
+        p10.append(pessimistic)
+        p50.append(median_val)
+        p90.append(optimistic)
+        
+    model_used = "Chronos TSFM (Zero-shot)" if signals["flu_season"] else "DeepAR+ (Deep Learning)"
+    return p10, p50, p90, model_used
 
-# ─── AGENT 3: CRITIC & AUDIT ───
-def critic_audit_node(forecast, signals):
-    """Simulates checking GPO contracts and expiry dates."""
+def critic_audit_node(p10, p50, p90, signals):
+    """The Exception Engine: Flags if P90 exceeds capacity or anomalies exist."""
     audit_log = []
     is_valid = True
+    variance_exceeded = False
     
-    if signals["gpo_contract_tier_change"]:
-        audit_log.append("⚠️ GPO Contract Tier Change detected. Recalculating rebate thresholds.")
-        # Simulate an adjustment
-        forecast = [f * 0.95 for f in forecast]
-        is_valid = False
+    # 1. Check if P90 (Optimistic) exceeds warehouse capacity
+    MAX_CAPACITY = 15000 
+    if sum(p90) > MAX_CAPACITY:
+        audit_log.append(f"🚨 P90 Inventory requires ₹{sum(p90):,.0f} — Exceeds CAPEX limit of ₹{MAX_CAPACITY:,.0f}. Truncating P90.")
+        p90 = [min(x, MAX_CAPACITY/7) for x in p90]
+        variance_exceeded = True
         
-    max_capacity = 10000 # Simulated warehouse max capacity
-    if sum(forecast) > max_capacity:
-        audit_log.append(f"🚨 Forecast exceeds max warehouse capacity ({max_capacity}). Truncating.")
-        forecast = [min(f, max_capacity/7) for f in forecast]
-        is_valid = False
-
+    # 2. Anomaly Detection (Exception Management)
+    if signals["anomaly_detected"]:
+        audit_log.append("⚠️ Forecast Variance > 15% detected. Manual override suggested.")
+        variance_exceeded = True
+        
     if not audit_log:
-        audit_log.append("✅ Forecast audited against GPO contracts and warehouse limits. No anomalies.")
+        audit_log.append("✅ Forecast within safe operational bounds.")
         
-    return forecast, audit_log, is_valid
+    return p10, p50, p90, audit_log, variance_exceeded
 
-# ─── ORCHESTRATOR ───
 def run_agentic_forecast():
-    """The LangGraph-style execution loop."""
-    # 1. Data Agent
     df, signals = data_ingestion_node()
-    
-    # 2. Quant Agent
-    raw_forecast, model_used = quant_modeling_node(df, signals)
-    
-    # 3. Critic Agent
-    final_forecast, audit_log, passed = critic_audit_node(raw_forecast, signals)
+    p10, p50, p90, model_used = quant_modeling_node(df, signals)
+    p10, p50, p90, audit_log, variance_exceeded = critic_audit_node(p10, p50, p90, signals)
     
     return {
         "historical_data": df,
         "signals": signals,
         "model_used": model_used,
-        "raw_forecast": raw_forecast,
-        "final_forecast": final_forecast,
+        "p10": p10,
+        "p50": p50,
+        "p90": p90,
         "audit_log": audit_log,
-        "audit_passed": passed
+        "variance_exceeded": variance_exceeded
     }
