@@ -1076,7 +1076,6 @@ def render_forecast_engine():
         
         import plotly.graph_objects as go
         import pandas as pd
-from fpdf import FPDF
         
         hist_df = res["historical_data"].copy()
         hist_df['date'] = pd.to_datetime(hist_df['date'])
@@ -1172,7 +1171,6 @@ from fpdf import FPDF
             
         st.markdown("---")
         st.markdown("### 📍 Area Management (Thanjavur)")
-        st.caption("Live dispatch schedule based on demand forecast.")
         
         zones = [
             {"name": "Thanjavur City", "demand": "High 🟢", "action": "Dispatch 2 Vans", "color": "#D4EFDF"},
