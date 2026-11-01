@@ -1444,72 +1444,81 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    st.title("📈 Agentic Revenue Forecasting")
-    st.caption("Multi-Agent Architecture: Data Ingestion ➔ Quant Modeling ➔ Critic Audit")
+    st.title("📈 Executive Business Forecast")
+    st.caption("AI-powered projections for the next 7 days. No spreadsheets, just decisions.")
     
-    if st.button("🚀 Run Agentic Forecast", type="primary", use_container_width=True):
-        with st.spinner("Agents orchestrating..."):
+    # Big action button
+    if st.button("🔄 Run AI Forecast Now", type="primary", use_container_width=True):
+        with st.spinner("Analyzing sales history and market signals..."):
             import time
-            time.sleep(1) # Simulate processing
+            time.sleep(1.5) # Simulate AI processing
             result = run_agentic_forecast()
-            
-        st.success("✅ Forecast generated and audited successfully.")
+            st.session_state.forecast_result = result
+    
+    # Only show the dashboard if we have a result
+    if "forecast_result" in st.session_state:
+        res = st.session_state.forecast_result
+        
         st.divider()
         
-        # Top Metrics Row
+        # ─── TOP LEVEL BUSINESS METRICS ───
+        st.subheader("📊 Projected Revenue (Next 7 Days)")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Selected Model", result["model_used"])
-        c2.metric("Forecast Confidence", "92.4%" if result["audit_passed"] else "88.1% (Adjusted)")
-        c3.metric("7-Day Projected Revenue", f"₹{sum(result['final_forecast']):,.2f}")
         
-        st.divider()
+        total_proj = sum(res['final_forecast'])
+        daily_avg = total_proj / 7
         
-        # Chart Section
-        st.subheader("📊 Historical vs Forecasted Revenue")
+        c1.metric("7-Day Total", f"₹{total_proj:,.0f}", "Target: ₹50,000")
+        c2.metric("Daily Average", f"₹{daily_avg:,.0f}")
+        c3.metric("Confidence", "High" if res['audit_passed'] else "Medium", 
+                  "Guardrails passed" if res['audit_passed'] else "Adjusted by Auditor")
+        
+        # ─── BUSINESS ALERTS & ACTIONS ───
+        st.subheader("🚨 Actionable Insights")
+        
+        # Alert logic
+        alerts = []
+        if res['signals'].get('flu_season'):
+            alerts.append("🦠 **Flu season detected:** Expect a 15% spike in cold & fever medicines. Ensure stock is ready.")
+        if res['signals'].get('generic_launch_detected'):
+            alerts.append("💊 **Generic launch detected:** Brand medicine sales may drop by 20%. Consider discounting old stock.")
+        if res['signals'].get('gpo_contract_tier_change'):
+            alerts.append("📄 **Contract Tier Change:** You are close to a volume discount. Order more to hit the target.")
+        if not alerts:
+            alerts.append("✅ **No immediate risks detected.** Business operations are stable.")
+            
+        for alert in alerts:
+            st.info(alert)
+            
+        # ─── VISUAL CHART (Kept simple) ───
+        st.subheader("📈 Sales Trend")
+        st.caption("Historical sales vs AI predicted future sales")
+        
         import pandas as pd
-        import numpy as np
+        hist_df = res["historical_data"].copy()
+        hist_df['type'] = 'Past Sales'
         
-        hist_df = result["historical_data"].copy()
-        hist_df['type'] = 'Historical'
-        
-        # Create future dates
         last_date = pd.to_datetime(hist_df['date'].iloc[-1])
         future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
         
         forecast_df = pd.DataFrame({
             'date': future_dates,
-            'total': result['final_forecast'],
-            'type': 'Forecast'
+            'total': res['final_forecast'],
+            'type': 'AI Forecast'
         })
         
         chart_df = pd.concat([hist_df, forecast_df])
         chart_df['date'] = pd.to_datetime(chart_df['date'])
         
-        # Render Streamlit native line chart
-        st.line_chart(chart_df, x='date', y='total', color='type')
+        # Simple, clean chart
+        st.bar_chart(chart_df, x='date', y='total', color='type', height=300)
         
-        st.divider()
-        
-        # Agent Reasoning Breakdown
-        st.subheader("🧠 Agent Reasoning Breakdown")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            with st.container(border=True):
-                st.markdown("#### 🛰️ Data Agent (Signals)")
-                sigs = result["signals"]
-                st.write(f"Flu Season Spike: {'✅ Yes' if sigs['flu_season'] else '❌ No'}")
-                st.write(f"GPO Tier Change: {'⚠️ Yes' if sigs['gpo_contract_tier_change'] else '✅ No'}")
-                st.write(f"Generic Launch: {'⚠️ Yes' if sigs['generic_launch_detected'] else '✅ No'}")
-                
-        with col2:
-            with st.container(border=True):
-                st.markdown("#### 🛡️ Critic Agent (Audit Log)")
-                for log in result["audit_log"]:
-                    if "⚠️" in log or "🚨" in log:
-                        st.warning(log)
-                    else:
-                        st.success(log)
+        # Hide the technical data in an expander
+        with st.expander("🔍 View AI Reasoning (Technical Details)"):
+            st.write(f"**Model Used:** {res['model_used']}")
+            st.write("**Audit Log:**")
+            for log in res['audit_log']:
+                st.write(f"- {log}")
 
 def main():
     if "user" not in st.session_state:
