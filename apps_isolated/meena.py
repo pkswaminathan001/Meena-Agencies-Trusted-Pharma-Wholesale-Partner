@@ -153,6 +153,14 @@ def load_inventory():
 
 @st.cache_data(ttl=60)
 def load_retailers():
+    # 1. Try to load from Streamlit Cloud Secrets (Production)
+    try:
+        if "RETAILERS_JSON" in st.secrets:
+            return json.loads(st.secrets["RETAILERS_JSON"])
+    except Exception:
+        pass
+        
+    # 2. Fallback to local file (Development)
     rj_path = BASE_DIR / "retailers.json"
     if rj_path.exists():
         with open(rj_path, "r") as f: return json.load(f)
