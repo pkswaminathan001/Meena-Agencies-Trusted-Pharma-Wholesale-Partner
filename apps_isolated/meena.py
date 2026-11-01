@@ -963,22 +963,36 @@ def render_batch_tracker():
     conn = sqlite3.connect(db_path)
     
     with st.expander("➕ Add New Batch", expanded=False):
-        with st.form("add_batch"):
-            c1, c2 = st.columns(2)
-            sku = c1.text_input("SKU / Medicine Name")
-            qty = c2.number_input("Quantity", min_value=1, value=100)
-            expiry = st.date_input("Expiry Date")
-            submitted = st.form_submit_button("Save Batch", type="primary")
-            if submitted and sku:
-                import uuid
-                batch_id = f"BATCH-{uuid.uuid4().hex[:6].upper()}"
-                conn.execute(
-                    "INSERT INTO product_batches (batch_id, sku, qty, expiry_date) VALUES (?, ?, ?, ?)",
-                    (batch_id, sku, qty, expiry.strftime("%Y-%m-%d"))
-                )
-                conn.commit()
-                st.success(f"Batch {batch_id} added.")
-                st.rerun()
+        # Fetch existing products for the dropdown
+        try:
+            products_df = pd.read_sql_query("SELECT sku FROM products ORDER BY sku ASC", conn)
+            product_list = products_df['sku'].tolist() if not products_df.empty else []
+        except Exception:
+            product_list = []
+            
+        if not product_list:
+            st.warning("⚠️ No products in inventory. Please add a product in 'Add Stock' first.")
+        else:
+            with st.form("add_batch"):
+                c1, c2 = st.columns(2)
+                # Searchable Dropdown for SKU
+                sku = c1.selectbox("SKU / Medicine Name", options=product_list, index=None, placeholder="Type to search...")
+                qty = c2.number_input("Quantity", min_value=1, value=100)
+                expiry = st.date_input("Expiry Date")
+                submitted = st.form_submit_button("Save Batch", type="primary")
+                
+                if submitted and sku:
+                    import uuid
+                    batch_id = f"BATCH-{uuid.uuid4().hex[:6].upper()}"
+                    conn.execute(
+                        "INSERT INTO product_batches (batch_id, sku, qty, expiry_date) VALUES (?, ?, ?, ?)",
+                        (batch_id, sku, qty, expiry.strftime("%Y-%m-%d"))
+                    )
+                    conn.commit()
+                    st.success(f"Batch {batch_id} added for {sku}.")
+                    st.rerun()
+                elif submitted:
+                    st.error("Please select a medicine.")
 
     st.subheader("⚠️ Expiring Soon (Next 90 Days)")
     try:
