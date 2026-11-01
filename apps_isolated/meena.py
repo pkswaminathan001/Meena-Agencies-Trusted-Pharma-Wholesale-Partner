@@ -492,16 +492,30 @@ def page_history(u):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
                         st.toast(f"Added {item['name']} to cart"); st.rerun()
             
-            # Invoice Button
-            if st.button("🧾 Download GST Invoice", key=f"inv_{order['order_id']}", type="primary", use_container_width=True):
-                shop_name = u.get('shop', 'Retailer')
-                pdf_bytes = generate_invoice_pdf(order['order_id'], order['date'], order['total'], items, shop_name)
+            # Invoice Buttons
+            shop_name = u.get('shop', 'Retailer')
+            pdf_bytes = generate_invoice_pdf(order['order_id'], order['date'], order['total'], items, shop_name)
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                # Download Button
                 st.download_button(
-                    label="💾 Click to Save PDF",
+                    label="💾 Download Invoice",
                     data=pdf_bytes,
                     file_name=f"Invoice_{order['order_id']}.pdf",
                     mime="application/pdf",
-                    key=f"dl_{order['order_id']}"
+                    key=f"dl_{order['order_id']}",
+                    use_container_width=True,
+                    type="primary"
+                )
+            with c2:
+                # View Button (Using a base64 data URI to open in a new tab)
+                import base64
+                b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+                href = f'data:application/pdf;base64,{b64_pdf}'
+                st.markdown(
+                    f'<a href="{href}" target="_blank" style="display: inline-block; padding: 10px 24px; background-color: #ffffff; color: #0F1111; border: 1px solid #FCD200; border-radius: 8px; text-decoration: none; text-align: center; font-weight: bold; width: 100%; box-sizing: border-box;">👁️ View Invoice</a>',
+                    unsafe_allow_html=True
                 )
 
 def page_profile(u):
