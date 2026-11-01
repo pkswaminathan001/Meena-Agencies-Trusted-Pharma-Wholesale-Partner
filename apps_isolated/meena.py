@@ -19,6 +19,7 @@ except ImportError:
     pass
 
 import pandas as pd
+from fpdf import FPDF
 import plotly.graph_objects as go
 from apps_isolated.agentic_forecast import run_agentic_forecast, generate_business_summary
 
@@ -396,6 +397,61 @@ def page_cart():
                 st.session_state.cart = []; st.session_state.show_otp_input = False
                 st.balloons(); time.sleep(2); go_to("home"); st.rerun()
 
+
+def generate_invoice_pdf(order_id, date, total, items, user_shop):
+    """Generates a professional GST invoice PDF."""
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Header
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(20, 60, 90)
+    pdf.cell(0, 10, "MEENA AGENCIES", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, "Trusted Pharma Wholesale Partner - Thanjavur", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Invoice Details
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(100, 10, f"Invoice No: {order_id}")
+    pdf.cell(0, 10, f"Date: {date}", ln=True, align='R')
+    
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"Billed To: {user_shop}", ln=True)
+    pdf.ln(5)
+    
+    # Table Header
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(80, 10, "Medicine Description", border=1, fill=True)
+    pdf.cell(20, 10, "Qty", border=1, fill=True, align='C')
+    pdf.cell(30, 10, "Price (₹)", border=1, fill=True, align='R')
+    pdf.cell(30, 10, "Total (₹)", border=1, fill=True, align='R')
+    pdf.ln()
+    
+    # Table Rows
+    pdf.set_font("Arial", '', 11)
+    for item in items:
+        name = str(item.get('name', 'Unknown'))[:35]
+        qty = item.get('qty', 1)
+        price = item.get('price', 0)
+        item_total = qty * price
+        pdf.cell(80, 10, name, border=1)
+        pdf.cell(20, 10, str(qty), border=1, align='C')
+        pdf.cell(30, 10, f"{price:.2f}", border=1, align='R')
+        pdf.cell(30, 10, f"{item_total:.2f}", border=1, align='R')
+        pdf.ln()
+        
+    # Total
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(130, 10, "Grand Total", align='R')
+    pdf.cell(30, 10, f"Rs. {total:.2f}", align='R')
+    
+    # Return as bytes
+    return bytes(pdf.output())
+
 def page_history(u):
     st.title("Your Orders")
     db_path = BASE_DIR / "meena_enterprise.db"
@@ -422,6 +478,18 @@ def page_history(u):
                     if st.button("Buy it again", key=f"buy_{order['order_id']}_{item['name']}", use_container_width=True):
                         st.session_state.cart.append({"name": item['name'], "price": item['price'], "qty": 1})
                         st.toast(f"Added {item['name']} to cart"); st.rerun()
+            
+            # Invoice Button
+            if st.button("🧾 Download GST Invoice", key=f"inv_{order['order_id']}", type="primary", use_container_width=True):
+                shop_name = u.get('shop', 'Retailer')
+                pdf_bytes = generate_invoice_pdf(order['order_id'], order['date'], order['total'], items, shop_name)
+                st.download_button(
+                    label="💾 Click to Save PDF",
+                    data=pdf_bytes,
+                    file_name=f"Invoice_{order['order_id']}.pdf",
+                    mime="application/pdf",
+                    key=f"dl_{order['order_id']}"
+                )
 
 def page_profile(u):
     st.title("Your Account")
@@ -1008,6 +1076,7 @@ def render_forecast_engine():
         
         import plotly.graph_objects as go
         import pandas as pd
+from fpdf import FPDF
         
         hist_df = res["historical_data"].copy()
         hist_df['date'] = pd.to_datetime(hist_df['date'])

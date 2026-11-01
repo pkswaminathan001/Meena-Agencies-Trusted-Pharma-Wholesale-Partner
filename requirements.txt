@@ -8,3 +8,4 @@ Pillow>=12.3.0
 numpy>=1.26.4
 
 plotly
+fpdf2
