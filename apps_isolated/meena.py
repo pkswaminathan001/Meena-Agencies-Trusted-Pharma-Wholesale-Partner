@@ -48,7 +48,34 @@ except Exception: TELEGRAM_BOT_TOKEN = ""
 # ═══════════════════════════════════════════════════════
 #  GLOBAL DATABASE INITIALIZER (Fixes Cloud Crashes)
 # ═══════════════════════════════════════════════════════
-def _init_db():
+def _init_db()
+
+def _seed_test_products():
+    """Adds test products to the DB if it's empty."""
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        # Check if products exist
+        cursor = conn.execute("SELECT COUNT(*) FROM products")
+        if cursor.fetchone()[0] == 0:
+            test_products = [
+                ("Dolo 650", 50, 30.0),
+                ("Augmentin 625", 15, 120.0),
+                ("Azithromycin 500", 8, 85.0),
+                ("Pantoprazole 40", 100, 45.0),
+                ("Cetirizine 10", 5, 15.0)
+            ]
+            conn.executemany("INSERT INTO products (sku, qty, price) VALUES (?, ?, ?)", test_products)
+            conn.commit()
+            print("✅ Seeded 5 test products.")
+    except Exception as e:
+        print(f"Seed error: {e}")
+    finally:
+        conn.close()
+
+_seed_test_products()
+
+_seed_test_products():
     db_path = BASE_DIR / "meena_enterprise.db"
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
