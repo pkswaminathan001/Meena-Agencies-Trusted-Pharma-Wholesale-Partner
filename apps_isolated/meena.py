@@ -1039,15 +1039,15 @@ def render_forecast_engine():
                 
                 # Layout Styling
                 fig.update_layout(
-                    title=dict(text="Probabilistic Revenue Forecast (7-Day Horizon)", font=dict(size=18, color='#1C2833')),
+                    title=dict(text="Probabilistic Revenue Forecast (7-Day Horizon)", font=dict(size=18, color='#1C2833'), y=0.95),
                     xaxis_title="Date",
                     yaxis_title="Revenue (₹)",
                     hovermode="x unified",
                     legend=dict(
-                        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                        orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5,
                         bgcolor="white", bordercolor="lightgray", borderwidth=1
                     ),
-                    margin=dict(l=40, r=40, t=80, b=40),
+                    margin=dict(l=40, r=40, t=60, b=80),
                     plot_bgcolor='white',
                     paper_bgcolor='white',
                     font=dict(family="Inter, sans-serif")

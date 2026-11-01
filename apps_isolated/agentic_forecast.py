@@ -46,9 +46,21 @@ def critic_audit_node(p10, p50, p90, signals):
     audit_log = []
     variance_exceeded = False
     MAX_CAPACITY = 15000
+    
+    # Sort the arrays to ensure mathematically P10 < P50 < P90
+    for i in range(len(p90)):
+        if p90[i] < p50[i]:
+            p90[i] = p50[i] * 1.15
+        if p10[i] > p50[i]:
+            p10[i] = p50[i] * 0.85
+            
     if sum(p90) > MAX_CAPACITY:
         audit_log.append(f"🚨 P90 inventory requires ₹{sum(p90):,.0f} - exceeds CAPEX of ₹{MAX_CAPACITY:,.0f}.")
-        p90 = [min(x, MAX_CAPACITY/7) for x in p90]
+        # Scale all three down equally to keep the ratio
+        ratio = MAX_CAPACITY / sum(p90)
+        p90 = [x * ratio for x in p90]
+        p50 = [x * ratio for x in p50]
+        p10 = [x * ratio for x in p10]
         variance_exceeded = True
     if signals["anomaly_detected"]:
         audit_log.append("⚠️ Forecast variance > 15% detected. Manual override suggested.")
