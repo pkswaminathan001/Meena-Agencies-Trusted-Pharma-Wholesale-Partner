@@ -969,7 +969,6 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    # ─── HEADER ───
     st.markdown("<h2 style='margin-bottom:0;'>📈 Revenue Forecast</h2>", unsafe_allow_html=True)
     st.caption("Live 7-day projection powered by AI.")
     
@@ -992,13 +991,11 @@ def render_forecast_engine():
         p90_total = sum(res.get('p90', [0]))
         p10_total = sum(res.get('p10', [0]))
         
-        # Calculate Trend
         hist_df = res["historical_data"]
         recent = hist_df['total'].tail(1).values[0] if not hist_df.empty else 0
         past = hist_df['total'].head(1).values[0] if not hist_df.empty else 1
         trend_pct = ((recent - past) / past) * 100 if past > 0 else 0
         
-        # ─── BIG PRICE TICKER (Mobile First) ───
         st.markdown("---")
         c1, c2 = st.columns(2)
         with c1:
@@ -1009,7 +1006,6 @@ def render_forecast_engine():
         with c2:
             st.markdown(f"<div style='text-align:right; padding-top:15px;'><span style='color:gray;'>Best Case:</span> <b style='color:#1D8348;'>₹{p90_total:,.0f}</b><br><span style='color:gray;'>Worst Case:</span> <b style='color:#C0392B;'>₹{p10_total:,.0f}</b></div>", unsafe_allow_html=True)
         
-        # ─── THE CHART (Mobile Optimized) ───
         import plotly.graph_objects as go
         import pandas as pd
         
@@ -1021,55 +1017,59 @@ def render_forecast_engine():
         
         fig = go.Figure()
         
-        # 1. Shaded Area (Uncertainty Band)
+        # 1. Shaded Area
         fig.add_trace(go.Scatter(
             x=future_dates + future_dates[::-1],
             y=res['p90'] + res['p10'][::-1],
-            fill='toself', fillcolor='rgba(52, 152, 219, 0.15)', 
+            fill='toself', fillcolor='rgba(41, 128, 185, 0.25)',
             line=dict(color='rgba(255,255,255,0)'),
             hoverinfo="skip", showlegend=False
         ))
         
-        # 2. Historical Line (Dark Gray)
+        # 2. Historical Line
         fig.add_trace(go.Scatter(
             x=hist_df['date'], y=hist_df['total'], 
             mode='lines', name='Past Sales', 
-            line=dict(color='#2C3E50', width=2), showlegend=False
+            line=dict(color='#2C3E50', width=3), showlegend=False
         ))
         
-        # 3. P50 Expected Line (Green)
+        # 3. P50 Expected Line
         fig.add_trace(go.Scatter(
             x=future_dates, y=res['p50'], 
             mode='lines+markers', name='Expected', 
-            line=dict(color='#27AE60', width=3),
-            marker=dict(size=6, color='#27AE60'), showlegend=False
+            line=dict(color='#00E676', width=4),
+            marker=dict(size=8, color='#00E676', symbol='circle'), showlegend=False
         ))
         
         # 4. Today Line
-        fig.add_shape(type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper", line=dict(color="gray", width=1, dash="dash"))
+        fig.add_shape(
+            type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper", 
+            line=dict(color="#C0392B", width=2, dash="dash")
+        )
         
-        # 5. Clean Layout for Mobile
+        # 5. Layout
         fig.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
+            margin=dict(l=10, r=10, t=20, b=10),
             xaxis_title="", yaxis_title="",
-            plot_bgcolor='white', paper_bgcolor='white',
-            height=280, # Perfect height for phone
+            plot_bgcolor='#F8F9FA',
+            paper_bgcolor='rgba(0,0,0,0)', 
+            height=300, 
             hovermode="x unified",
             showlegend=False
         )
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0', tickformat="%b %d")
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#E5E7EB', tickformat="%b %d", tickfont=dict(color='#6B7280'))
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#E5E7EB', tickfont=dict(color='#6B7280'))
         
-        # Highlighted Chart Box
+        # Wrap in Premium Card
         st.markdown("""
         <style>
         .chart-card {
             background-color: #ffffff;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            border: 1px solid #e0e0e0;
-            margin-bottom: 20px;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border: 1px solid #d0d7de;
+            margin-bottom: 24px;
         }
         .chart-card h4 {
             margin-top: 0;
@@ -1090,8 +1090,6 @@ def render_forecast_engine():
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        # ─── ACTION SIGNALS ───
         st.markdown("### 📊 Market Signals")
         sigs = res["signals"]
         if sigs.get('flu_season'):
@@ -1104,8 +1102,6 @@ def render_forecast_engine():
             st.info("✅ **Stable:** Business as usual.")
             
         st.markdown("---")
-        
-        # ─── AREA MANAGEMENT ───
         st.markdown("### 📍 Area Management (Thanjavur)")
         area_data = {
             "Zone": ["Thanjavur City", "Kumbakonam", "Papanasam"],
