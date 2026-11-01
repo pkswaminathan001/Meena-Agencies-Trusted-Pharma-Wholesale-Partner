@@ -61,3 +61,14 @@ audit_*.jpg
 !static/manifest.json
 !static/sw.js
 !static/*.png
+
+# ═══ MORE BACKUP PATTERNS ═══
+*.backup_*
+*.BEFORE_*
+requirements-*.backup
+*.backup
+backups/
+.env.before_*
+telegram_config.json
+ai_action_history.json
+ai_permission_queue.json
