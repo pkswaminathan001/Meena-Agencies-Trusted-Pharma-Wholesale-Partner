@@ -482,6 +482,7 @@ def render_sidebar():
         
         if role == "OWNER":
             menu.append(("owner_map", "🗺️ Live Tracking & Owner Tools"))
+            menu.append(("batches", "📦 Batch & Expiry Tracker"))
         
         for key, label in menu:
             if st.button(label, use_container_width=True, type="primary" if st.session_state.get('page') == key else "secondary"):
@@ -1168,17 +1169,34 @@ def _meena_context_snapshot():
 
 
 def _groq_chat(messages, system_prompt, api_key):
-    """Call Groq chat completions. Returns reply string or error message."""
-    import json as _j
+    """Call Groq chat completions. Auto-discovers a working model."""
     import requests as _r
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    # 1. Discover a valid model dynamically from the user's Groq account
+    model_to_use = "llama3-70b-8192" # Fallback
+    try:
+        models_res = _r.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
+        if models_res.status_code == 200:
+            available_models = models_res.json().get("data", [])
+            # Find first active text model (ignore whisper/guard models)
+            for m in available_models:
+                m_id = m.get("id", "")
+                if "whisper" not in m_id and "guard" not in m_id:
+                    model_to_use = m_id
+                    break
+    except Exception:
+        pass # Use fallback if discovery fails
+
+    # 2. Make the chat request
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": model_to_use,
         "messages": [{"role": "system", "content": system_prompt}] + messages,
         "temperature": 0.4,
         "max_tokens": 500,
     }
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
     try:
         r = _r.post(url, headers=headers, json=payload, timeout=30)
         if r.status_code == 200:
@@ -1214,7 +1232,8 @@ Rules:
 - Be concise (under 100 words unless asked for detail).
 - For prices or stock numbers, only quote from the data snapshot above — never invent.
 - If you don't know, say so and suggest the user check the dashboard.
-- Respond in the same language the user wrote (English or Tamil).
+- YOU MUST RESPOND IN ENGLISH OR TAMIL ONLY. NEVER respond in Arabic or any other language.
+- If the user writes in English, reply in English. If they write in Tamil, reply in Tamil.
 """
     
     # Convert prior messages (trim to last 6 for context)
@@ -1266,16 +1285,14 @@ def render_ai_dots(user=None):
     # ─── Chat drawer (only when open) ───
     if st.session_state.ai_dots_open:
         with st.container():
-            st.markdown('<div class="chat-window">', unsafe_allow_html=True)
+            
             st.markdown('<div class="chat-window-header"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
-            st.markdown('<div class="chat-window-body">', unsafe_allow_html=True)
+            
             
             # Render history
             for msg in st.session_state.ai_dots_messages:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
-            
-            st.markdown('</div>', unsafe_allow_html=True)
             
             # Input
             prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
@@ -1353,6 +1370,60 @@ def send_telegram_app_button(chat_id, bot_token=None):
         return False
 
 
+
+def render_batch_tracker():
+    st.title("📦 Batch & Expiry Tracker (FEFO)")
+    st.caption("First-Expiry, First-Out logic for pharmaceutical compliance.")
+    
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists():
+        st.error("Database not found.")
+        return
+        
+    conn = sqlite3.connect(db_path)
+    
+    # Add batch form
+    with st.expander("➕ Add New Batch", expanded=False):
+        with st.form("add_batch"):
+            c1, c2 = st.columns(2)
+            sku = c1.text_input("SKU / Medicine Name")
+            qty = c2.number_input("Quantity", min_value=1, value=100)
+            expiry = st.date_input("Expiry Date")
+            submitted = st.form_submit_button("Save Batch", type="primary")
+            if submitted and sku:
+                import uuid
+                batch_id = f"BATCH-{uuid.uuid4().hex[:6].upper()}"
+                conn.execute(
+                    "INSERT INTO product_batches (batch_id, sku, qty, expiry_date) VALUES (?, ?, ?, ?)",
+                    (batch_id, sku, qty, expiry.strftime("%Y-%m-%d"))
+                )
+                conn.commit()
+                st.success(f"Batch {batch_id} added.")
+                st.rerun()
+
+    # Show expiring batches (FEFO Alert)
+    st.subheader("⚠️ Expiring Soon (Next 90 Days)")
+    try:
+        # Sort by expiry date ascending (FEFO)
+        df = pd.read_sql_query(
+            "SELECT batch_id, sku, qty, expiry_date FROM product_batches WHERE expiry_date <= date('now', '+90 days') ORDER BY expiry_date ASC", 
+            conn
+        )
+        if df.empty:
+            st.success("No batches expiring in the next 90 days.")
+        else:
+            st.dataframe(df, use_container_width=True)
+    except Exception as e:
+        st.info("No batches recorded yet.")
+
+    # Show all batches
+    st.subheader("📋 All Active Batches")
+    df_all = pd.read_sql_query("SELECT * FROM product_batches ORDER BY expiry_date ASC", conn)
+    if not df_all.empty:
+        st.dataframe(df_all, use_container_width=True)
+        
+    conn.close()
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
@@ -1368,6 +1439,7 @@ def main():
         elif st.session_state.page == "owner": page_owner_dashboard(u)
         elif st.session_state.page == "agents": render_agent_hq()
         elif st.session_state.page == "staff": page_owner_staff_monitor(u)
+        elif st.session_state.page == "batches": render_batch_tracker()
         elif st.session_state.page == "order": page_order()
         elif st.session_state.page == "cart": page_cart()
         elif st.session_state.page == "history": page_history(u)
