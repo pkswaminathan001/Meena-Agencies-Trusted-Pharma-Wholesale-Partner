@@ -557,82 +557,74 @@ def page_owner_dashboard(u):
 
 # ─── AI AGENT HQ (Stub for now) ───
 def render_agent_hq():
-    st.title("🤖 AI Agent HQ")
-    st.caption("Live agents. Each runs against your DB, critiques itself, and logs results.")
-
-    # Run-all button
-    c1, c2 = st.columns([1, 3])
+    st.markdown("## 🤖 AI Agent HQ")
+    st.caption("Your automated staff. Click a button to let the AI analyze your business and log the results.")
+    
+    # Top Action Bar
+    c1, c2, c3 = st.columns([1.5, 1.5, 1])
     with c1:
-        if st.button("▶️ Run All Agents", type="primary", use_container_width=True):
-            with st.spinner("Running 4 agents with boss loop..."):
+        if st.button("▶️ Run All Agents Now", type="primary", use_container_width=True):
+            with st.spinner("Agents analyzing your business..."):
                 from apps_isolated.ai_agents import run_all_agents
-                results = run_all_agents(st.session_state.user.get("id"))
-            st.success(f"✅ {len(results)} agents completed")
+                run_all_agents(st.session_state.user.get("id"))
+            st.success("✅ All agents completed successfully!")
             st.rerun()
     with c2:
-        st.caption(f"Last run: {_last_agent_run()}")
+        st.caption(f"**Last scan:** {_last_agent_run()}")
+    
+    st.divider()
 
-    # 4 agent cards in 2x2 grid
     from apps_isolated.ai_agents import (
         run_inventory_agent, run_credit_agent, run_fraud_agent, run_forecast_agent, run_with_boss
     )
+    
     agents = [
-        ("📦 Inventory", "Low stock alerts + reorder quantities", run_inventory_agent),
-        ("💰 Credit", "Retailer outstanding vs limit", run_credit_agent),
-        ("🚨 Fraud", "Unusual order patterns", run_fraud_agent),
-        ("📈 Forecast", "7-day revenue projection", run_forecast_agent),
+        ("📦 Inventory Check", "Scans for low stock and reorder needs", run_inventory_agent, "#3498db"),
+        ("💰 Credit Check", "Reviews retailer outstanding balances", run_credit_agent, "#2ecc71"),
+        ("🚨 Fraud Check", "Analyzes unusual order patterns", run_fraud_agent, "#e74c3c"),
+        ("📈 Revenue Forecast", "Predicts 7-day revenue based on history", run_forecast_agent, "#9b59b6"),
     ]
 
+    # Premium Card Grid (2x2)
     for i in range(0, 4, 2):
         cols = st.columns(2)
         for j, col in enumerate(cols):
             idx = i + j
             if idx >= len(agents):
                 continue
-            emoji_title, desc, fn = agents[idx]
+            title, desc, fn, color = agents[idx]
             with col:
                 with st.container(border=True):
-                    st.markdown(f"### {emoji_title}")
+                    st.markdown(f"<h3 style='color:{color}; margin-bottom:0;'>{title}</h3>", unsafe_allow_html=True)
                     st.caption(desc)
-                    if st.button(f"Run {emoji_title.split()[-1]}", key=f"run_{idx}", use_container_width=True):
-                        with st.spinner("Running with boss loop..."):
+                    if st.button(f"Run {title.split()[1]} Agent", key=f"run_{idx}", use_container_width=True):
+                        with st.spinner("Thinking..."):
                             r = run_with_boss(fn)
-                        status_emoji = "✅" if r["status"] == "passed" else "⚠️"
-                        st.markdown(f"**{status_emoji} {r['status']}** ({r['rounds']} round{'s' if r['rounds'] > 1 else ''})")
-                        for finding in r["final"]["findings"][:5]:
+                        status_emoji = "✅ Passed" if r["status"] == "passed" else "⚠️ Warning"
+                        st.success(f"**{status_emoji}**")
+                        st.write(r["final"]["summary"])
+                        for finding in r["final"]["findings"][:3]:
                             st.markdown(f"- {finding}")
-                        st.caption(f"_{r['final']['summary']}_")
 
-    # History log
     st.divider()
     st.subheader("📜 Recent Agent Runs")
     conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
     try:
-        # Ensure table exists before reading
-        conn.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
-        conn.commit()
-        
-        df = pd.read_sql_query("SELECT * FROM agent_activity ORDER BY id DESC LIMIT 20", conn)
+        df = pd.read_sql_query("SELECT * FROM agent_activity ORDER BY id DESC LIMIT 15", conn)
         conn.close()
         if df.empty:
-            st.info("No agent runs yet. Click 'Run All Agents' to start.")
+            st.info("No agent runs yet. Click 'Run All Agents Now' to start.")
         else:
-            df_display = df[["agent", "verdict", "rounds", "summary", "timestamp"]]
-            st.dataframe(df_display, use_container_width=True)
-    except Exception as e:
-        conn.close()
-        st.info(f"No agent runs yet. (Details: {e})")
-
-
-def _last_agent_run():
-    conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
-    try:
-        row = conn.execute("SELECT timestamp FROM agent_activity ORDER BY id DESC LIMIT 1").fetchone()
-        conn.close()
-        return row[0] if row else "never"
+            df_display = df[["agent", "verdict", "summary", "timestamp"]].copy()
+            df_display.columns = ["Agent", "Status", "What the AI Found", "Time"]
+            df_display["Agent"] = df_display["Agent"].str.title()
+            df_display["Status"] = df_display["Status"].str.title()
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
     except Exception:
         conn.close()
-        return "never"
+        st.info("No agent runs yet.")
+
+
 # ─── REP DASHBOARD (Consent-Based Check-in/out) ───
 
 # ═══════════════════════════════════════════════════════
