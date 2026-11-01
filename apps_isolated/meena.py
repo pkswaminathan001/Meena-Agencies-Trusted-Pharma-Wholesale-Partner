@@ -1031,6 +1031,28 @@ def page_owner_staff_monitor(u):
     df_display = df[['rep_id', 'action', 'timestamp', 'retailer_id', 'notes']].head(30)
     st.dataframe(df_display, use_container_width=True)
 
+
+def render_telegram_launcher(user=None):
+    """Render Telegram launch button in the sidebar."""
+    app_url = get_app_url()
+    with st.sidebar:
+        st.divider()
+        st.markdown("#### 📱 Open as App")
+        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" '
+                    f'style="display:inline-block;padding:8px 14px;background:#FFD814;'
+                    f'color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;'
+                    f'width:100%;text-align:center;">🚀 Launch PWA</a>',
+                    unsafe_allow_html=True)
+        if "localhost" in app_url or not app_url.startswith("https://"):
+            st.caption("⚠️ Set APP_URL in secrets for production")
+
+def get_app_url():
+    try:
+        url = st.secrets.get("APP_URL", "")
+    except Exception:
+        url = ""
+    return url or "https://meena-agencies-wholesale-pharma.streamlit.app"
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
