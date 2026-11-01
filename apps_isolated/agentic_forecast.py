@@ -90,3 +90,41 @@ def run_agentic_forecast():
         "audit_log": audit_log,
         "variance_exceeded": variance_exceeded
     }
+
+def generate_business_summary(df, signals, p50):
+    """Acts as the AI Agent Analyst, translating math into plain English."""
+    
+    # Calculate 30-day trend
+    recent_avg = df['total'].tail(7).mean()
+    past_avg = df['total'].head(7).mean()
+    trend_pct = ((recent_avg - past_avg) / past_avg) * 100 if past_avg > 0 else 0
+    
+    summary = []
+    status_color = "🟢"
+    
+    # Trend Analysis
+    if trend_pct > 5:
+        summary.append(f"📈 **Sales Trend:** Growing strongly (+{trend_pct:.1f}% over 30 days).")
+    elif trend_pct < -5:
+        summary.append(f"📉 **Sales Trend:** Declining ({trend_pct:.1f}% over 30 days). Action needed.")
+        status_color = "🟡"
+    else:
+        summary.append(f"➡️ **Sales Trend:** Stable (Flat over 30 days).")
+        
+    # Signal Analysis
+    if signals.get("flu_season"):
+        summary.append("🦠 **Market Signal:** Flu season detected. Expect a 15% surge in antibiotics and cough syrups. **Action:** Increase stock immediately.")
+        status_color = "🟡"
+        
+    if signals.get("generic_launch_detected"):
+        summary.append("💊 **Market Signal:** Generic competitor launched. Brand medicine sales may drop 20%. **Action:** Discount current brand stock to clear it.")
+        status_color = "🔴"
+        
+    if signals.get("gpo_contract_tier_change"):
+        summary.append("📄 **Contract Alert:** GPO volume tier change approaching. **Action:** Push sales to hit the next rebate tier.")
+        
+    # Forecast Analysis
+    proj_7d = sum(p50)
+    summary.append(f"💰 **7-Day Forecast:** Expect ₹{proj_7d:,.0f} in revenue based on current trends.")
+    
+    return summary, status_color

@@ -20,7 +20,7 @@ except ImportError:
 
 import pandas as pd
 import plotly.graph_objects as go
-from apps_isolated.agentic_forecast import run_agentic_forecast
+from apps_isolated.agentic_forecast import run_agentic_forecast, generate_business_summary
 
 import html as _html_module
 
@@ -1445,18 +1445,33 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    st.title("🏭 SCOT: Supply Chain Optimization Engine")
-    st.caption("Management by Exception. Probabilistic quantile forecasting.")
+    st.title("🏭 SCOT: Supply Chain Optimization")
+    st.caption("Management by Exception. AI analyzes the data and tells you what to do.")
     
-    if st.button("🔄 Run SCOT Forecast", type="primary", use_container_width=True):
-        with st.spinner("Sensing market signals and routing models..."):
+    if st.button("🔄 Run SCOT Analysis", type="primary", use_container_width=True):
+        with st.spinner("Analyzing 10 years of trends and market signals..."):
             import time
             time.sleep(1.5)
             result = run_agentic_forecast()
+            # Generate the plain-English summary
+            summary, status = generate_business_summary(
+                result["historical_data"], result["signals"], result["p50"]
+            )
+            result["business_summary"] = summary
+            result["status_color"] = status
             st.session_state.scot_result = result
     
     if "scot_result" in st.session_state:
         res = st.session_state.scot_result
+        st.divider()
+        
+        # ─── THE AI ANALYST (Plain English) ───
+        st.subheader(f"{res['status_color']} AI Business Analyst Summary")
+        
+        for point in res["business_summary"]:
+            st.markdown(point)
+            st.write("") # Spacing
+            
         st.divider()
         
         # ─── EXCEPTION DASHBOARD ───
@@ -1469,78 +1484,45 @@ def render_forecast_engine():
             st.success("✅ No critical exceptions. All metrics within safe thresholds.")
             st.write(f"- Model used: {res['model_used']}")
             
-        st.divider()
-        
-        # ─── THE SCOT CHART (P10, P50, P90) ───
-        st.subheader("📊 Probabilistic Forecast (90-Day Horizon)")
-        
-        import pandas as pd
-        import plotly.graph_objects as go
-        
-        hist_df = res["historical_data"]
-        last_date = pd.to_datetime(hist_df['date'].iloc[-1])
-        future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
-        
-        fig = go.Figure()
-        
-        # 1. Historical Actuals (Black line)
-        fig.add_trace(go.Scatter(
-            x=hist_df['date'], y=hist_df['total'],
-            mode='lines', name='Historical Actuals',
-            line=dict(color='#1C2833', width=2)
-        ))
-        
-        # 2. P90 Upper Bound (Optimistic)
-        fig.add_trace(go.Scatter(
-            x=future_dates, y=res['p90'],
-            mode='lines', name='P90 (Optimistic)',
-            line=dict(color='#2E86C1', width=1, dash='dot')
-        ))
-        
-        # 3. P50 Median (Base Case)
-        fig.add_trace(go.Scatter(
-            x=future_dates, y=res['p50'],
-            mode='lines', name='P50 (Base Case)',
-            line=dict(color='#1D8348', width=3)
-        ))
-        
-        # 4. P10 Lower Bound (Pessimistic)
-        fig.add_trace(go.Scatter(
-            x=future_dates, y=res['p10'],
-            mode='lines', name='P10 (Pessimistic)',
-            line=dict(color='#C0392B', width=1, dash='dot')
-        ))
-        
-        # Add shaded area between P10 and P90
-        fig.add_trace(go.Scatter(
-            x=future_dates + future_dates[::-1],
-            y=res['p90'] + res['p10'][::-1],
-            fill='toself',
-            fillcolor='rgba(46, 134, 193, 0.15)',
-            line=dict(color='rgba(255,255,255,0)'),
-            name='Uncertainty Band'
-        ))
-        
-        fig.update_layout(
-            title="Historical vs Probabilistic Forecast",
-            xaxis_title="Date",
-            yaxis_title="Revenue (₹)",
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(l=20, r=20, t=40, b=20),
-            plot_bgcolor='white',
-            paper_bgcolor='white'
-        )
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED')
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#EAEDED')
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # ─── P50 SUMMARY CARDS ───
+        # ─── SIMPLE METRIC CARDS ───
+        st.subheader("💰 Forecasted Revenue")
         c1, c2, c3 = st.columns(3)
-        c1.metric("P10 (Worst Case)", f"₹{sum(res['p10']):,.0f}")
-        c2.metric("P50 (Most Likely)", f"₹{sum(res['p50']):,.0f}")
-        c3.metric("P90 (Best Case)", f"₹{sum(res['p90']):,.0f}")
+        c1.metric("Worst Case (P10)", f"₹{sum(res['p10']):,.0f}")
+        c2.metric("Most Likely (P50)", f"₹{sum(res['p50']):,.0f}")
+        c3.metric("Best Case (P90)", f"₹{sum(res['p90']):,.0f}")
+        
+        # ─── HIDDEN CHART (Only for data nerds) ───
+        with st.expander("🔍 View Data Trends (Advanced)"):
+            import pandas as pd
+            import plotly.graph_objects as go
+            
+            hist_df = res["historical_data"]
+            last_date = pd.to_datetime(hist_df['date'].iloc[-1])
+            future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+            
+            fig = go.Figure()
+            
+            # Historical Actuals
+            fig.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['total'], mode='lines', name='Historical Actuals', line=dict(color='#1C2833', width=2)))
+            # P90 Upper
+            fig.add_trace(go.Scatter(x=future_dates, y=res['p90'], mode='lines', name='P90 (Best Case)', line=dict(color='#2E86C1', width=1, dash='dot')))
+            # P50 Base
+            fig.add_trace(go.Scatter(x=future_dates, y=res['p50'], mode='lines', name='P50 (Likely)', line=dict(color='#1D8348', width=3)))
+            # P10 Lower
+            fig.add_trace(go.Scatter(x=future_dates, y=res['p10'], mode='lines', name='P10 (Worst Case)', line=dict(color='#C0392B', width=1, dash='dot')))
+            
+            # Uncertainty Band
+            fig.add_trace(go.Scatter(x=future_dates + future_dates[::-1], y=res['p90'] + res['p10'][::-1], fill='toself', fillcolor='rgba(46, 134, 193, 0.15)', line=dict(color='rgba(255,255,255,0)'), name='Uncertainty Band'))
+            
+            fig.update_layout(
+                title="Probabilistic Forecast",
+                xaxis_title="Date", yaxis_title="Revenue (₹)",
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                margin=dict(l=20, r=20, t=40, b=20),
+                plot_bgcolor='white', paper_bgcolor='white'
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 def main():
     if "user" not in st.session_state:
