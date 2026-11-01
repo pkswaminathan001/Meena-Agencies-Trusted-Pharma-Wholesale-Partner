@@ -12,6 +12,7 @@ def _get_db():
     # Auto-create tables if they don't exist (fixes fresh cloud deploy)
     conn.execute("CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, qty INTEGER, price REAL)")
     conn.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT PRIMARY KEY, user_id TEXT, date TEXT, total REAL, items TEXT, status TEXT)")
+    conn.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS rep_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, rep_id TEXT, action TEXT, timestamp TEXT, latitude REAL, longitude REAL, retailer_id TEXT, notes TEXT)")
     return conn
 
@@ -88,12 +89,29 @@ def run_forecast_agent():
         conn.close()
 
 def run_with_boss(agent_fn):
-    """Runs the agent (simplified for stability)."""
+    """Runs the agent and logs the result to the database."""
+    import time
+    agent_name = agent_fn.__name__.replace("run_", "").replace("_agent", "")
     try:
         result = agent_fn()
-        return {"status": "passed", "rounds": 1, "final": result}
+        status = "passed"
     except Exception as e:
-        return {"status": "failed", "rounds": 1, "final": {"summary": f"Error: {e}", "findings": []}}
+        result = {"summary": f"Error: {e}", "findings": []}
+        status = "failed"
+        
+    # Save to database
+    try:
+        conn = _get_db()
+        conn.execute(
+            "INSERT INTO agent_activity (agent, verdict, rounds, summary, timestamp) VALUES (?, ?, ?, ?, ?)",
+            (agent_name, status, 1, result.get("summary", ""), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+        
+    return {"status": status, "rounds": 1, "final": result}
 
 def run_all_agents(user_id):
     agents = [

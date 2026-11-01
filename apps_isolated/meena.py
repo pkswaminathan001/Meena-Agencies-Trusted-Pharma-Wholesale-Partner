@@ -608,6 +608,10 @@ def render_agent_hq():
     st.subheader("📜 Recent Agent Runs")
     conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
     try:
+        # Ensure table exists before reading
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
+        conn.commit()
+        
         df = pd.read_sql_query("SELECT * FROM agent_activity ORDER BY id DESC LIMIT 20", conn)
         conn.close()
         if df.empty:
@@ -615,9 +619,9 @@ def render_agent_hq():
         else:
             df_display = df[["agent", "verdict", "rounds", "summary", "timestamp"]]
             st.dataframe(df_display, use_container_width=True)
-    except Exception:
+    except Exception as e:
         conn.close()
-        st.info("No agent runs yet.")
+        st.info(f"No agent runs yet. (Details: {e})")
 
 
 def _last_agent_run():
