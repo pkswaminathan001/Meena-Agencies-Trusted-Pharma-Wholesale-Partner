@@ -44,6 +44,28 @@ except Exception:
 try: TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 except Exception: TELEGRAM_BOT_TOKEN = ""
 
+
+# ═══════════════════════════════════════════════════════
+#  GLOBAL DATABASE INITIALIZER (Fixes Cloud Crashes)
+# ═══════════════════════════════════════════════════════
+def _init_db():
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    # Core tables
+    c.execute("CREATE TABLE IF NOT EXISTS products (sku TEXT PRIMARY KEY, qty INTEGER, price REAL)")
+    c.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT PRIMARY KEY, user_id TEXT, date TEXT, total REAL, items TEXT, status TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS rep_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, rep_id TEXT, action TEXT, timestamp TEXT, latitude REAL, longitude REAL, retailer_id TEXT, notes TEXT)")
+    # Batch & Expiry table
+    c.execute("CREATE TABLE IF NOT EXISTS product_batches (batch_id TEXT PRIMARY KEY, sku TEXT, qty INTEGER, expiry_date DATE, mfg_date DATE)")
+    # Agent Activity table
+    c.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
+    conn.commit()
+    conn.close()
+
+_init_db()
+# ═══════════════════════════════════════════════════════
+
 st.set_page_config(page_title="Meena Agencies", page_icon="🦚", layout="wide")
 
 # ─── PWA: Manifest + Service Worker injection ───
