@@ -384,6 +384,19 @@ def page_order():
     if view.empty: st.warning("No results found."); return
     product_grid(view)
 
+
+def send_telegram_otp(chat_id, otp):
+    try:
+        import requests
+        TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
+        if not TOKEN or not chat_id:
+            return False
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        res = requests.post(url, json={"chat_id": chat_id, "text": f"🦚 Meena Agencies\n\nYour order verification OTP is: *{otp}*\n\nDo not share this code with anyone.", "parse_mode": "Markdown"})
+        return res.status_code == 200
+    except Exception:
+        return False
+
 def page_cart():
     st.title("🛍️ Shopping Cart")
     if not st.session_state.cart:
@@ -411,16 +424,42 @@ def page_cart():
             st.markdown(f"### Discount: -₹{discount:,.2f}")
             st.markdown(f"## Final Total: ₹{final_total:,.2f}")
         if st.button("💳 Proceed to Checkout", type="primary", use_container_width=True):
-            st.session_state.show_otp_input = True; st.rerun()
+            # Generate a random 6-digit OTP
+            import random
+            otp = str(random.randint(100000, 999999))
+            st.session_state.current_otp = otp
+            
+            # Get the user's telegram chat_id
+            user_chat_id = st.session_state.user.get("telegram_chat_id", "")
+            
+            # Send to Telegram
+            if user_chat_id:
+                sent = send_telegram_otp(user_chat_id, otp)
+                if sent:
+                    st.success(f"✅ OTP sent to your Telegram!")
+                else:
+                    st.error("⚠️ Could not send OTP. Check your bot token or chat ID.")
+            else:
+                st.warning("⚠️ No Telegram Chat ID linked to your account. Using PIN fallback.")
+                
+            # For local testing ONLY (shows OTP on screen)
+            st.info(f"🔑 TEST MODE OTP: {otp}")
+            
+            st.session_state.show_otp_input = True
+            st.rerun()
     if st.session_state.show_otp_input:
         st.subheader("Verify & Place Order")
         input_otp = st.text_input("Enter 6-digit OTP", max_chars=6)
         otp_valid = len(input_otp.strip()) == 6 and input_otp.strip().isdigit()
         if st.button("Verify & Place Order", type="primary", use_container_width=True, disabled=not otp_valid):
-            saved = save_order_history(st.session_state.user.get("id"), st.session_state.cart, final_total)
-            st.success(f"🎉 Order {saved['order_id']} placed!")
-            st.session_state.cart = []; st.session_state.show_otp_input = False
-            st.balloons(); time.sleep(2); go_to("home"); st.rerun()
+            # Verify OTP matches
+            if input_otp.strip() == st.session_state.get("current_otp", "NONE"):
+                saved = save_order_history(st.session_state.user.get("id"), st.session_state.cart, final_total)
+                st.success(f"🎉 Order {saved['order_id']} placed!")
+                st.session_state.cart = []; st.session_state.show_otp_input = False
+                st.balloons(); time.sleep(2); go_to("home"); st.rerun()
+            else:
+                st.error("❌ Invalid OTP. Please check your Telegram.")
         with st.expander("🔑 Use PIN instead of OTP"):
             fallback_pin = st.text_input("4-digit PIN", type="password", max_chars=4)
             if st.button("Verify PIN & Place Order", use_container_width=True, disabled=(len(fallback_pin) != 4)):
