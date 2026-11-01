@@ -386,7 +386,7 @@ def page_order():
 
 
 def send_telegram_otp(chat_id, otp):
-    """Sends OTP via Telegram and prints errors to screen."""
+    """Sends OTP via Telegram. Returns True if successful."""
     import requests
     try:
         TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
@@ -395,13 +395,13 @@ def send_telegram_otp(chat_id, otp):
         return False
         
     if not chat_id or str(chat_id).strip() == "":
-        st.error(f"❌ No Telegram Chat ID found. Got: '{chat_id}'")
+        st.error(f"❌ No Telegram Chat ID found for this user. Got: '{chat_id}'")
         return False
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
         "chat_id": str(chat_id).strip(),
-        "text": f"🦚 *Meena Agencies*\n\nYour OTP for checkout is: *{otp}*",
+        "text": f"🦚 *Meena Agencies*\n\nYour order verification OTP is: *{otp}*\n\nDo not share this code with anyone.",
         "parse_mode": "Markdown"
     }
     
