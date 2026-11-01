@@ -440,8 +440,8 @@ def generate_invoice_pdf(order_id, date, total, items, user_shop):
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(80, 10, "Medicine Description", border=1, fill=True)
     pdf.cell(20, 10, "Qty", border=1, fill=True, align='C')
-    pdf.cell(30, 10, "Price (₹)", border=1, fill=True, align='R')
-    pdf.cell(30, 10, "Total (₹)", border=1, fill=True, align='R')
+    pdf.cell(30, 10, "Price (Rs.)", border=1, fill=True, align='R')
+    pdf.cell(30, 10, "Total (Rs.)", border=1, fill=True, align='R')
     pdf.ln()
     
     # Table Rows
