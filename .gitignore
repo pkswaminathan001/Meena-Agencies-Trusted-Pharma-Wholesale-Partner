@@ -1,68 +1,63 @@
-venv/
-.venv/
-.venv.*/
-env/
-__pycache__/
-*.py[cod]
-*$py.class
-build/
-dist/
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
+# ═══ SECRETS — NEVER COMMIT ═══
 .env
-.env.*
-.env.bak_*
-.env.bak*
-.env.backup*
-*.env
-!.env.example
+.env.local
+.env.*.local
 .streamlit/secrets.toml
-.streamlit/secrets.toml.*
-secrets.toml
-*.key
-*.pem
-*.token
-telegram_config.json
-app_secrets.toml
+**/secrets.toml
 
-*.bak
-*.bak_*
-*.bak.*
-*.backup
-*.backup_*
-*.old
-*.orig
-*.rej
-*.save
-*.save.*
-*.ORPHAN_*
-.backup/
-backups/
-*~
-*.swp
-meena.py.WAS_*
-meena.py.BEFORE_*
-
+# ═══ DATABASES ═══
 *.db
 *.sqlite
 *.sqlite3
+meena_enterprise.db
+
+# ═══ USER DATA — Contains PIN hashes ═══
+retailers.json
+**/retailers.json
+flash_offers.json
+**/flash_offers.json
 sales_rep_locations.json
 assignments.json
-agent_activity.json
-ai_action_history.json
-ai_permission_queue.json
 
-.vscode/
-.idea/
-*.code-workspace
+# ═══ BACKUPS ═══
+*.bak
+*.bak_*
+*.broken
+*.broken2
+*.demo_working_*
+pre_launch_backup/
+*_backup/
 
+# ═══ PYTHON ═══
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+.venv-audit/
+env/
+ENV/
+
+# ═══ TOOLS ═══
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .DS_Store
-Thumbs.db
-*.log
 
-.streamlit/
-!.streamlit/config.toml
+# ═══ LOGS ═══
+*.log
+logs/
+
+# ═══ REPORTS ═══
+audit_*.png
+audit_*.jpg
+
+# ═══ ALLOW PWA FILES (must be public) ═══
+!apps_isolated/static/manifest.json
+!apps_isolated/static/sw.js
+!apps_isolated/static/*.png
+!static/manifest.json
+!static/sw.js
+!static/*.png
