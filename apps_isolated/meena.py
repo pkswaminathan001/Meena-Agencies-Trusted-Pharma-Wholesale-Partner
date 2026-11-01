@@ -1343,6 +1343,12 @@ def main():
     # ─── INITIALIZE SESSION STATE SAFELY ───
     if "cart" not in st.session_state:
         st.session_state.cart = []
+    if "show_otp_input" not in st.session_state:
+        st.session_state.show_otp_input = False
+    if "ai_dots_open" not in st.session_state:
+        st.session_state.ai_dots_open = False
+    if "ai_dots_messages" not in st.session_state:
+        st.session_state.ai_dots_messages = [{"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI."}]
     if "page" not in st.session_state:
         st.session_state.page = "home"
 
