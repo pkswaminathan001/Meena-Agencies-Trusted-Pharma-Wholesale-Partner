@@ -1172,12 +1172,28 @@ from fpdf import FPDF
             
         st.markdown("---")
         st.markdown("### 📍 Area Management (Thanjavur)")
-        area_data = {
-            "Zone": ["Thanjavur City", "Kumbakonam", "Papanasam"],
-            "Demand": ["High 🟢", "Medium 🟡", "Low 🔴"],
-            "Action": ["Dispatch 2 Vans", "Dispatch 1 Van", "Hold Stock"]
-        }
-        st.dataframe(pd.DataFrame(area_data), use_container_width=True, hide_index=True)
+        st.caption("Live dispatch schedule based on demand forecast.")
+        
+        zones = [
+            {"name": "Thanjavur City", "demand": "High 🟢", "action": "Dispatch 2 Vans", "color": "#D4EFDF"},
+            {"name": "Kumbakonam", "demand": "Medium 🟡", "action": "Dispatch 1 Van", "color": "#FCF3CF"},
+            {"name": "Papanasam", "demand": "Low 🔴", "action": "Hold Stock", "color": "#FADBD8"},
+        ]
+        
+        for z in zones:
+            st.markdown(f"""
+            <div style='background-color:{z["color"]}; padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.05);'>
+                <div style='display:flex; justify-content:space-between; align-items:center;'>
+                    <div>
+                        <b style='font-size:15px; color:#1C2833;'>{z["name"]}</b><br>
+                        <span style='font-size:12px; color:#555;'>Demand: {z["demand"]}</span>
+                    </div>
+                    <div style='text-align:right;'>
+                        <b style='font-size:14px; color:#1C2833;'>{z["action"]}</b>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def main():
     if "user" not in st.session_state:
