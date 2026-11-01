@@ -954,6 +954,120 @@ def verify_assignment(rep_id, retailer_id):
         "last_gps_ts": ts,
     }
 
+
+def render_batch_tracker():
+    st.title("📦 Batch & Expiry Tracker (FEFO)")
+    st.caption("First-Expiry, First-Out logic for pharmaceutical compliance.")
+    
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    
+    with st.expander("➕ Add New Batch", expanded=False):
+        with st.form("add_batch"):
+            c1, c2 = st.columns(2)
+            sku = c1.text_input("SKU / Medicine Name")
+            qty = c2.number_input("Quantity", min_value=1, value=100)
+            expiry = st.date_input("Expiry Date")
+            submitted = st.form_submit_button("Save Batch", type="primary")
+            if submitted and sku:
+                import uuid
+                batch_id = f"BATCH-{uuid.uuid4().hex[:6].upper()}"
+                conn.execute(
+                    "INSERT INTO product_batches (batch_id, sku, qty, expiry_date) VALUES (?, ?, ?, ?)",
+                    (batch_id, sku, qty, expiry.strftime("%Y-%m-%d"))
+                )
+                conn.commit()
+                st.success(f"Batch {batch_id} added.")
+                st.rerun()
+
+    st.subheader("⚠️ Expiring Soon (Next 90 Days)")
+    try:
+        df = pd.read_sql_query(
+            "SELECT batch_id, sku, qty, expiry_date FROM product_batches WHERE expiry_date <= date('now', '+90 days') ORDER BY expiry_date ASC", 
+            conn
+        )
+        if df.empty:
+            st.success("No batches expiring in the next 90 days.")
+        else:
+            st.dataframe(df, use_container_width=True)
+    except Exception:
+        st.info("No batches recorded yet.")
+
+    st.subheader("📋 All Active Batches")
+    try:
+        df_all = pd.read_sql_query("SELECT * FROM product_batches ORDER BY expiry_date ASC", conn)
+        if not df_all.empty:
+            st.dataframe(df_all, use_container_width=True)
+        else:
+            st.info("No batches recorded yet.")
+    except Exception:
+        st.info("No batches recorded yet.")
+        
+    conn.close()
+
+
+def render_forecast_engine():
+    st.title("📈 Agentic Forecast")
+    st.caption("AI-powered projections for the next 7 days.")
+    
+    if st.button("🔄 Run SCOT Analysis", type="primary", use_container_width=True):
+        with st.spinner("Analyzing trends and market signals..."):
+            import time
+            time.sleep(1.5)
+            result = run_agentic_forecast()
+            summary, status = generate_business_summary(
+                result["historical_data"], result["signals"], result["p50"]
+            )
+            result["business_summary"] = summary
+            result["status_color"] = status
+            st.session_state.scot_result = result
+    
+    if "scot_result" in st.session_state:
+        res = st.session_state.scot_result
+        st.divider()
+        
+        status_display = res.get("status_color", "ℹ️")
+        st.subheader(f"{status_display} AI Business Analyst Summary")
+        
+        for point in res.get("business_summary", ["No summary generated. Please run again."]):
+            st.markdown(point)
+            st.write("")
+            
+        st.divider()
+        st.subheader("🚨 Exception Management Dashboard")
+        if res.get("variance_exceeded"):
+            st.error("**VARIANCE EXCEPTION DETECTED:** AI flags this SKU for human audit.")
+            for log in res.get("audit_log", []):
+                st.write(f"- {log}")
+        else:
+            st.success("✅ No critical exceptions. All metrics within safe thresholds.")
+            st.write(f"- Model used: {res.get('model_used', 'Unknown')}")
+            
+        st.subheader("💰 Forecasted Revenue")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Worst Case (P10)", f"₹{sum(res.get('p10', [0])):,.0f}")
+        c2.metric("Most Likely (P50)", f"₹{sum(res.get('p50', [0])):,.0f}")
+        c3.metric("Best Case (P90)", f"₹{sum(res.get('p90', [0])):,.0f}")
+        
+        with st.expander("🔍 View Data Trends (Advanced)"):
+            try:
+                import plotly.graph_objects as go
+                hist_df = res["historical_data"]
+                last_date = pd.to_datetime(hist_df['date'].iloc[-1])
+                future_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['total'], mode='lines', name='Historical Actuals', line=dict(color='#1C2833', width=2)))
+                fig.add_trace(go.Scatter(x=future_dates, y=res['p90'], mode='lines', name='P90 (Best Case)', line=dict(color='#2E86C1', width=1, dash='dot')))
+                fig.add_trace(go.Scatter(x=future_dates, y=res['p50'], mode='lines', name='P50 (Likely)', line=dict(color='#1D8348', width=3)))
+                fig.add_trace(go.Scatter(x=future_dates, y=res['p10'], mode='lines', name='P10 (Worst Case)', line=dict(color='#C0392B', width=1, dash='dot')))
+                fig.add_trace(go.Scatter(x=future_dates + future_dates[::-1], y=res['p90'] + res['p10'][::-1], fill='toself', fillcolor='rgba(46, 134, 193, 0.15)', line=dict(color='rgba(255,255,255,0)'), name='Uncertainty Band'))
+                
+                fig.update_layout(title="Probabilistic Forecast", xaxis_title="Date", yaxis_title="Revenue (₹)", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), margin=dict(l=20, r=20, t=40, b=20), plot_bgcolor='white', paper_bgcolor='white')
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.warning(f"Chart error: {e}")
+
 def page_owner_staff_monitor(u):
     st.title("👥 Staff Monitor & Live Tracking")
     st.caption("Live view of all sales reps' activity across Tamil Nadu")
