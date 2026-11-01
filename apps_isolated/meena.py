@@ -556,6 +556,18 @@ def page_owner_dashboard(u):
                     st.error("Order Rejected!"); time.sleep(1); st.rerun()
 
 # ─── AI AGENT HQ (Stub for now) ───
+
+def _last_agent_run():
+    conn = sqlite3.connect(BASE_DIR / "meena_enterprise.db")
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_activity (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, verdict TEXT, rounds INTEGER, summary TEXT, timestamp TEXT)")
+        row = conn.execute("SELECT timestamp FROM agent_activity ORDER BY id DESC LIMIT 1").fetchone()
+        conn.close()
+        return row[0] if row else "Never"
+    except Exception:
+        conn.close()
+        return "Never"
+
 def render_agent_hq():
     st.markdown("## 🤖 AI Agent HQ")
     st.caption("Your automated staff. Click a button to let the AI analyze your business and log the results.")
