@@ -96,8 +96,17 @@ def run_with_boss(agent_fn):
         return {"status": "failed", "rounds": 1, "final": {"summary": f"Error: {e}", "findings": []}}
 
 def run_all_agents(user_id):
-    agents = [run_inventory_agent, run_credit_agent, run_fraud_agent, run_forecast_agent]
-    results = []
-    for fn in agents:
-        results.append(run_with_boss(fn))
+    agents = [
+        ("inventory", run_inventory_agent),
+        ("credit", run_credit_agent),
+        ("fraud", run_fraud_agent),
+        ("forecast", run_forecast_agent)
+    ]
+    results = {}
+    for name, fn in agents:
+        try:
+            res = run_with_boss(fn)
+            results[name] = res
+        except Exception as e:
+            results[name] = {"status": "failed", "rounds": 1, "final": {"summary": f"Error: {e}", "findings": []}}
     return results
