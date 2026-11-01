@@ -347,6 +347,25 @@ def product_grid(view):
                         st.session_state.cart.append({"name": name, "price": price, "qty": 1})
                         st.toast(f"✅ Added {name}"); st.rerun()
 
+
+def load_inventory():
+    db_path = BASE_DIR / "meena_enterprise.db"
+    if not db_path.exists(): return pd.DataFrame()
+    try:
+        conn = sqlite3.connect(db_path)
+        # Check if products table exists
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products';")
+        if not cursor.fetchone():
+            conn.close()
+            return pd.DataFrame()
+            
+        df = pd.read_sql_query("SELECT sku as name, price, qty as stock FROM products LIMIT 100", conn)
+        conn.close()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
 def page_order():
     cart_count = len(st.session_state.cart)
     if cart_count > 0:
