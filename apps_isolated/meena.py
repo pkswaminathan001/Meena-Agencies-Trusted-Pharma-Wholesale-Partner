@@ -141,6 +141,49 @@ def save_order_history(user_id, cart, total):
     conn.close()
     return {"order_id": order_id}
 
+
+def get_app_url():
+    try:
+        url = st.secrets.get("APP_URL", "")
+    except Exception:
+        url = ""
+    return url or "https://meena-agencies-wholesale-pharma.streamlit.app"
+
+def render_telegram_launcher(user=None):
+    app_url = get_app_url()
+    with st.sidebar:
+        st.divider()
+        st.markdown("#### 📱 Open as App")
+        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 14px;background:#FFD814;color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;width:100%;text-align:center;">🚀 Launch PWA</a>', unsafe_allow_html=True)
+
+def render_ai_dots(user=None):
+    if "ai_dots_open" not in st.session_state:
+        st.session_state.ai_dots_open = False
+    if "ai_dots_messages" not in st.session_state:
+        st.session_state.ai_dots_messages = [{"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI."}]
+    
+    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
+    if st.button(btn_label, key="ai_dots_btn", type="primary"):
+        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
+        st.rerun()
+    
+    if st.session_state.ai_dots_open:
+        st.markdown("### 🤖 Meena AI")
+        for msg in st.session_state.ai_dots_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+        prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
+        if prompt:
+            st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
+            with st.spinner("Thinking..."):
+                reply = groq_ask(prompt, user)
+            st.session_state.ai_dots_messages.append({"role": "assistant", "content": reply})
+            st.rerun()
+
+# ═══════════════════════════════════════════════════════════
+#  CORE APP FUNCTIONS (Do not delete)
+# ═══════════════════════════════════════════════════════════
+
 def login_screen():
     st.markdown("""<style>.block-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding-top: 5vh !important; max-width: 100% !important; } div[data-testid="stForm"] { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; } div[data-testid="stVerticalBlockBorderWrapper"] { width: 100% !important; max-width: 400px !important; margin: 0 auto !important; }</style>""", unsafe_allow_html=True)
     st.markdown("""<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 3rem; margin-bottom: 0;">🦚</h1><h2 style="margin-top: 0; color: #0F1111;">Meena Agencies</h2><p style="color: #565959; font-size: 14px;">Trusted Pharma Wholesale Partner</p></div>""", unsafe_allow_html=True)
