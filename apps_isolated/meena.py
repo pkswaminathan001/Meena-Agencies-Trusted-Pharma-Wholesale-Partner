@@ -111,6 +111,9 @@ def _record_successful_login():
     st.session_state.login_lockout_until = 0
 
 
+def go_to(page_name):
+    st.session_state.page = page_name
+
 def load_retailers():
     # 1. Try to load from Streamlit Cloud Secrets (Production)
     try:
@@ -1079,6 +1082,61 @@ def get_app_url():
     except Exception:
         url = ""
     return url or "https://meena-agencies-wholesale-pharma.streamlit.app"
+
+
+def groq_ask(prompt, user=None):
+    """Ask Meena AI a question using Groq with live data."""
+    import requests as _r
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    try:
+        api_key = st.secrets.get("GROQ_API_KEY", api_key)
+    except Exception:
+        pass
+    
+    if not api_key:
+        return "🔑 GROQ_API_KEY not set in secrets."
+    
+    role = (user or {}).get("role", "retailer").lower() if user else "retailer"
+    role_hint = "You are speaking to the shop owner." if role == "owner" else "You are speaking to a retailer."
+    
+    system = f"""You are Meena AI, a helpful assistant for Meena Agencies, a pharma wholesale business in Tamil Nadu, India.
+{role_hint}
+Rules:
+- Be concise (under 100 words).
+- Respond in the same language the user wrote (English or Tamil).
+"""
+    
+    history = st.session_state.get("ai_dots_messages", [])[-6:]
+    convo = [{"role": m["role"], "content": m["content"]} for m in history if m.get("role") in ("user", "assistant")]
+    convo.append({"role": "user", "content": prompt})
+    
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    # Discover working model
+    model = "llama3-70b-8192"
+    try:
+        r = _r.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
+        if r.status_code == 200:
+            for m in r.json().get("data", []):
+                if "whisper" not in m.get("id","") and "guard" not in m.get("id",""):
+                    model = m.get("id")
+                    break
+    except Exception:
+        pass
+    
+    payload = {
+        "model": model,
+        "messages": [{"role": "system", "content": system}] + convo,
+        "temperature": 0.4,
+        "max_tokens": 500,
+    }
+    
+    try:
+        r = _r.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"].strip()
+        return f"⚠️ Groq API error {r.status_code}"
+    except Exception as e:
+        return f"⚠️ Groq connection error: {e}"
 
 
 def render_ai_dots(user=None):
