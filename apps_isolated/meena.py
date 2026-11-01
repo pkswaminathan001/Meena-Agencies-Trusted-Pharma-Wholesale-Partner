@@ -926,8 +926,9 @@ def render_batch_tracker():
 
 
 def render_forecast_engine():
-    # ─── 1. HEADER & BIG METRICS (Like Stock Price) ───
-    st.markdown("<h2 style='margin-bottom:0;'>📈 Revenue Forecast (7-Day)</h2>", unsafe_allow_html=True)
+    # ─── HEADER ───
+    st.markdown("<h2 style='margin-bottom:0;'>📈 Revenue Forecast</h2>", unsafe_allow_html=True)
+    st.caption("Live 7-day projection powered by AI.")
     
     if st.button("🔄 Refresh Analysis", type="primary", use_container_width=True):
         with st.spinner("Analyzing..."):
@@ -948,39 +949,24 @@ def render_forecast_engine():
         p90_total = sum(res.get('p90', [0]))
         p10_total = sum(res.get('p10', [0]))
         
-        # Calculate simple trend % based on history
+        # Calculate Trend
         hist_df = res["historical_data"]
         recent = hist_df['total'].tail(1).values[0] if not hist_df.empty else 0
         past = hist_df['total'].head(1).values[0] if not hist_df.empty else 1
         trend_pct = ((recent - past) / past) * 100 if past > 0 else 0
         
-        # ─── 2. THE BIG PRICE TICKER ───
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            st.markdown(f"<h1 style='color: {'#1D8348' if trend_pct >= 0 else '#C0392B'}; margin-bottom:0;'>₹{p50_total:,.0f}</h1>", unsafe_allow_html=True)
-            st.markdown(f"<p style='color: {'#1D8348' if trend_pct >= 0 else '#C0392B'}; font-size:18px; font-weight:bold;'>{'▲' if trend_pct >= 0 else '▼'} {abs(trend_pct):.1f}% (vs last month)</p>", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"<div style='text-align:right; padding-top:20px;'><strong>Target:</strong> ₹{p90_total:,.0f}<br><strong>Worst Case:</strong> ₹{p10_total:,.0f}</div>", unsafe_allow_html=True)
-            
+        # ─── BIG PRICE TICKER (Mobile First) ───
         st.markdown("---")
+        c1, c2 = st.columns(2)
+        with c1:
+            color = '#1D8348' if trend_pct >= 0 else '#C0392B'
+            arrow = '▲' if trend_pct >= 0 else '▼'
+            st.markdown(f"<h1 style='color: {color}; margin-bottom:0;'>₹{p50_total:,.0f}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color: {color}; font-size:16px; font-weight:bold;'>{arrow} {abs(trend_pct):.1f}%</p>", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"<div style='text-align:right; padding-top:15px;'><span style='color:gray;'>Best Case:</span> <b style='color:#1D8348;'>₹{p90_total:,.0f}</b><br><span style='color:gray;'>Worst Case:</span> <b style='color:#C0392B;'>₹{p10_total:,.0f}</b></div>", unsafe_allow_html=True)
         
-        # ─── 3. ACTIONABLE SIGNALS (Mobile Friendly) ───
-        st.markdown("### 📊 Market Signals")
-        
-        # Color coded alerts based on signals
-        sigs = res["signals"]
-        if sigs.get('flu_season'):
-            st.success("🦠 **DEMAND SPIKE:** Flu season detected. **Action:** Buy more antibiotics & cough syrups.")
-        if sigs.get('generic_launch_detected'):
-            st.error("💊 **COMPETITOR LAUNCH:** Generic drug launched. **Action:** Discount branded stock to clear it.")
-        if sigs.get('gpo_contract_tier_change'):
-            st.warning("📄 **DISCOUNT TIER:** Close to volume tier. **Action:** Push top retailers to order this week.")
-        if not any([sigs.get('flu_season'), sigs.get('generic_launch_detected'), sigs.get('gpo_contract_tier_change')]):
-            st.info("✅ **Stable:** No urgent market shocks detected. Business as usual.")
-            
-        st.markdown("---")
-        
-        # ─── 4. THE MOBILE CHART (P10-P90 Shaded Area) ───
+        # ─── THE CHART (Mobile Optimized) ───
         import plotly.graph_objects as go
         import pandas as pd
         
@@ -992,108 +978,71 @@ def render_forecast_engine():
         
         fig = go.Figure()
         
-        # Shaded Uncertainty Band
+        # 1. Shaded Area (Uncertainty Band)
         fig.add_trace(go.Scatter(
             x=future_dates + future_dates[::-1],
             y=res['p90'] + res['p10'][::-1],
-            fill='toself', fillcolor='rgba(46, 134, 193, 0.15)', line=dict(color='rgba(255,255,255,0)'),
-            name='Best/Worst Case'
+            fill='toself', fillcolor='rgba(52, 152, 219, 0.15)', 
+            line=dict(color='rgba(255,255,255,0)'),
+            hoverinfo="skip", showlegend=False
         ))
         
-        # Historical Line
-        fig.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['total'], mode='lines', name='Past Sales', line=dict(color='#1C2833', width=2)))
+        # 2. Historical Line (Dark Gray)
+        fig.add_trace(go.Scatter(
+            x=hist_df['date'], y=hist_df['total'], 
+            mode='lines', name='Past Sales', 
+            line=dict(color='#2C3E50', width=2), showlegend=False
+        ))
         
-        # Future Median Line
-        fig.add_trace(go.Scatter(x=future_dates, y=res['p50'], mode='lines+markers', name='Expected', line=dict(color='#1D8348', width=3), marker=dict(size=6)))
+        # 3. P50 Expected Line (Green)
+        fig.add_trace(go.Scatter(
+            x=future_dates, y=res['p50'], 
+            mode='lines+markers', name='Expected', 
+            line=dict(color='#27AE60', width=3),
+            marker=dict(size=6, color='#27AE60'), showlegend=False
+        ))
         
-        # Vertical "Today" Line
-        fig.add_shape(type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper", line=dict(color="gray", width=2, dash="dash"))
-        fig.add_annotation(x=last_date, y=1, yref="paper", text="Today", showarrow=False, yshift=10)
+        # 4. Today Line
+        fig.add_shape(type="line", x0=last_date, y0=0, x1=last_date, y1=1, yref="paper", line=dict(color="gray", width=1, dash="dash"))
         
+        # 5. Clean Layout for Mobile
         fig.update_layout(
-            title="",
-            margin=dict(l=10, r=10, t=10, b=10), # Tight margins for mobile
-            xaxis_title="", yaxis_title="₹",
-            showlegend=False, # Hide legend to save mobile space
+            margin=dict(l=10, r=10, t=10, b=10),
+            xaxis_title="", yaxis_title="",
             plot_bgcolor='white', paper_bgcolor='white',
-            height=300
+            height=280, # Perfect height for phone
+            hovermode="x unified",
+            showlegend=False
         )
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0', tickformat="%b %d")
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
         
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
         st.markdown("---")
         
-        # ─── 5. AREA MANAGEMENT (Simple Table) ───
-        st.markdown("### 📍 Area Management (Thanjavur Region)")
-        st.caption("Live dispatch schedule based on demand forecast.")
+        # ─── ACTION SIGNALS ───
+        st.markdown("### 📊 Market Signals")
+        sigs = res["signals"]
+        if sigs.get('flu_season'):
+            st.success("🦠 **DEMAND SPIKE:** Flu season detected. **Action:** Buy antibiotics.")
+        if sigs.get('generic_launch_detected'):
+            st.error("💊 **COMPETITOR:** Generic launched. **Action:** Discount branded stock.")
+        if sigs.get('gpo_contract_tier_change'):
+            st.warning("📄 **DISCOUNT TIER:** **Action:** Push top retailers to order.")
+        if not any([sigs.get('flu_season'), sigs.get('generic_launch_detected'), sigs.get('gpo_contract_tier_change')]):
+            st.info("✅ **Stable:** Business as usual.")
+            
+        st.markdown("---")
         
+        # ─── AREA MANAGEMENT ───
+        st.markdown("### 📍 Area Management (Thanjavur)")
         area_data = {
             "Zone": ["Thanjavur City", "Kumbakonam", "Papanasam"],
             "Demand": ["High 🟢", "Medium 🟡", "Low 🔴"],
             "Action": ["Dispatch 2 Vans", "Dispatch 1 Van", "Hold Stock"]
         }
         st.dataframe(pd.DataFrame(area_data), use_container_width=True, hide_index=True)
-
-def get_app_url():
-    try:
-        url = st.secrets.get("APP_URL", "")
-    except Exception:
-        url = ""
-    return url or "https://meena-agencies-wholesale-pharma.streamlit.app"
-
-def render_telegram_launcher(user=None):
-    app_url = get_app_url()
-    with st.sidebar:
-        st.divider()
-        st.markdown("#### 📱 Open as App")
-        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 14px;background:#FFD814;color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;width:100%;text-align:center;">🚀 Launch PWA</a>', unsafe_allow_html=True)
-        if "localhost" in app_url or not app_url.startswith("https://"):
-            st.caption("⚠️ Set APP_URL in secrets for production")
-
-def render_ai_dots(user=None):
-    """Floating AI Dots chat button + drawer."""
-    if "ai_dots_open" not in st.session_state:
-        st.session_state.ai_dots_open = False
-    if "ai_dots_messages" not in st.session_state:
-        st.session_state.ai_dots_messages = [
-            {"role": "assistant", "content": "Vanakkam! 🙏 I'm Meena AI. Ask me about orders, stock, retailers, or anything."}
-        ]
-    
-    st.markdown("""
-    <style>
-    .ai-dots-btn { position: fixed; bottom: 30px; right: 30px; width: 62px; height: 62px; border-radius: 50%; background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%); box-shadow: 0 4px 20px rgba(0,212,255,0.5); color: white; font-size: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 99999; transition: transform 0.2s; border: none; }
-    .ai-dots-btn:hover { transform: scale(1.1); }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    btn_label = "✕" if st.session_state.ai_dots_open else "💬"
-    if st.button(btn_label, key="ai_dots_btn", type="primary"):
-        st.session_state.ai_dots_open = not st.session_state.ai_dots_open
-        st.rerun()
-    
-    if st.session_state.ai_dots_open:
-        st.markdown("""
-        <style>
-        div[data-testid="stVerticalBlock"]:has(> div > div > div > .chat-drawer-anchor) { position: fixed !important; bottom: 100px !important; right: 30px !important; width: 380px !important; max-width: calc(100vw - 60px) !important; height: 500px !important; max-height: calc(100vh - 150px) !important; background: white !important; border-radius: 16px !important; box-shadow: 0 12px 40px rgba(0,0,0,0.25) !important; z-index: 99998 !important; padding: 16px !important; overflow-y: auto !important; border: 1px solid #e0e0e0 !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<div class="chat-drawer-anchor"></div>', unsafe_allow_html=True)
-        st.markdown('<div style="background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 100%); color: white; padding: 10px; border-radius: 8px 8px 0 0; margin: -16px -16px 10px -16px; font-weight: bold; display: flex; justify-content: space-between;"><span>🤖 Meena AI</span><span style="font-size:12px;opacity:0.8;">Groq</span></div>', unsafe_allow_html=True)
-        
-        for msg in st.session_state.ai_dots_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-        
-        prompt = st.chat_input("Ask Meena AI...", key="ai_dots_input")
-        if prompt:
-            st.session_state.ai_dots_messages.append({"role": "user", "content": prompt})
-            with st.spinner("Meena AI thinking..."):
-                reply = groq_ask(prompt, user)
-            st.session_state.ai_dots_messages.append({"role": "assistant", "content": reply})
-            st.rerun()
 
 def main():
     if "user" not in st.session_state:
