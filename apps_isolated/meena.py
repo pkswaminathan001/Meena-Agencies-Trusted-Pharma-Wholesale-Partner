@@ -1060,7 +1060,34 @@ def render_forecast_engine():
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0', tickformat="%b %d")
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#F0F0F0')
         
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        # Highlighted Chart Box
+        st.markdown("""
+        <style>
+        .chart-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .chart-card h4 {
+            margin-top: 0;
+            color: #1C2833;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        with st.container():
+            st.markdown('<div class="chart-card"><h4>📊 7-Day Revenue Projection</h4>', unsafe_allow_html=True)
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("---")
         
