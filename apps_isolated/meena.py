@@ -274,6 +274,14 @@ def page_home(u):
         m3.metric("⚠️ Low Stock Items", f"{low_stock}")
         
         st.divider()
+        
+        st.divider()
+        if st.button("⚠️ Generate Test Data (Demo Only)", use_container_width=True):
+            if generate_test_data():
+                st.success("✅ Test Data Generated! 50 Orders & 5 Products created.")
+                st.rerun()
+        st.divider()
+        
         st.markdown("### ⚡ Quick Actions")
         
         c1, c2, c3 = st.columns(3)
@@ -545,6 +553,44 @@ def render_sidebar():
             st.rerun()
 
 
+
+
+def generate_test_data():
+    import random
+    from datetime import datetime, timedelta
+    
+    db_path = BASE_DIR / "meena_enterprise.db"
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # 1. Seed Products
+    c.execute("DELETE FROM products")
+    products = [
+        ("Dolo 650", 100, 30.0),
+        ("Augmentin 625", 50, 120.0),
+        ("Azithromycin 500", 20, 85.0),
+        ("Pantoprazole 40", 200, 45.0),
+        ("Cetirizine 10", 15, 15.0)
+    ]
+    c.executemany("INSERT INTO products (sku, qty, price) VALUES (?, ?, ?)", products)
+    
+    # 2. Seed Orders (Past 30 days)
+    c.execute("DELETE FROM orders")
+    for i in range(1, 51):
+        days_ago = random.randint(1, 30)
+        order_date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        total = random.uniform(1000, 8000)
+        items = [
+            {"name": random.choice(products)[0], "qty": random.randint(1, 5), "price": random.choice(products)[2]}
+        ]
+        c.execute(
+            "INSERT INTO orders (order_id, user_id, date, total, items, status) VALUES (?, ?, ?, ?, ?, ?)",
+            (f"ORD-{1000+i}", "SHOP01", order_date, total, json.dumps(items), "Paid")
+        )
+    
+    conn.commit()
+    conn.close()
+    return True
 
 def page_owner_dashboard(u):
     st.title("👑 Owner Dashboard: Approvals")
