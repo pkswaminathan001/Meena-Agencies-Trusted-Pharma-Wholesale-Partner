@@ -386,15 +386,35 @@ def page_order():
 
 
 def send_telegram_otp(chat_id, otp):
+    """Sends OTP via Telegram and prints errors to screen."""
+    import requests
     try:
-        import requests
-        TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", "")
-        if not TOKEN or not chat_id:
-            return False
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        res = requests.post(url, json={"chat_id": chat_id, "text": f"🦚 Meena Agencies\n\nYour order verification OTP is: *{otp}*\n\nDo not share this code with anyone.", "parse_mode": "Markdown"})
-        return res.status_code == 200
+        TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
     except Exception:
+        st.error("❌ TELEGRAM_BOT_TOKEN missing in Streamlit Secrets!")
+        return False
+        
+    if not chat_id or str(chat_id).strip() == "":
+        st.error(f"❌ No Telegram Chat ID found. Got: '{chat_id}'")
+        return False
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {
+        "chat_id": str(chat_id).strip(),
+        "text": f"🦚 *Meena Agencies*\n\nYour OTP for checkout is: *{otp}*",
+        "parse_mode": "Markdown"
+    }
+    
+    try:
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code == 200:
+            st.success(f"✅ OTP Sent successfully to Chat ID: {chat_id}")
+            return True
+        else:
+            st.error(f"❌ Telegram API Error: {res.text}")
+            return False
+    except Exception as e:
+        st.error(f"❌ Connection Error: {e}")
         return False
 
 def page_cart():
