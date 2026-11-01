@@ -14,72 +14,53 @@ def data_ingestion_node():
         if df.empty:
             dates = pd.date_range(end=pd.Timestamp.today(), periods=30)
             df = pd.DataFrame({'date': dates, 'total': np.random.randint(2000, 8000, size=30)})
-        
-        # Simulate real-world signals
         signals = {
             "flu_season": random.choice([True, False]),
             "gpo_contract_tier_change": random.choice([True, False]),
             "generic_launch_detected": random.choice([True, False]),
-            "anomaly_detected": random.choice([True, False, False]) # 33% chance of anomaly
+            "anomaly_detected": random.choice([True, False, False])
         }
         return df, signals
     finally:
         conn.close()
 
 def quant_modeling_node(df, signals):
-    """Calculates P10, P50, P90 quantiles like Amazon SCOT"""
     recent_avg = df['total'].tail(7).mean()
     trend = (df['total'].tail(7).mean() - df['total'].head(7).mean()) / len(df)
-    
     p10, p50, p90 = [], [], []
     for i in range(7):
         base = recent_avg + (trend * (i + 1))
-        
-        # Median (P50)
         median_val = base
         if signals["flu_season"]: median_val *= 1.15
         if signals["generic_launch_detected"]: median_val *= 0.80
-        
-        # Uncertainty bounds (Standard deviation based on historical variance)
         std_dev = df['total'].std() * 0.15
-        pessimistic = max(0, median_val - (1.28 * std_dev)) # P10
-        optimistic = median_val + (1.28 * std_dev)          # P90
-        
+        pessimistic = max(0, median_val - (1.28 * std_dev))
+        optimistic = median_val + (1.28 * std_dev)
         p10.append(pessimistic)
         p50.append(median_val)
         p90.append(optimistic)
-        
     model_used = "Chronos TSFM (Zero-shot)" if signals["flu_season"] else "DeepAR+ (Deep Learning)"
     return p10, p50, p90, model_used
 
 def critic_audit_node(p10, p50, p90, signals):
-    """The Exception Engine: Flags if P90 exceeds capacity or anomalies exist."""
     audit_log = []
-    is_valid = True
     variance_exceeded = False
-    
-    # 1. Check if P90 (Optimistic) exceeds warehouse capacity
-    MAX_CAPACITY = 15000 
+    MAX_CAPACITY = 15000
     if sum(p90) > MAX_CAPACITY:
-        audit_log.append(f"🚨 P90 Inventory requires ₹{sum(p90):,.0f} — Exceeds CAPEX limit of ₹{MAX_CAPACITY:,.0f}. Truncating P90.")
+        audit_log.append(f"🚨 P90 inventory requires ₹{sum(p90):,.0f} - exceeds CAPEX of ₹{MAX_CAPACITY:,.0f}.")
         p90 = [min(x, MAX_CAPACITY/7) for x in p90]
         variance_exceeded = True
-        
-    # 2. Anomaly Detection (Exception Management)
     if signals["anomaly_detected"]:
-        audit_log.append("⚠️ Forecast Variance > 15% detected. Manual override suggested.")
+        audit_log.append("⚠️ Forecast variance > 15% detected. Manual override suggested.")
         variance_exceeded = True
-        
     if not audit_log:
         audit_log.append("✅ Forecast within safe operational bounds.")
-        
     return p10, p50, p90, audit_log, variance_exceeded
 
 def run_agentic_forecast():
     df, signals = data_ingestion_node()
     p10, p50, p90, model_used = quant_modeling_node(df, signals)
     p10, p50, p90, audit_log, variance_exceeded = critic_audit_node(p10, p50, p90, signals)
-    
     return {
         "historical_data": df,
         "signals": signals,
@@ -92,17 +73,11 @@ def run_agentic_forecast():
     }
 
 def generate_business_summary(df, signals, p50):
-    """Acts as the AI Agent Analyst, translating math into plain English."""
-    
-    # Calculate 30-day trend
     recent_avg = df['total'].tail(7).mean()
     past_avg = df['total'].head(7).mean()
     trend_pct = ((recent_avg - past_avg) / past_avg) * 100 if past_avg > 0 else 0
-    
     summary = []
     status_color = "🟢"
-    
-    # Trend Analysis
     if trend_pct > 5:
         summary.append(f"📈 **Sales Trend:** Growing strongly (+{trend_pct:.1f}% over 30 days).")
     elif trend_pct < -5:
@@ -110,21 +85,14 @@ def generate_business_summary(df, signals, p50):
         status_color = "🟡"
     else:
         summary.append(f"➡️ **Sales Trend:** Stable (Flat over 30 days).")
-        
-    # Signal Analysis
     if signals.get("flu_season"):
-        summary.append("🦠 **Market Signal:** Flu season detected. Expect a 15% surge in antibiotics and cough syrups. **Action:** Increase stock immediately.")
+        summary.append("🦠 **Market Signal:** Flu season detected. Expect a 15% surge in antibiotics and cough syrups.")
         status_color = "🟡"
-        
     if signals.get("generic_launch_detected"):
-        summary.append("💊 **Market Signal:** Generic competitor launched. Brand medicine sales may drop 20%. **Action:** Discount current brand stock to clear it.")
+        summary.append("💊 **Market Signal:** Generic competitor launched. Brand medicine sales may drop 20%.")
         status_color = "🔴"
-        
     if signals.get("gpo_contract_tier_change"):
-        summary.append("📄 **Contract Alert:** GPO volume tier change approaching. **Action:** Push sales to hit the next rebate tier.")
-        
-    # Forecast Analysis
+        summary.append("📄 **Contract Alert:** GPO volume tier change approaching. Push sales to hit the next rebate tier.")
     proj_7d = sum(p50)
     summary.append(f"💰 **7-Day Forecast:** Expect ₹{proj_7d:,.0f} in revenue based on current trends.")
-    
     return summary, status_color
