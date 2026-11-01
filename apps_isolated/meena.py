@@ -973,7 +973,7 @@ def page_owner_staff_monitor(u):
     # Map of latest check-ins
     st.subheader("🗺️ Live Map (Latest Check-ins)")
     latest = df[df['latitude'].notna()].head(20)
-    if not latest.empty:
+    if not latest.empty and latest['latitude'].notna().any():
         import folium
         from streamlit_folium import st_folium
         center_lat = latest['latitude'].mean()
