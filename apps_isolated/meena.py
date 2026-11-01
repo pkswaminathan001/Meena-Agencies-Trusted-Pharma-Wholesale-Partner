@@ -1065,6 +1065,27 @@ def render_forecast_engine():
                 st.warning(f"Chart could not be rendered: {e}")
 
 
+
+def render_telegram_launcher(user=None):
+    """Render Telegram launch button in the sidebar."""
+    try:
+        app_url = st.secrets.get("APP_URL", "")
+    except Exception:
+        app_url = ""
+    if not app_url:
+        app_url = "https://meena-agencies-wholesale-pharma.streamlit.app"
+        
+    with st.sidebar:
+        st.divider()
+        st.markdown("#### 📱 Open as App")
+        st.markdown(f'<a href="{app_url}" target="_blank" rel="noopener noreferrer" '
+                    f'style="display:inline-block;padding:8px 14px;background:#FFD814;'
+                    f'color:#0F1111;border-radius:8px;text-decoration:none;font-weight:600;'
+                    f'width:100%;text-align:center;box-sizing:border-box;">🚀 Launch PWA</a>',
+                    unsafe_allow_html=True)
+        if "localhost" in app_url:
+            st.caption("⚠️ Set APP_URL in secrets for production")
+
 def main():
     if "user" not in st.session_state:
         login_screen(); return
