@@ -1087,14 +1087,12 @@ def page_owner_staff_monitor(u):
         try:
             import folium
             from streamlit_folium import st_folium
-            # Default to Thanjavur center
             m = folium.Map(location=[10.7870, 79.1378], zoom_start=10)
             st_folium(m, width=700, height=400)
         except Exception:
             pass
         return
 
-    # Map of latest check-ins
     st.subheader("🗺️ Live Map (Latest Check-ins)")
     latest = df[df['latitude'].notna()].head(20)
     
@@ -1119,7 +1117,6 @@ def page_owner_staff_monitor(u):
     else:
         st.info("📍 No GPS data available yet.")
 
-    # Hours worked per rep
     st.subheader("⏱️ Hours Worked (Latest Day)")
     from datetime import datetime as _dt
     summary = []
